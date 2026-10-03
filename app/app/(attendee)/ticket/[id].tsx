@@ -1,21 +1,23 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  Pressable,
   ScrollView,
-  Animated,
   ActivityIndicator,
   StyleSheet,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import QRCode from "react-native-qrcode-svg";
+import {
+  Appbar,
+  Card,
+  Chip,
+  ProgressBar,
+} from "react-native-paper";
 import { api } from "../../../src/api/client";
 import { securityService } from "../../../src/services/security";
-import { Badge } from "../../../src/components/Badge";
-import { colors, shadows, m3Shapes, m3Ripples } from "../../../src/constants/theme";
-import { Ionicons } from "@expo/vector-icons";
+import { colors, shadows, m3Shapes } from "../../../src/constants/theme";
 
 export default function TicketDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -26,9 +28,6 @@ export default function TicketDetailScreen() {
   const [qrToken, setQrToken] = useState<string>("");
   const [secondsLeft, setSecondsLeft] = useState<number>(30);
   const [loading, setLoading] = useState(true);
-
-  // Animated progress bar
-  const progressAnim = useRef(new Animated.Value(1)).current;
 
   // Anti-screenshot protection
   useEffect(() => {
@@ -46,14 +45,6 @@ export default function TicketDetailScreen() {
       setQrToken(res.qrToken);
       const remaining = res.expiresIn || 30;
       setSecondsLeft(remaining);
-
-      // Reset animation
-      progressAnim.setValue(remaining / 30);
-      Animated.timing(progressAnim, {
-        toValue: 0,
-        duration: remaining * 1000,
-        useNativeDriver: false,
-      }).start();
     } catch (err: any) {
       console.warn("Error fetching ticket QR token:", err.message);
     } finally {
@@ -76,28 +67,22 @@ export default function TicketDetailScreen() {
     return () => clearInterval(timer);
   }, [id]);
 
-  const progressWidth = progressAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0%", "100%"],
-  });
-
   const isCheckedIn = ticketData?.status === "CHECKED_IN";
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
-      {/* Top Header Bar - Standalone back button: no background, pure black icon */}
-      <View style={[styles.headerBar, shadows.subtle]}>
-        <Pressable
+      {/* Material 3 Appbar Header */}
+      <Appbar.Header elevated style={styles.appbar}>
+        <Appbar.BackAction
+          color={colors.black}
           onPress={() => router.back()}
-          accessibilityRole="button"
           accessibilityLabel="Quay lại danh sách vé"
-          android_ripple={m3Ripples.borderlessDark}
-          style={styles.backBtn}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.black} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Mã vé</Text>
-      </View>
+        />
+        <Appbar.Content
+          title="Chi tiết mã vé"
+          titleStyle={styles.appbarTitle}
+        />
+      </Appbar.Header>
 
       <ScrollView
         contentContainerStyle={[
@@ -110,95 +95,102 @@ export default function TicketDetailScreen() {
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
         ) : (
-          <View style={[styles.ticketDetailCard, shadows.floating]}>
-            {/* Event Info */}
-            <View style={styles.eventInfoContainer}>
-              <Text style={styles.eventName}>
-                {ticketData?.event?.name || "Tech Summit Vietnam 2026"}
-              </Text>
-              <View style={styles.badgeRow}>
-                <Text style={styles.ticketTypeLabel}>
-                  {ticketData?.ticketType?.name || "Standard Pass"}
+          <Card
+            mode="contained"
+            style={[styles.ticketDetailCard, shadows.floating]}
+          >
+            <Card.Content style={styles.cardContent}>
+              {/* Event Info */}
+              <View style={styles.eventInfoContainer}>
+                <Text style={styles.eventName}>
+                  {ticketData?.event?.name || "Tech Summit Vietnam 2026"}
                 </Text>
-                {isCheckedIn ? (
-                  <Badge
-                    label="ĐÃ CHECK-IN"
-                    variant="success"
-                    icon={<Ionicons name="checkmark-circle" size={12} color={colors.m3.onSuccessContainer} />}
+                <View style={styles.badgeRow}>
+                  <Text style={styles.ticketTypeLabel}>
+                    {ticketData?.ticketType?.name || "Standard Pass"}
+                  </Text>
+                  <Chip
+                    compact
+                    icon={isCheckedIn ? "check-circle" : "clock-outline"}
+                    style={[
+                      styles.statusChip,
+                      {
+                        backgroundColor: isCheckedIn
+                          ? colors.m3.successContainer
+                          : colors.m3.surfaceContainer,
+                      },
+                    ]}
+                    textStyle={{
+                      color: isCheckedIn
+                        ? colors.m3.onSuccessContainer
+                        : colors.textSecondary,
+                      fontSize: 11,
+                      fontWeight: "700",
+                    }}
+                  >
+                    {isCheckedIn ? "ĐÃ CHECK-IN" : "CHỜ SOÁT VÉ"}
+                  </Chip>
+                </View>
+              </View>
+
+              {/* QR Code Container */}
+              <View style={[styles.qrWrapper, shadows.card]}>
+                {qrToken ? (
+                  <QRCode
+                    value={qrToken}
+                    size={220}
+                    color={colors.textPrimary}
+                    backgroundColor={colors.white}
                   />
                 ) : (
-                  <Badge
-                    label="CHỜ SOÁT VÉ"
-                    variant="neutral"
-                    icon={<Ionicons name="time-outline" size={12} color={colors.textSecondary} />}
-                  />
+                  <Text style={styles.noQrText}>Không có mã QR</Text>
                 )}
               </View>
-            </View>
 
-            {/* QR Code Container */}
-            <View style={[styles.qrWrapper, shadows.card]}>
-              {qrToken ? (
-                <QRCode
-                  value={qrToken}
-                  size={220}
-                  color={colors.textPrimary}
-                  backgroundColor={colors.white}
-                />
-              ) : (
-                <Text style={styles.noQrText}>Không có mã QR</Text>
-              )}
-            </View>
+              {/* Dynamic Progress Indicator */}
+              <View style={styles.progressContainer}>
+                <View style={styles.progressLabelRow}>
+                  <Text style={styles.progressLabel}>Làm mới sau:</Text>
+                  <Text style={styles.progressSeconds}>{secondsLeft}s</Text>
+                </View>
 
-            {/* Dynamic Progress Indicator */}
-            <View style={styles.progressContainer}>
-              <View style={styles.progressLabelRow}>
-                <Text style={styles.progressLabel}>Làm mới sau:</Text>
-                <Text style={styles.progressSeconds}>{secondsLeft}s</Text>
-              </View>
-
-              <View style={styles.progressTrack}>
-                <Animated.View
-                  style={[
-                    styles.progressBar,
-                    {
-                      width: progressWidth,
-                      backgroundColor: colors.primary,
-                    },
-                  ]}
+                <ProgressBar
+                  progress={secondsLeft / 30}
+                  color={colors.primary}
+                  style={styles.progressBar}
                 />
               </View>
-            </View>
 
-            {/* Metadata Rows */}
-            <View style={styles.metadataCard}>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>Mã vé (ID):</Text>
-                <Text style={styles.metaValue}>
-                  {id ? `${id.slice(0, 13)}...` : ""}
-                </Text>
-              </View>
-
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>Địa điểm:</Text>
-                <Text style={[styles.metaValue, { fontWeight: "600" }]}>
-                  {ticketData?.event?.venue || "Hội trường chính"}
-                </Text>
-              </View>
-
-              {isCheckedIn && ticketData?.checkedInAt && (
+              {/* Metadata Rows */}
+              <View style={styles.metadataCard}>
                 <View style={styles.metaRow}>
-                  <Text style={styles.metaLabel}>Thời gian check-in:</Text>
-                  <Text style={[styles.metaValue, { color: colors.success, fontWeight: "600" }]}>
-                    {new Date(ticketData.checkedInAt).toLocaleTimeString("vi-VN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                  <Text style={styles.metaLabel}>Mã vé (ID):</Text>
+                  <Text style={styles.metaValue}>
+                    {id ? `${id.slice(0, 13)}...` : ""}
                   </Text>
                 </View>
-              )}
-            </View>
-          </View>
+
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaLabel}>Địa điểm:</Text>
+                  <Text style={[styles.metaValue, { fontWeight: "600" }]}>
+                    {ticketData?.event?.venue || "Hội trường chính"}
+                  </Text>
+                </View>
+
+                {isCheckedIn && ticketData?.checkedInAt && (
+                  <View style={styles.metaRow}>
+                    <Text style={styles.metaLabel}>Thời gian check-in:</Text>
+                    <Text style={[styles.metaValue, { color: colors.success, fontWeight: "600" }]}>
+                      {new Date(ticketData.checkedInAt).toLocaleTimeString("vi-VN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </Card.Content>
+          </Card>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -210,24 +202,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  headerBar: {
+  appbar: {
     backgroundColor: colors.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
     borderWidth: 0,
   },
-  backBtn: {
-    minWidth: 48,
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: m3Shapes.full,
-    marginRight: 8,
-    borderWidth: 0,
-  },
-  headerTitle: {
+  appbarTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: colors.textPrimary,
@@ -243,10 +222,12 @@ const styles = StyleSheet.create({
   ticketDetailCard: {
     width: "100%",
     backgroundColor: colors.surface,
-    borderRadius: m3Shapes.expressive,
-    padding: 24,
-    alignItems: "center",
+    borderRadius: 28,
     borderWidth: 0,
+  },
+  cardContent: {
+    padding: 20,
+    alignItems: "center",
   },
   eventInfoContainer: {
     alignItems: "center",
@@ -270,6 +251,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 13,
   },
+  statusChip: {
+    borderRadius: m3Shapes.full,
+    height: 28,
+  },
   qrWrapper: {
     padding: 16,
     backgroundColor: colors.white,
@@ -289,7 +274,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: 8,
   },
   progressLabel: {
     color: colors.textSecondary,
@@ -301,22 +286,17 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 14,
   },
-  progressTrack: {
-    height: 6,
-    backgroundColor: colors.neutralFill,
-    borderRadius: 3,
-    overflow: "hidden",
-  },
   progressBar: {
-    height: "100%",
+    height: 6,
     borderRadius: 3,
+    backgroundColor: colors.neutralFill,
   },
   metadataCard: {
     width: "100%",
     gap: 8,
     backgroundColor: colors.m3.surfaceContainerLowest,
     padding: 14,
-    borderRadius: m3Shapes.md,
+    borderRadius: 16,
     borderWidth: 0,
   },
   metaRow: {

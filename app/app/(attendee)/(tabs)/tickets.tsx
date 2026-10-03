@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  Pressable,
   FlatList,
   RefreshControl,
   Alert,
@@ -11,11 +10,16 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import {
+  Appbar,
+  Card,
+  Chip,
+  Button,
+  FAB,
+} from "react-native-paper";
 import { useAuth } from "../../../src/context/AuthContext";
 import { api } from "../../../src/api/client";
-import { Badge } from "../../../src/components/Badge";
-import { Button } from "../../../src/components/Button";
-import { colors, shadows, m3Shapes, m3Ripples } from "../../../src/constants/theme";
+import { colors, shadows, m3Shapes } from "../../../src/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function TicketsListScreen() {
@@ -82,54 +86,25 @@ export default function TicketsListScreen() {
     );
   };
 
-  const renderBadge = (status: string, checkedInAt?: string) => {
-    if (status === "CHECKED_IN") {
-      const timeStr = checkedInAt
-        ? new Date(checkedInAt).toLocaleTimeString("vi-VN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : "";
-      return (
-        <Badge
-          label={`ĐÃ ĐIỂM DANH ${timeStr ? `(${timeStr})` : ""}`}
-          variant="success"
-          icon={<Ionicons name="checkmark-circle" size={13} color={colors.m3.onSuccessContainer} />}
-        />
-      );
-    }
-    return (
-      <Badge
-        label="CHỜ ĐIỂM DANH"
-        variant="neutral"
-        icon={<Ionicons name="time-outline" size={13} color={colors.textSecondary} />}
-      />
-    );
-  };
-
   const checkedInCount = tickets.filter((t) => t.status === "CHECKED_IN").length;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
-      {/* Top Header Bar - Standalone logout button: no background, black icon */}
-      <View style={[styles.headerBar, shadows.subtle]}>
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>Vé sự kiện của tôi</Text>
-          <Text style={styles.headerSubtitle}>
-            Xin chào, {user?.fullName || "Khách"}
-          </Text>
-        </View>
-
-        <Pressable
+      {/* Material 3 Appbar Header */}
+      <Appbar.Header elevated style={styles.appbar}>
+        <Appbar.Content
+          title="Vé sự kiện của tôi"
+          titleStyle={styles.appbarTitle}
+          subtitle={`Xin chào, ${user?.fullName || "Khách"}`}
+          subtitleStyle={styles.appbarSubtitle}
+        />
+        <Appbar.Action
+          icon="logout"
+          color={colors.black}
           onPress={handleLogout}
-          accessibilityRole="button"
           accessibilityLabel="Đăng xuất tài khoản"
-          android_ripple={m3Ripples.borderlessDark}
-          style={styles.logoutBtn}
-        >
-          <Ionicons name="log-out-outline" size={22} color={colors.black} />
-        </Pressable>
-      </View>
+        />
+      </Appbar.Header>
 
       <FlatList
         data={tickets}
@@ -148,35 +123,41 @@ export default function TicketsListScreen() {
         ListHeaderComponent={
           <View style={styles.listHeader}>
             {/* Quick Stats Banner - M3 Surface Container */}
-            <View style={[styles.statsCard, shadows.card]}>
-              <View style={styles.statCol}>
-                <Text style={styles.statLabel}>TỔNG SỐ VÉ</Text>
-                <Text style={styles.statValue}>{tickets.length}</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statCol}>
-                <Text style={styles.statLabel}>ĐÃ ĐIỂM DANH</Text>
-                <Text style={[styles.statValue, { color: colors.success }]}>
-                  {checkedInCount}
-                </Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statCol}>
-                <Text style={styles.statLabel}>CHƯA QUÉT</Text>
-                <Text style={[styles.statValue, { color: colors.primary }]}>
-                  {Math.max(0, tickets.length - checkedInCount)}
-                </Text>
-              </View>
-            </View>
+            <Card mode="contained" style={[styles.statsCard, shadows.card]}>
+              <Card.Content style={styles.statsCardContent}>
+                <View style={styles.statCol}>
+                  <Text style={styles.statLabel}>TỔNG SỐ VÉ</Text>
+                  <Text style={styles.statValue}>{tickets.length}</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statCol}>
+                  <Text style={styles.statLabel}>ĐÃ ĐIỂM DANH</Text>
+                  <Text style={[styles.statValue, { color: colors.success }]}>
+                    {checkedInCount}
+                  </Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statCol}>
+                  <Text style={styles.statLabel}>CHƯA QUÉT</Text>
+                  <Text style={[styles.statValue, { color: colors.primary }]}>
+                    {Math.max(0, tickets.length - checkedInCount)}
+                  </Text>
+                </View>
+              </Card.Content>
+            </Card>
 
+            {/* M3 Tonal Action Button */}
             <Button
-              title={purchasing ? "Đang tạo vé..." : "+ Đăng ký / Nhận thêm vé sự kiện (Sandbox)"}
-              variant="primary"
+              mode="contained-tonal"
+              icon="ticket-outline"
               loading={purchasing}
+              disabled={purchasing}
               onPress={handlePurchaseSandbox}
-              icon={<Ionicons name="ticket-outline" size={18} color={colors.white} />}
+              contentStyle={styles.purchaseBtnContent}
               style={styles.purchaseBtn}
-            />
+            >
+              {purchasing ? "Đang tạo vé..." : "+ Đăng ký / Nhận thêm vé (Sandbox)"}
+            </Button>
 
             <Text style={styles.sectionTitle}>
               Danh sách vé sở hữu ({tickets.length})
@@ -185,62 +166,97 @@ export default function TicketsListScreen() {
         }
         ListEmptyComponent={
           !loading ? (
-            <View style={[styles.emptyCard, shadows.card]}>
-              <Ionicons name="ticket-outline" size={48} color={colors.textSecondary} />
-              <Text style={styles.emptyText}>
-                Bạn chưa có vé sự kiện nào
-              </Text>
-              <Button
-                title="Nhận vé mẫu trải nghiệm"
-                variant="secondary"
-                onPress={handlePurchaseSandbox}
-                style={styles.emptyActionBtn}
-              />
-            </View>
+            <Card mode="contained" style={[styles.emptyCard, shadows.card]}>
+              <Card.Content style={styles.emptyCardContent}>
+                <Ionicons name="ticket-outline" size={48} color={colors.textSecondary} />
+                <Text style={styles.emptyText}>
+                  Bạn chưa có vé sự kiện nào
+                </Text>
+                <Button
+                  mode="contained"
+                  onPress={handlePurchaseSandbox}
+                  style={styles.emptyActionBtn}
+                >
+                  Nhận vé mẫu trải nghiệm
+                </Button>
+              </Card.Content>
+            </Card>
           ) : (
             <View style={styles.loaderContainer}>
               <ActivityIndicator size="large" color={colors.primary} />
             </View>
           )
         }
-        renderItem={({ item }) => (
-          <View style={[styles.ticketCardWrapper, shadows.card]}>
-            <Pressable
-              onPress={() => router.push(`/(attendee)/ticket/${item.id}`)}
-              accessibilityRole="button"
-              accessibilityLabel={`Vé sự kiện ${item.event?.name || 'Sự kiện'}, nhấn để xem Dynamic QR`}
-              android_ripple={m3Ripples.light}
-              style={styles.ticketCardPressable}
-            >
-              <View style={styles.ticketHeader}>
-                <View style={styles.ticketTitleContainer}>
-                  <Text style={styles.ticketEventName} numberOfLines={1}>
-                    {item.event?.name || "Sự kiện Tech Summit 2026"}
-                  </Text>
-                  <Text style={styles.ticketTypeName}>
-                    {item.ticketType?.name || "Standard Pass"}
-                  </Text>
-                </View>
-                {renderBadge(item.status, item.checkedInAt)}
-              </View>
+        renderItem={({ item }) => {
+          const isCheckedIn = item.status === "CHECKED_IN";
+          const timeStr = item.checkedInAt
+            ? new Date(item.checkedInAt).toLocaleTimeString("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "";
 
-              <View style={styles.ticketFooter}>
-                <View style={styles.venueRow}>
-                  <Ionicons name="location-outline" size={15} color={colors.textSecondary} />
-                  <Text style={styles.venueText} numberOfLines={1}>
-                    {item.event?.venue || "Trung tâm hội nghị"}
-                  </Text>
+          return (
+            <Card
+              mode="contained"
+              onPress={() => router.push(`/(attendee)/ticket/${item.id}`)}
+              style={[styles.ticketCard, shadows.card]}
+            >
+              <Card.Content style={styles.ticketContent}>
+                <View style={styles.ticketHeader}>
+                  <View style={styles.ticketTitleContainer}>
+                    <Text style={styles.ticketEventName} numberOfLines={1}>
+                      {item.event?.name || "Sự kiện Tech Summit 2026"}
+                    </Text>
+                    <Text style={styles.ticketTypeName}>
+                      {item.ticketType?.name || "Standard Pass"}
+                    </Text>
+                  </View>
+
+                  <Chip
+                    compact
+                    icon={isCheckedIn ? "check-circle" : "clock-outline"}
+                    style={[
+                      styles.statusChip,
+                      {
+                        backgroundColor: isCheckedIn
+                          ? colors.m3.successContainer
+                          : colors.m3.surfaceContainer,
+                      },
+                    ]}
+                    textStyle={[
+                      styles.statusChipText,
+                      {
+                        color: isCheckedIn
+                          ? colors.m3.onSuccessContainer
+                          : colors.textSecondary,
+                      },
+                    ]}
+                  >
+                    {isCheckedIn
+                      ? `ĐÃ ĐIỂM DANH ${timeStr ? `(${timeStr})` : ""}`
+                      : "CHỜ ĐIỂM DANH"}
+                  </Chip>
                 </View>
-                <View style={styles.qrActionRow}>
-                  <Ionicons name="qr-code-outline" size={15} color={colors.primary} />
-                  <Text style={styles.qrActionText}>
-                    Mở Dynamic QR
-                  </Text>
+
+                <View style={styles.ticketFooter}>
+                  <View style={styles.venueRow}>
+                    <Ionicons name="location-outline" size={15} color={colors.textSecondary} />
+                    <Text style={styles.venueText} numberOfLines={1}>
+                      {item.event?.venue || "Trung tâm hội nghị"}
+                    </Text>
+                  </View>
+                  <View style={styles.qrActionRow}>
+                    <Ionicons name="qr-code-outline" size={15} color={colors.primary} />
+                    <Text style={styles.qrActionText}>
+                      Mở Dynamic QR
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            </Pressable>
-          </View>
-        )}
+              </Card.Content>
+            </Card>
+          );
+        }}
       />
     </SafeAreaView>
   );
@@ -251,35 +267,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  headerBar: {
+  appbar: {
     backgroundColor: colors.surface,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     borderWidth: 0,
   },
-  headerInfo: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
+  appbarTitle: {
+    fontSize: 20,
+    fontWeight: "800",
     color: colors.textPrimary,
   },
-  headerSubtitle: {
+  appbarSubtitle: {
     fontSize: 12,
     color: colors.textSecondary,
-    marginTop: 2,
-  },
-  logoutBtn: {
-    minWidth: 48,
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: m3Shapes.full,
-    borderWidth: 0,
   },
   listContent: {
     padding: 20,
@@ -290,13 +289,15 @@ const styles = StyleSheet.create({
   },
   statsCard: {
     backgroundColor: colors.m3.surfaceContainerLowest,
-    borderRadius: m3Shapes.lg,
-    padding: 16,
+    borderRadius: 24,
     marginBottom: 16,
+    borderWidth: 0,
+  },
+  statsCardContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    borderWidth: 0,
+    paddingVertical: 14,
   },
   statCol: {
     alignItems: "center",
@@ -321,6 +322,10 @@ const styles = StyleSheet.create({
   },
   purchaseBtn: {
     marginBottom: 16,
+    borderRadius: m3Shapes.full,
+  },
+  purchaseBtnContent: {
+    height: 48,
   },
   sectionTitle: {
     fontSize: 14,
@@ -331,10 +336,12 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     backgroundColor: colors.m3.surfaceContainerLowest,
-    borderRadius: m3Shapes.lg,
+    borderRadius: 24,
+    borderWidth: 0,
+  },
+  emptyCardContent: {
     padding: 28,
     alignItems: "center",
-    borderWidth: 0,
   },
   emptyText: {
     color: colors.textSecondary,
@@ -343,20 +350,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   emptyActionBtn: {
-    minWidth: 180,
+    borderRadius: m3Shapes.full,
   },
   loaderContainer: {
     paddingVertical: 32,
     alignItems: "center",
   },
-  ticketCardWrapper: {
+  ticketCard: {
     backgroundColor: colors.surface,
-    borderRadius: m3Shapes.lg,
+    borderRadius: 24,
     marginBottom: 14,
     borderWidth: 0,
-    overflow: "hidden",
   },
-  ticketCardPressable: {
+  ticketContent: {
     padding: 16,
   },
   ticketHeader: {
@@ -370,7 +376,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   ticketEventName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "700",
     color: colors.textPrimary,
   },
@@ -379,6 +385,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.primary,
     marginTop: 3,
+  },
+  statusChip: {
+    borderRadius: m3Shapes.full,
+    height: 28,
+  },
+  statusChipText: {
+    fontSize: 11,
+    fontWeight: "700",
   },
   ticketFooter: {
     flexDirection: "row",

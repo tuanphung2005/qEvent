@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from "react-native";
+import { View, Text, StyleSheet, FlatList, Alert } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import {
+  Appbar,
+  Card,
+  Chip,
+  Button,
+} from "react-native-paper";
 import { useOfflineSync } from "../../src/context/OfflineSyncContext";
 import { offlineDb, OfflineScanLog } from "../../src/services/db";
-import { Card } from "../../src/components/Card";
-import { Badge } from "../../src/components/Badge";
-import { Button } from "../../src/components/Button";
-import { Header } from "../../src/components/Header";
-import { colors } from "../../src/constants/theme";
+import { colors, shadows, m3Shapes } from "../../src/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function SyncStatusScreen() {
@@ -38,72 +41,107 @@ export default function SyncStatusScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Header
-        title="Quản lý Đồng bộ vé"
-        subtitle="Hàng đợi quét ngoại tuyến (Offline Queue)"
-        onBack={() => router.back()}
-      />
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+      <Appbar.Header elevated style={styles.appbar}>
+        <Appbar.BackAction
+          color={colors.black}
+          onPress={() => router.back()}
+          accessibilityLabel="Quay lại"
+        />
+        <Appbar.Content
+          title="Quản lý Đồng bộ vé"
+          titleStyle={styles.appbarTitle}
+          subtitle="Hàng đợi quét ngoại tuyến (Offline Queue)"
+          subtitleStyle={styles.appbarSubtitle}
+        />
+      </Appbar.Header>
 
       <FlatList
         data={queue}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.content}
         ListHeaderComponent={
-          <Card variant="floating" style={styles.summaryCard}>
-            <View style={styles.statRow}>
-              <View>
-                <Text style={styles.statNumber}>{pendingCount}</Text>
-                <Text style={styles.statLabel}>Vé đang chờ đồng bộ</Text>
+          <Card mode="contained" style={[styles.summaryCard, shadows.floating]}>
+            <Card.Content>
+              <View style={styles.statRow}>
+                <View>
+                  <Text style={styles.statNumber}>{pendingCount}</Text>
+                  <Text style={styles.statLabel}>Vé đang chờ đồng bộ</Text>
+                </View>
+                <Chip
+                  compact
+                  icon={isOnline ? "wifi" : "wifi-off"}
+                  style={{
+                    backgroundColor: isOnline
+                      ? colors.m3.successContainer
+                      : colors.m3.warningContainer,
+                  }}
+                  textStyle={{
+                    color: isOnline
+                      ? colors.m3.onSuccessContainer
+                      : colors.m3.onWarningContainer,
+                    fontWeight: "700",
+                  }}
+                >
+                  {isOnline ? "Trực tuyến (Online)" : "Ngoại tuyến (Offline)"}
+                </Chip>
               </View>
-              <Badge
-                label={isOnline ? "Trực tuyến (Online)" : "Ngoại tuyến (Offline)"}
-                variant={isOnline ? "success" : "warning"}
-              />
-            </View>
 
-            <View style={styles.actionsRow}>
-              <Button
-                title="Đồng bộ ngay"
-                variant="primary"
-                loading={isSyncing}
-                disabled={!isOnline || pendingCount === 0}
-                onPress={handleSync}
-                style={{ flex: 1 }}
-              />
-              <Button
-                title="Tải Cache"
-                variant="secondary"
-                disabled={!isOnline}
-                onPress={async () => {
-                  const res = await downloadCache("any");
-                  Alert.alert("Thành công", `Đã cập nhật ${res.count} vé vào cache`);
-                }}
-                style={{ flex: 1 }}
-              />
-            </View>
+              <View style={styles.actionsRow}>
+                <Button
+                  mode="contained"
+                  icon="sync"
+                  loading={isSyncing}
+                  disabled={!isOnline || pendingCount === 0}
+                  onPress={handleSync}
+                  style={styles.actionBtn}
+                  contentStyle={{ height: 48 }}
+                >
+                  Đồng bộ ngay
+                </Button>
+                <Button
+                  mode="contained-tonal"
+                  icon="download"
+                  disabled={!isOnline}
+                  onPress={async () => {
+                    const res = await downloadCache("any");
+                    Alert.alert("Thành công", `Đã cập nhật ${res.count} vé vào cache`);
+                  }}
+                  style={styles.actionBtn}
+                  contentStyle={{ height: 48 }}
+                >
+                  Tải Cache
+                </Button>
+              </View>
+            </Card.Content>
           </Card>
         }
         ListEmptyComponent={
-          <Card style={styles.emptyCard}>
-            <Ionicons name="checkmark-done-circle-outline" size={48} color={colors.success} />
-            <Text style={styles.emptyTitle}>Hàng đợi trống</Text>
-            <Text style={styles.emptySubtitle}>Tất cả các lượt quét đã được đồng bộ với máy chủ.</Text>
+          <Card mode="contained" style={[styles.emptyCard, shadows.card]}>
+            <Card.Content style={{ alignItems: "center" }}>
+              <Ionicons name="checkmark-done-circle-outline" size={48} color={colors.success} />
+              <Text style={styles.emptyTitle}>Hàng đợi trống</Text>
+              <Text style={styles.emptySubtitle}>Tất cả các lượt quét đã được đồng bộ với máy chủ.</Text>
+            </Card.Content>
           </Card>
         }
         renderItem={({ item }) => (
-          <Card variant="card" style={styles.itemCard}>
-            <View style={styles.itemRow}>
-              <View>
-                <Text style={styles.itemTicketId}>Mã vé: {item.ticketId.slice(0, 16)}...</Text>
-                <Text style={styles.itemTime}>Thời gian quét: {item.scannedAt}</Text>
+          <Card mode="contained" style={[styles.itemCard, shadows.card]}>
+            <Card.Content>
+              <View style={styles.itemRow}>
+                <View>
+                  <Text style={styles.itemTicketId}>Mã vé: {item.ticketId.slice(0, 16)}...</Text>
+                  <Text style={styles.itemTime}>Thời gian quét: {item.scannedAt}</Text>
+                </View>
+                <Chip compact style={{ backgroundColor: colors.m3.warningContainer }}>
+                  {item.syncStatus}
+                </Chip>
               </View>
-              <Badge label={item.syncStatus} variant="warning" />
-            </View>
+            </Card.Content>
           </Card>
         )}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -112,10 +150,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  appbar: {
+    backgroundColor: colors.surface,
+    borderWidth: 0,
+  },
+  appbarTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  appbarSubtitle: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
   content: {
     padding: 20,
+    paddingBottom: 40,
   },
   summaryCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
     marginBottom: 20,
     borderWidth: 0,
   },
@@ -139,9 +193,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
   },
+  actionBtn: {
+    flex: 1,
+    borderRadius: m3Shapes.full,
+  },
   emptyCard: {
-    alignItems: "center",
-    padding: 30,
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 20,
     marginTop: 10,
     borderWidth: 0,
   },
@@ -158,6 +217,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   itemCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 18,
     marginBottom: 10,
     borderWidth: 0,
   },

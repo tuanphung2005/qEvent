@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
-  Pressable,
   StyleSheet,
   TouchableOpacity,
   Platform,
@@ -15,15 +14,19 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
+import {
+  Appbar,
+  Card,
+  Chip,
+  Button,
+  TextInput,
+} from "react-native-paper";
 import { useAuth } from "../../src/context/AuthContext";
 import { useOfflineSync } from "../../src/context/OfflineSyncContext";
 import { api } from "../../src/api/client";
 import { hapticFeedback } from "../../src/services/haptics";
 import { soundService } from "../../src/services/sound";
-import { Card } from "../../src/components/Card";
-import { Button } from "../../src/components/Button";
-import { Input } from "../../src/components/Input";
-import { colors, shadows, m3Shapes, m3Ripples } from "../../src/constants/theme";
+import { colors, shadows, m3Shapes } from "../../src/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 
 type ScanFeedback = "IDLE" | "VALID" | "DUPLICATE" | "INVALID";
@@ -220,75 +223,41 @@ export default function ScannerScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Top Staff Navigation & Info Bar */}
-      <View
-        style={[
-          styles.topNav,
-          shadows.floating,
-          { paddingTop: Math.max(insets.top, 14) },
-        ]}
-      >
-        <View style={styles.titleCol}>
-          <Text style={styles.navTitle}>qCheck Scanner</Text>
-          <View style={styles.statusRow}>
-            <View
-              style={[
-                styles.statusDot,
-                { backgroundColor: isOnline ? colors.success : colors.warning },
-              ]}
-            />
-            <Text style={styles.statusText}>
-              {isOnline ? "Online Server" : "Chế độ Ngoại Tuyến (Offline)"}
-            </Text>
-          </View>
-        </View>
+      {/* Material 3 Appbar Header */}
+      <Appbar.Header elevated style={styles.appbar}>
+        <Appbar.Content
+          title="qCheck Scanner"
+          titleStyle={styles.appbarTitle}
+          subtitle={isOnline ? "Online Server" : "Chế độ Ngoại Tuyến (Offline)"}
+          subtitleStyle={styles.appbarSubtitle}
+        />
 
-        <View style={styles.actionsRow}>
-          {/* Torch toggle button - Standalone icon: no background, pure black icon */}
-          <Pressable
-            onPress={() => setTorch(!torch)}
-            accessibilityRole="button"
-            accessibilityLabel={torch ? "Tắt đèn pin" : "Bật đèn pin"}
-            android_ripple={m3Ripples.borderlessDark}
-            style={styles.standaloneIconBtn}
-          >
-            <Ionicons
-              name={torch ? "flashlight" : "flashlight-outline"}
-              size={22}
-              color={colors.black}
-            />
-          </Pressable>
+        <Appbar.Action
+          icon={torch ? "flashlight" : "flashlight-off"}
+          color={colors.black}
+          onPress={() => setTorch(!torch)}
+          accessibilityLabel={torch ? "Tắt đèn pin" : "Bật đèn pin"}
+        />
 
-          {/* Sync Queue Badge Button - Paired icon + text with primaryLight badge fill */}
-          <View style={styles.syncBadgeWrapper}>
-            <Pressable
-              onPress={() => router.push("/(staff)/sync-status")}
-              accessibilityRole="button"
-              accessibilityLabel={`Hàng đợi đồng bộ: ${pendingCount} vé đang chờ`}
-              android_ripple={m3Ripples.light}
-              style={styles.syncBadgePressable}
-            >
-              <Ionicons name="cloud-upload" size={16} color={colors.primary} />
-              <Text style={styles.syncBadgeText}>
-                {pendingCount} chờ sync
-              </Text>
-            </Pressable>
-          </View>
+        <Chip
+          compact
+          icon="cloud-upload"
+          onPress={() => router.push("/(staff)/sync-status")}
+          style={styles.syncChip}
+          textStyle={styles.syncChipText}
+        >
+          {pendingCount} chờ sync
+        </Chip>
 
-          {/* Logout with Confirmation Dialog - Standalone icon: no background, pure black icon */}
-          <Pressable
-            onPress={handleLogout}
-            accessibilityRole="button"
-            accessibilityLabel="Đăng xuất tài khoản"
-            android_ripple={m3Ripples.borderlessDark}
-            style={styles.standaloneIconBtn}
-          >
-            <Ionicons name="log-out-outline" size={22} color={colors.black} />
-          </Pressable>
-        </View>
-      </View>
+        <Appbar.Action
+          icon="logout"
+          color={colors.black}
+          onPress={handleLogout}
+          accessibilityLabel="Đăng xuất tài khoản"
+        />
+      </Appbar.Header>
 
-      {/* Live Check-in Attendance Progress Bar - Clean borderless */}
+      {/* Live Check-in Attendance Progress Bar */}
       {stats && (
         <View style={styles.statsBar}>
           <View style={styles.statItem}>
@@ -317,18 +286,22 @@ export default function ScannerScreen() {
             onBarcodeScanned={isScanningActive ? handleBarcodeScanned : undefined}
           />
         ) : (
-          <View style={styles.permissionBox}>
-            <Ionicons name="camera-outline" size={54} color={colors.textSecondary} />
-            <Text style={styles.permissionTitle}>Cần quyền truy cập Camera</Text>
-            <Text style={styles.permissionSubtitle}>
-              Để quét mã Dynamic QR soát vé sự kiện
-            </Text>
-            <Button
-              title="Cấp quyền Camera"
-              onPress={requestPermission}
-              style={{ marginTop: 16 }}
-            />
-          </View>
+          <Card mode="contained" style={styles.permissionBox}>
+            <Card.Content style={{ alignItems: "center" }}>
+              <Ionicons name="camera-outline" size={54} color={colors.textSecondary} />
+              <Text style={styles.permissionTitle}>Cần quyền truy cập Camera</Text>
+              <Text style={styles.permissionSubtitle}>
+                Để quét mã Dynamic QR soát vé sự kiện
+              </Text>
+              <Button
+                mode="contained"
+                onPress={requestPermission}
+                style={{ marginTop: 16 }}
+              >
+                Cấp quyền Camera
+              </Button>
+            </Card.Content>
+          </Card>
         )}
 
         {/* Scan Target Reticle */}
@@ -344,7 +317,7 @@ export default function ScannerScreen() {
           </View>
         )}
 
-        {/* Multi-sensory Fullscreen Color Flash Feedback Overlay (Tap to dismiss immediately) */}
+        {/* Multi-sensory Fullscreen Color Flash Feedback Overlay */}
         {feedback !== "IDLE" && (
           <TouchableOpacity
             activeOpacity={0.95}
@@ -380,20 +353,25 @@ export default function ScannerScreen() {
       {/* Bottom Floating Control Bar */}
       <View style={[styles.bottomControlBar, shadows.floating, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <Button
-          title="Nhập / Thử test mã"
-          variant="secondary"
+          mode="elevated"
+          icon="pencil-outline"
           onPress={() => setTestModalVisible(true)}
-          icon={<Ionicons name="create-outline" size={18} color={colors.textPrimary} />}
-          style={{ flex: 1, minHeight: 48 }}
-        />
+          style={{ flex: 1, borderRadius: m3Shapes.full }}
+          contentStyle={{ height: 48 }}
+        >
+          Nhập / Thử test mã
+        </Button>
         <Button
-          title="Đồng bộ vé"
-          variant="primary"
+          mode="contained"
+          icon="sync"
           loading={isSyncing}
+          disabled={isSyncing}
           onPress={handleSyncNow}
-          icon={<Ionicons name="sync" size={18} color={colors.white} />}
-          style={{ flex: 1, minHeight: 48 }}
-        />
+          style={{ flex: 1, borderRadius: m3Shapes.full }}
+          contentStyle={{ height: 48 }}
+        >
+          Đồng bộ vé
+        </Button>
       </View>
 
       {/* Manual / Simulation Modal with KeyboardAvoidingView */}
@@ -409,57 +387,64 @@ export default function ScannerScreen() {
         >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={{ flex: 1, justifyContent: "center" }}>
-              <Card variant="floating" style={styles.modalCard}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Thử nghiệm Quét mã</Text>
-                  {/* Standalone close button: no background, black icon */}
-                  <TouchableOpacity
-                    onPress={() => setTestModalVisible(false)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Đóng cửa sổ"
-                    style={styles.standaloneIconBtn}
-                  >
-                    <Ionicons name="close" size={24} color={colors.black} />
-                  </TouchableOpacity>
-                </View>
+              <Card mode="contained" style={styles.modalCard}>
+                <Card.Content>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Thử nghiệm Quét mã</Text>
+                    <TouchableOpacity
+                      onPress={() => setTestModalVisible(false)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Đóng cửa sổ"
+                      style={styles.standaloneIconBtn}
+                    >
+                      <Ionicons name="close" size={24} color={colors.black} />
+                    </TouchableOpacity>
+                  </View>
 
-                <Text style={styles.modalHint}>
-                  Dán chuỗi mã Dynamic QR hoặc nhập để kiểm tra phản hồi Xanh (Hợp lệ) / Vàng (Trùng vé) / Đỏ (Lỗi):
-                </Text>
+                  <Text style={styles.modalHint}>
+                    Dán chuỗi mã Dynamic QR hoặc nhập để kiểm tra phản hồi Xanh (Hợp lệ) / Vàng (Trùng vé) / Đỏ (Lỗi):
+                  </Text>
 
-                <Input
-                  value={manualToken}
-                  onChangeText={setManualToken}
-                  placeholder="Dán chuỗi mã QR token..."
-                  multiline
-                  numberOfLines={3}
-                  style={{ minHeight: 80 }}
-                />
-
-                <View style={{ gap: 10, marginTop: 10 }}>
-                  <Button
-                    title="Xác thực mã đã dán"
-                    variant="primary"
-                    onPress={() => {
-                      if (!manualToken.trim()) return;
-                      setTestModalVisible(false);
-                      processScannedToken(manualToken.trim());
-                      setManualToken("");
-                    }}
+                  <TextInput
+                    value={manualToken}
+                    onChangeText={setManualToken}
+                    placeholder="Dán chuỗi mã QR token..."
+                    mode="outlined"
+                    outlineStyle={{ borderRadius: 16 }}
+                    multiline
+                    numberOfLines={3}
+                    style={{ minHeight: 80, marginBottom: 16 }}
                   />
-                  <Button
-                    title="Tải lại vé vào Cache Offline"
-                    variant="secondary"
-                    onPress={async () => {
-                      try {
-                        const res = await downloadCache("any");
-                        Alert.alert("Thành công", `Đã lưu ${res.count} vé vào bộ nhớ đệm SQLite`);
-                      } catch (e: any) {
-                        Alert.alert("Lỗi", e.message);
-                      }
-                    }}
-                  />
-                </View>
+
+                  <View style={{ gap: 10 }}>
+                    <Button
+                      mode="contained"
+                      onPress={() => {
+                        if (!manualToken.trim()) return;
+                        setTestModalVisible(false);
+                        processScannedToken(manualToken.trim());
+                        setManualToken("");
+                      }}
+                      style={{ borderRadius: m3Shapes.full }}
+                    >
+                      Xác thực mã đã dán
+                    </Button>
+                    <Button
+                      mode="contained-tonal"
+                      onPress={async () => {
+                        try {
+                          const res = await downloadCache("any");
+                          Alert.alert("Thành công", `Đã lưu ${res.count} vé vào bộ nhớ đệm SQLite`);
+                        } catch (e: any) {
+                          Alert.alert("Lỗi", e.message);
+                        }
+                      }}
+                      style={{ borderRadius: m3Shapes.full }}
+                    >
+                      Tải lại vé vào Cache Offline
+                    </Button>
+                  </View>
+                </Card.Content>
               </Card>
             </View>
           </TouchableWithoutFeedback>
@@ -474,68 +459,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  topNav: {
+  appbar: {
     backgroundColor: colors.surface,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     borderWidth: 0,
   },
-  titleCol: {
-    flex: 1,
-  },
-  navTitle: {
+  appbarTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: colors.textPrimary,
   },
-  statusRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 4,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  statusText: {
-    fontSize: 12,
+  appbarSubtitle: {
+    fontSize: 11,
     color: colors.textSecondary,
   },
-  actionsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  syncChip: {
+    backgroundColor: colors.primaryLight,
+    height: 32,
+    marginRight: 4,
+  },
+  syncChipText: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: "700",
   },
   standaloneIconBtn: {
-    minWidth: 48,
-    minHeight: 48,
+    minWidth: 44,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: m3Shapes.full,
-    borderWidth: 0,
-  },
-  syncBadgeWrapper: {
-    backgroundColor: colors.primaryLight,
-    borderRadius: m3Shapes.sm,
-    borderWidth: 0,
-    overflow: "hidden",
-  },
-  syncBadgePressable: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    minHeight: 48,
-  },
-  syncBadgeText: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: "700",
   },
   statsBar: {
     backgroundColor: colors.background,
@@ -568,9 +520,7 @@ const styles = StyleSheet.create({
   },
   permissionBox: {
     backgroundColor: colors.surface,
-    padding: 30,
-    borderRadius: 20,
-    alignItems: "center",
+    borderRadius: 24,
     marginHorizontal: 30,
     borderWidth: 0,
   },
@@ -677,8 +627,7 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 28,
     borderWidth: 0,
   },
   modalHeader: {

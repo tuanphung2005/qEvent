@@ -1,3 +1,5 @@
+import { MD3LightTheme } from "react-native-paper";
+
 export const colors = {
   background: "#F8FAFC", // Slate-50
   surface: "#FFFFFF",
@@ -53,6 +55,33 @@ export const colors = {
     onError: "#FFFFFF",
     errorContainer: "#FEF2F2",
     onErrorContainer: "#991B1B",
+  },
+};
+
+export const paperTheme = {
+  ...MD3LightTheme,
+  roundness: 24, // M3 Expressive container roundness
+  colors: {
+    ...MD3LightTheme.colors,
+    primary: colors.primary,
+    onPrimary: colors.white,
+    primaryContainer: colors.primaryLight,
+    onPrimaryContainer: colors.primaryHover,
+    secondary: colors.textSecondary,
+    onSecondary: colors.white,
+    secondaryContainer: colors.neutralFill,
+    onSecondaryContainer: colors.textPrimary,
+    surface: colors.surface,
+    onSurface: colors.textPrimary,
+    surfaceVariant: colors.neutralFill,
+    onSurfaceVariant: colors.textSecondary,
+    background: colors.background,
+    onBackground: colors.textPrimary,
+    error: colors.error,
+    errorContainer: colors.errorLight,
+    onErrorContainer: colors.error,
+    outline: colors.neutralDark,
+    outlineVariant: colors.neutralFill,
   },
 };
 
