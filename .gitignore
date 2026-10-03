@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment
+.env
+.env*.local
+*.env
+
+# Expo & Mobile
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.metro-health-check*
+ios/
+android/
+
+# Build & Test
+coverage/
+.next/
+out/
+build/
+.vercel
+
+# Debug & Logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+**/*.log
+**/*.trace
+**/*.zip
+**/*.tar.gz
+**/*.tgz
+
+# System & IDE
+.DS_Store
+Thumbs.db
+*.pem
+*.tsbuildinfo
+.vscode/
+.idea/
+.claude/
+
+# Impeccable local artifacts
+.impeccable/config.local.json
+.impeccable/live/

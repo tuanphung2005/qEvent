@@ -1,0 +1,145 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ORGANIZER
+  STAFF
+  ATTENDEE
+  SPEAKER
+}
+
+enum TicketStatus {
+  PENDING_PAYMENT
+  PAID
+  CHECKED_IN
+  CANCELLED
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCED
+  CONFLICT
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  passwordHash String
+  fullName     String
+  role         Role         @default(ATTENDEE)
+  tickets      Ticket[]
+  logsScanned  CheckinLog[] @relation("StaffLogs")
+  questions    QAQuestion[]
+  qaVotes      QAQuestionVote[]
+  createdAt    DateTime     @default(now())
+
+  @@index([email])
+}
+
+model Event {
+  id          String       @id @default(uuid())
+  name        String
+  venue       String
+  startTime   DateTime
+  endTime     DateTime
+  maxCapacity Int
+  rooms       Room[]
+  sessions    Session[]
+  ticketTypes TicketType[]
+  tickets     Ticket[]
+  createdAt   DateTime     @default(now())
+}
+
+model Room {
+  id       String    @id @default(uuid())
+  eventId  String
+  name     String
+  capacity Int
+  event    Event     @relation(fields: [eventId], references: [id])
+  sessions Session[]
+}
+
+model Session {
+  id        String       @id @default(uuid())
+  eventId   String
+  roomId    String
+  speakerId String?
+  title     String
+  startTime DateTime
+  endTime   DateTime
+  event     Event        @relation(fields: [eventId], references: [id])
+  room      Room         @relation(fields: [roomId], references: [id])
+  questions QAQuestion[]
+}
+
+model TicketType {
+  id            String   @id @default(uuid())
+  eventId       String
+  name          String
+  price         Decimal  @db.Decimal(12, 2)
+  totalQuantity Int
+  soldQuantity  Int      @default(0)
+  event         Event    @relation(fields: [eventId], references: [id])
+  tickets       Ticket[]
+}
+
+model Ticket {
+  id           String       @id @default(uuid())
+  eventId      String
+  userId       String
+  ticketTypeId String
+  status       TicketStatus @default(PAID)
+  totpSecret   String
+  checkedInAt  DateTime?
+  event        Event        @relation(fields: [eventId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+  ticketType   TicketType   @relation(fields: [ticketTypeId], references: [id])
+  checkinLogs  CheckinLog[]
+  createdAt    DateTime     @default(now())
+
+  @@index([userId, eventId])
+}
+
+model CheckinLog {
+  id         String     @id @default(uuid())
+  ticketId   String
+  staffId    String
+  scannedAt  DateTime   @default(now())
+  deviceId   String
+  isOffline  Boolean    @default(false)
+  syncStatus SyncStatus @default(SYNCED)
+  ticket     Ticket     @relation(fields: [ticketId], references: [id])
+  staff      User       @relation("StaffLogs", fields: [staffId], references: [id])
+
+  @@index([ticketId, scannedAt])
+}
+
+model QAQuestion {
+  id         String           @id @default(uuid())
+  sessionId  String
+  userId     String
+  content    String
+  upvotes    Int              @default(0)
+  isAnswered Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+  session    Session          @relation(fields: [sessionId], references: [id])
+  user       User             @relation(fields: [userId], references: [id])
+  votes      QAQuestionVote[]
+}
+
+model QAQuestionVote {
+  id         String     @id @default(uuid())
+  questionId String
+  userId     String
+  createdAt  DateTime   @default(now())
+  question   QAQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, userId])
+}

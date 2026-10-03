@@ -1,0 +1,27 @@
+{
+  "name": "qcheck-backend",
+  "version": "1.0.50",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "db:generate": "bun x prisma generate",
+    "db:push": "bun x prisma db push",
+    "db:seed": "bun prisma/seed.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "^1.4.2",
+    "@elysiajs/jwt": "^1.4.2",
+    "@prisma/client": "6.19.3",
+    "bcryptjs": "^3.0.3",
+    "elysia": "latest",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
+    "@types/pg": "^8.23.1",
+    "bun-types": "latest",
+    "prisma": "6.19.3"
+  },
+  "module": "src/index.js"
+}

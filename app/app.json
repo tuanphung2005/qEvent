@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "qCheck",
+    "slug": "qcheck",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow qCheck to access camera for ticket scanning."
+        }
+      ]
+    ],
+    "scheme": "qcheck",
+    "extra": {
+      "apiUrl": "http://10.0.2.2:3000",
+      "lanApiUrl": "http://192.168.99.39:3000"
+    }
+  }
+}
