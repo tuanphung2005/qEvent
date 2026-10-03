@@ -90,16 +90,10 @@ export default function LoginScreen() {
           }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Logo & Branding */}
+          {/* Logo & Branding - Pure black icon with no background box */}
           <VStack alignItems="center" mb="$6">
-            <Center
-              w={72}
-              h={72}
-              borderRadius={22}
-              bg={colors.primaryLight}
-              mb="$3"
-            >
-              <Ionicons name="qr-code" size={38} color={colors.primary} />
+            <Center mb="$3">
+              <Ionicons name="qr-code" size={44} color={colors.black} />
             </Center>
             <Heading size="2xl" color={colors.textPrimary} fontWeight="$bold">
               qCheck
@@ -255,7 +249,7 @@ export default function LoginScreen() {
             {/* API Connection Indicator - Clean borderless */}
             <VStack mt="$4" pt="$2" alignItems="center">
               <HStack space="xs" alignItems="center">
-                <Ionicons name="server-outline" size={13} color={colors.textSecondary} />
+                <Ionicons name="server-outline" size={13} color={colors.black} />
                 <Text color={colors.textSecondary} fontSize="$2xs">
                   API: {currentUrl}
                 </Text>

@@ -91,7 +91,7 @@ export default function TicketDetailScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top", "left", "right"]}>
-      {/* Gluestack Header Bar */}
+      {/* Gluestack Header Bar - No background on back icon, pure black icon */}
       <HStack
         bg={colors.surface}
         px="$5"
@@ -103,7 +103,6 @@ export default function TicketDetailScreen() {
           onPress={() => router.back()}
           mr="$2"
           borderRadius={12}
-          bg={colors.neutralFill}
           accessibilityRole="button"
           accessibilityLabel="Quay lại danh sách vé"
           sx={{
@@ -120,7 +119,7 @@ export default function TicketDetailScreen() {
             justifyContent: "center",
           }}
         >
-          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.black} />
         </Pressable>
         <VStack>
           <Heading size="md" color={colors.textPrimary}>

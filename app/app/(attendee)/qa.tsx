@@ -266,7 +266,7 @@ export default function LiveQAScreen() {
       {!isCheckedIn && (
         <Box px="$4" pt="$2.5" pb="$1">
           <HStack space="xs" alignItems="center" bg={colors.warningLight} px="$3" py="$2" borderRadius={10}>
-            <Ionicons name="alert-circle-outline" size={15} color={colors.warning} />
+            <Ionicons name="alert-circle-outline" size={15} color={colors.black} />
             <Text color={colors.warning} fontSize="$xs" fontWeight="$medium">
               {hasTicket ? "Cần điểm danh tại cổng để đặt câu hỏi" : "Chưa có vé sự kiện"}
             </Text>
@@ -391,7 +391,7 @@ export default function LiveQAScreen() {
                   <ButtonSpinner color={colors.white} />
                 ) : (
                   <>
-                    <ButtonIcon as={() => <Ionicons name="send" size={16} color={isCheckedIn ? colors.white : colors.textSecondary} />} mr="$2" />
+                    <ButtonIcon as={() => <Ionicons name="send" size={16} color={colors.black} />} mr="$2" />
                     <ButtonText color={isCheckedIn ? colors.white : colors.textSecondary} fontWeight="$bold" fontSize="$sm">
                       {isCheckedIn ? "Gửi câu hỏi" : "Khóa (Chưa check-in)"}
                     </ButtonText>
@@ -403,7 +403,7 @@ export default function LiveQAScreen() {
           ListEmptyComponent={
             !loading ? (
               <Center py="$8">
-                <Ionicons name="chatbubbles-outline" size={40} color={colors.textSecondary} />
+                <Ionicons name="chatbubbles-outline" size={40} color={colors.black} />
                 <Text color={colors.textSecondary} fontSize="$xs" mt="$2">
                   Chưa có câu hỏi nào trong phiên này. Hãy là người đầu tiên!
                 </Text>
@@ -462,7 +462,7 @@ export default function LiveQAScreen() {
                     <Ionicons
                       name="caret-up"
                       size={18}
-                      color={isVoted ? colors.white : colors.primary}
+                      color={isVoted ? colors.white : colors.black}
                     />
                     <Text
                       color={isVoted ? colors.white : colors.primary}

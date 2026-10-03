@@ -227,7 +227,7 @@ export default function ScannerScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Top Staff Navigation & Info Bar */}
+      {/* Top Staff Navigation & Info Bar - No background on action icons, pure black icons */}
       <HStack
         bg={colors.surface}
         px="$4"
@@ -255,12 +255,11 @@ export default function ScannerScreen() {
         </VStack>
 
         <HStack space="sm" alignItems="center">
-          {/* Torch toggle button */}
+          {/* Torch toggle button - No background, pure black icon */}
           <Pressable
             onPress={() => setTorch(!torch)}
             p="$2"
             borderRadius={12}
-            bg={torch ? colors.warningLight : colors.neutralFill}
             accessibilityRole="button"
             accessibilityLabel={torch ? "Tắt đèn pin" : "Bật đèn pin"}
             sx={{
@@ -279,16 +278,15 @@ export default function ScannerScreen() {
           >
             <Ionicons
               name={torch ? "flashlight" : "flashlight-outline"}
-              size={20}
-              color={torch ? colors.warning : colors.textSecondary}
+              size={22}
+              color={colors.black}
             />
           </Pressable>
 
-          {/* Sync Queue Badge Button - Navigates to sync-status screen */}
+          {/* Sync Queue Badge Button - No background, pure black icon and text */}
           <Pressable
             onPress={() => router.push("/(staff)/sync-status")}
-            bg={colors.primaryLight}
-            px="$3"
+            px="$2"
             py="$2"
             borderRadius={12}
             accessibilityRole="button"
@@ -306,19 +304,18 @@ export default function ScannerScreen() {
             }}
           >
             <HStack space="xs" alignItems="center">
-              <Ionicons name="cloud-upload" size={16} color={colors.primary} />
-              <Text color={colors.primary} fontSize="$xs" fontWeight="$bold">
+              <Ionicons name="cloud-upload" size={18} color={colors.black} />
+              <Text color={colors.black} fontSize="$xs" fontWeight="$bold">
                 {pendingCount} chờ sync
               </Text>
             </HStack>
           </Pressable>
 
-          {/* Logout with Confirmation Dialog */}
+          {/* Logout with Confirmation Dialog - No background, pure black icon */}
           <Pressable
             onPress={handleLogout}
             p="$2"
             borderRadius={12}
-            bg={colors.neutralFill}
             accessibilityRole="button"
             accessibilityLabel="Đăng xuất tài khoản"
             sx={{
@@ -335,7 +332,7 @@ export default function ScannerScreen() {
               justifyContent: "center",
             }}
           >
-            <Ionicons name="log-out-outline" size={20} color={colors.textSecondary} />
+            <Ionicons name="log-out-outline" size={22} color={colors.black} />
           </Pressable>
         </HStack>
       </HStack>
@@ -379,7 +376,7 @@ export default function ScannerScreen() {
           />
         ) : (
           <View style={styles.permissionBox}>
-            <Ionicons name="camera-outline" size={54} color={colors.textSecondary} />
+            <Ionicons name="camera-outline" size={54} color={colors.black} />
             <Text style={styles.permissionTitle}>Cần quyền truy cập Camera</Text>
             <Text style={styles.permissionSubtitle}>
               Để quét mã Dynamic QR soát vé sự kiện
@@ -443,7 +440,7 @@ export default function ScannerScreen() {
           title="Nhập / Thử test mã"
           variant="secondary"
           onPress={() => setTestModalVisible(true)}
-          icon={<Ionicons name="create-outline" size={18} color={colors.textPrimary} />}
+          icon={<Ionicons name="create-outline" size={18} color={colors.black} />}
           style={{ flex: 1, minHeight: 48 }}
         />
         <Button
@@ -451,7 +448,7 @@ export default function ScannerScreen() {
           variant="primary"
           loading={isSyncing}
           onPress={handleSyncNow}
-          icon={<Ionicons name="sync" size={18} color={colors.white} />}
+          icon={<Ionicons name="sync" size={18} color={colors.black} />}
           style={{ flex: 1, minHeight: 48 }}
         />
       </View>
@@ -483,7 +480,7 @@ export default function ScannerScreen() {
                       justifyContent: "center",
                     }}
                   >
-                    <Ionicons name="close" size={24} color={colors.textSecondary} />
+                    <Ionicons name="close" size={24} color={colors.black} />
                   </TouchableOpacity>
                 </View>
 

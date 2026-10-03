@@ -14,8 +14,8 @@ export default function AttendeeLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
+        tabBarActiveTintColor: colors.black,
+        tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopWidth: 0, // Strict No Border rule

@@ -97,7 +97,7 @@ export default function TicketsListScreen() {
       return (
         <Badge action="success" variant="solid" borderRadius={20} px="$2.5" py="$1" borderWidth={0}>
           <HStack space="xs" alignItems="center">
-            <Ionicons name="checkmark-circle" size={12} color={colors.white} />
+            <Ionicons name="checkmark-circle" size={12} color={colors.black} />
             <BadgeText fontSize="$2xs" fontWeight="$bold">
               ĐÃ ĐIỂM DANH {timeStr ? `(${timeStr})` : ""}
             </BadgeText>
@@ -108,7 +108,7 @@ export default function TicketsListScreen() {
     return (
       <Badge action="info" variant="solid" borderRadius={20} px="$2.5" py="$1" borderWidth={0}>
         <HStack space="xs" alignItems="center">
-          <Ionicons name="time-outline" size={12} color={colors.white} />
+          <Ionicons name="time-outline" size={12} color={colors.black} />
           <BadgeText fontSize="$2xs" fontWeight="$bold">CHỜ ĐIỂM DANH</BadgeText>
         </HStack>
       </Badge>
@@ -119,7 +119,7 @@ export default function TicketsListScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top", "left", "right"]}>
-      {/* Gluestack Top Header Bar */}
+      {/* Gluestack Top Header Bar - No background on logout icon, pure black icon */}
       <HStack
         bg={colors.surface}
         px="$5"
@@ -141,7 +141,6 @@ export default function TicketsListScreen() {
           <Pressable
             onPress={handleLogout}
             borderRadius={12}
-            bg={colors.neutralFill}
             accessibilityRole="button"
             accessibilityLabel="Đăng xuất tài khoản"
             sx={{
@@ -158,7 +157,7 @@ export default function TicketsListScreen() {
               justifyContent: "center",
             }}
           >
-            <Ionicons name="log-out-outline" size={20} color={colors.textSecondary} />
+            <Ionicons name="log-out-outline" size={22} color={colors.black} />
           </Pressable>
         </HStack>
       </HStack>
@@ -228,7 +227,7 @@ export default function TicketsListScreen() {
               sx={{ minHeight: 48 }}
               style={{ minHeight: 48 }}
             >
-              <ButtonIcon as={() => <Ionicons name="ticket-outline" size={18} color={colors.white} />} mr="$2" />
+              <ButtonIcon as={() => <Ionicons name="ticket-outline" size={18} color={colors.black} />} mr="$2" />
               <ButtonText color={colors.white} fontWeight="$bold" fontSize="$sm">
                 {purchasing ? "Đang tạo vé..." : "+ Đăng ký / Nhận thêm vé sự kiện (Sandbox)"}
               </ButtonText>
@@ -249,7 +248,7 @@ export default function TicketsListScreen() {
               borderWidth={0}
               style={shadows.card}
             >
-              <Ionicons name="ticket-outline" size={48} color={colors.textSecondary} />
+              <Ionicons name="ticket-outline" size={48} color={colors.black} />
               <Text color={colors.textSecondary} fontSize="$sm" mt="$2" mb="$3">
                 Bạn chưa có vé sự kiện nào
               </Text>
@@ -299,13 +298,13 @@ export default function TicketsListScreen() {
 
               <HStack justifyContent="space-between" alignItems="center" pt="$1">
                 <HStack space="xs" alignItems="center" flex={1}>
-                  <Ionicons name="location-outline" size={15} color={colors.textSecondary} />
+                  <Ionicons name="location-outline" size={15} color={colors.black} />
                   <Text color={colors.textSecondary} fontSize="$xs" numberOfLines={1}>
                     {item.event?.venue || "Trung tâm hội nghị"}
                   </Text>
                 </HStack>
                 <HStack space="xs" alignItems="center">
-                  <Ionicons name="qr-code-outline" size={15} color={colors.primary} />
+                  <Ionicons name="qr-code-outline" size={15} color={colors.black} />
                   <Text color={colors.primary} fontWeight="$semibold" fontSize="$xs">
                     Mở Dynamic QR
                   </Text>

@@ -86,7 +86,7 @@ export default function SyncStatusScreen() {
         }
         ListEmptyComponent={
           <Card style={styles.emptyCard}>
-            <Ionicons name="checkmark-done-circle-outline" size={48} color={colors.success} />
+            <Ionicons name="checkmark-done-circle-outline" size={48} color={colors.black} />
             <Text style={styles.emptyTitle}>Hàng đợi trống</Text>
             <Text style={styles.emptySubtitle}>Tất cả các lượt quét đã được đồng bộ với máy chủ.</Text>
           </Card>

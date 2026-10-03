@@ -49,7 +49,7 @@ export const Header: React.FC<HeaderProps> = ({
               justifyContent: "center",
             }}
           >
-            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+            <Ionicons name="arrow-back" size={24} color={colors.black} />
           </Pressable>
         )}
         <VStack flex={1}>

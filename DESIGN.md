@@ -133,6 +133,8 @@ The qCheck color system employs a high-contrast functional palette rooted in cle
 
 **The Semantic Monosemy Rule.** Emerald (`#10B981`), Amber (`#D97706`), and Crimson (`#DC2626`) are strictly reserved for ticket validation and synchronization state. They are never used for decorative accents.
 
+**The Pure Black Icon Rule.** Standalone and interactive icons must never have a background container (no rounded or circular colored boxes behind them). All icons across the user interface must be rendered in pure black (`#000000`) for absolute, unmistakable clarity.
+
 ## Typography
 
 **Display Font:** System Default (Roboto on Android, San Francisco on iOS)
