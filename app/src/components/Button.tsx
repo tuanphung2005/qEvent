@@ -17,6 +17,7 @@ interface ButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
   icon?: React.ReactNode;
+  accessibilityLabel?: string;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -28,6 +29,7 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
   icon,
+  accessibilityLabel,
 }) => {
   const getAction = () => {
     switch (variant) {
@@ -45,7 +47,7 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const getBackgroundColor = () => {
-    if (disabled) return "#E2E8F0";
+    if (disabled) return colors.neutralDark;
     switch (variant) {
       case "primary":
         return colors.primary;
@@ -56,7 +58,7 @@ export const Button: React.FC<ButtonProps> = ({
       case "danger":
         return colors.error;
       case "secondary":
-        return "#EEF2F6";
+        return colors.neutralFill;
       default:
         return colors.primary;
     }
@@ -65,7 +67,7 @@ export const Button: React.FC<ButtonProps> = ({
   const getTextColor = () => {
     if (disabled) return colors.textMuted;
     if (variant === "secondary") return colors.textPrimary;
-    return "#FFFFFF";
+    return colors.white;
   };
 
   return (
@@ -77,12 +79,16 @@ export const Button: React.FC<ButtonProps> = ({
       borderWidth={0}
       borderRadius={12}
       bg={getBackgroundColor()}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel || title}
+      accessibilityState={{ disabled: disabled || loading }}
       sx={{
+        minHeight: 48,
         ":active": {
           opacity: 0.85,
         },
       }}
-      style={style}
+      style={[{ minHeight: 48 }, style]}
     >
       {loading ? (
         <GButtonSpinner color={getTextColor()} />

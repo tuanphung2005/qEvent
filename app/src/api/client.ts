@@ -37,6 +37,12 @@ class ApiService {
     return this.baseUrl;
   }
 
+  getWebSocketUrl(path: string): string {
+    const wsProto = this.baseUrl.startsWith("https") ? "wss" : "ws";
+    const host = this.baseUrl.replace(/^https?:\/\//, "");
+    return `${wsProto}://${host}${path.startsWith("/") ? path : `/${path}`}`;
+  }
+
   async setToken(token: string | null) {
     this.token = token;
     if (Platform.OS === "web") {
@@ -187,7 +193,6 @@ class ApiService {
   async upvoteQuestion(questionId: string, userId: string): Promise<any> {
     return this.post(`/api/qa/upvote/${questionId}`, { userId });
   }
-
 }
 
 export const api = new ApiService();

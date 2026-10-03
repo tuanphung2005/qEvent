@@ -75,6 +75,17 @@ export default function TicketsListScreen() {
     }
   };
 
+  const handleLogout = () => {
+    Alert.alert(
+      "Xác nhận đăng xuất",
+      "Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?",
+      [
+        { text: "Hủy", style: "cancel" },
+        { text: "Đăng xuất", style: "destructive", onPress: logout },
+      ]
+    );
+  };
+
   const renderBadge = (status: string, checkedInAt?: string) => {
     if (status === "CHECKED_IN") {
       const timeStr = checkedInAt
@@ -86,7 +97,7 @@ export default function TicketsListScreen() {
       return (
         <Badge action="success" variant="solid" borderRadius={20} px="$2.5" py="$1" borderWidth={0}>
           <HStack space="xs" alignItems="center">
-            <Ionicons name="checkmark-circle" size={12} color="#FFFFFF" />
+            <Ionicons name="checkmark-circle" size={12} color={colors.white} />
             <BadgeText fontSize="$2xs" fontWeight="$bold">
               ĐÃ ĐIỂM DANH {timeStr ? `(${timeStr})` : ""}
             </BadgeText>
@@ -97,7 +108,7 @@ export default function TicketsListScreen() {
     return (
       <Badge action="info" variant="solid" borderRadius={20} px="$2.5" py="$1" borderWidth={0}>
         <HStack space="xs" alignItems="center">
-          <Ionicons name="time-outline" size={12} color="#FFFFFF" />
+          <Ionicons name="time-outline" size={12} color={colors.white} />
           <BadgeText fontSize="$2xs" fontWeight="$bold">CHỜ ĐIỂM DANH</BadgeText>
         </HStack>
       </Badge>
@@ -112,7 +123,7 @@ export default function TicketsListScreen() {
       <HStack
         bg={colors.surface}
         px="$5"
-        py="$4"
+        py="$3"
         alignItems="center"
         justifyContent="space-between"
         style={shadows.subtle}
@@ -128,11 +139,24 @@ export default function TicketsListScreen() {
 
         <HStack space="sm" alignItems="center">
           <Pressable
-            onPress={logout}
-            p="$2"
-            borderRadius={10}
-            bg="#F1F5F9"
-            sx={{ ":active": { opacity: 0.7 } }}
+            onPress={handleLogout}
+            borderRadius={12}
+            bg={colors.neutralFill}
+            accessibilityRole="button"
+            accessibilityLabel="Đăng xuất tài khoản"
+            sx={{
+              minWidth: 48,
+              minHeight: 48,
+              alignItems: "center",
+              justifyContent: "center",
+              ":active": { opacity: 0.7 },
+            }}
+            style={{
+              minWidth: 48,
+              minHeight: 48,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
           >
             <Ionicons name="log-out-outline" size={20} color={colors.textSecondary} />
           </Pressable>
@@ -154,35 +178,34 @@ export default function TicketsListScreen() {
         contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
         ListHeaderComponent={
           <VStack mb="$4">
-            {/* Quick Stats Banner */}
+            {/* Quick Stats Banner - Zero border, spatial separation */}
             <Box
               bg={colors.surface}
               borderRadius={16}
               p="$4"
               mb="$4"
+              borderWidth={0}
               style={shadows.card}
             >
-              <HStack justifyContent="space-between" alignItems="center">
-                <VStack>
-                  <Text color={colors.textMuted} fontSize="$xs" fontWeight="$bold">
+              <HStack justifyContent="space-around" alignItems="center">
+                <VStack alignItems="center">
+                  <Text color={colors.textMuted} fontSize="$2xs" fontWeight="$bold">
                     TỔNG SỐ VÉ
                   </Text>
                   <Heading size="xl" color={colors.textPrimary}>
                     {tickets.length}
                   </Heading>
                 </VStack>
-                <Box w={1} h={36} bg="#F1F5F9" />
-                <VStack>
-                  <Text color={colors.textMuted} fontSize="$xs" fontWeight="$bold">
+                <VStack alignItems="center">
+                  <Text color={colors.textMuted} fontSize="$2xs" fontWeight="$bold">
                     ĐÃ ĐIỂM DANH
                   </Text>
                   <Heading size="xl" color={colors.success}>
                     {checkedInCount}
                   </Heading>
                 </VStack>
-                <Box w={1} h={36} bg="#F1F5F9" />
-                <VStack>
-                  <Text color={colors.textMuted} fontSize="$xs" fontWeight="$bold">
+                <VStack alignItems="center">
+                  <Text color={colors.textMuted} fontSize="$2xs" fontWeight="$bold">
                     CHƯA QUÉT
                   </Text>
                   <Heading size="xl" color={colors.primary}>
@@ -197,11 +220,16 @@ export default function TicketsListScreen() {
               bg={colors.primary}
               borderRadius={12}
               mb="$4"
+              borderWidth={0}
               isDisabled={purchasing}
               onPress={handlePurchaseSandbox}
+              accessibilityRole="button"
+              accessibilityLabel="Nhận thêm vé sự kiện sandbox"
+              sx={{ minHeight: 48 }}
+              style={{ minHeight: 48 }}
             >
-              <ButtonIcon as={() => <Ionicons name="ticket-outline" size={18} color="#FFFFFF" />} mr="$2" />
-              <ButtonText color="#FFFFFF" fontWeight="$bold" fontSize="$sm">
+              <ButtonIcon as={() => <Ionicons name="ticket-outline" size={18} color={colors.white} />} mr="$2" />
+              <ButtonText color={colors.white} fontWeight="$bold" fontSize="$sm">
                 {purchasing ? "Đang tạo vé..." : "+ Đăng ký / Nhận thêm vé sự kiện (Sandbox)"}
               </ButtonText>
             </Button>
@@ -218,6 +246,7 @@ export default function TicketsListScreen() {
               borderRadius={16}
               p="$6"
               alignItems="center"
+              borderWidth={0}
               style={shadows.card}
             >
               <Ionicons name="ticket-outline" size={48} color={colors.textMuted} />
@@ -228,9 +257,11 @@ export default function TicketsListScreen() {
                 size="sm"
                 bg={colors.primary}
                 borderRadius={10}
+                borderWidth={0}
                 onPress={handlePurchaseSandbox}
+                sx={{ minHeight: 44 }}
               >
-                <ButtonText color="#FFFFFF" fontSize="$xs">Nhận vé mẫu trải nghiệm</ButtonText>
+                <ButtonText color={colors.white} fontSize="$xs">Nhận vé mẫu trải nghiệm</ButtonText>
               </Button>
             </Box>
           ) : (
@@ -243,6 +274,8 @@ export default function TicketsListScreen() {
           <Pressable
             onPress={() => router.push(`/(attendee)/ticket/${item.id}`)}
             mb="$4"
+            accessibilityRole="button"
+            accessibilityLabel={`Vé sự kiện ${item.event?.name || 'Sự kiện'}, nhấn để xem Dynamic QR`}
             sx={{ ":active": { opacity: 0.9 } }}
           >
             <Box
@@ -252,7 +285,7 @@ export default function TicketsListScreen() {
               borderWidth={0}
               style={shadows.card}
             >
-              <HStack justifyContent="space-between" alignItems="flex-start">
+              <HStack justifyContent="space-between" alignItems="flex-start" mb="$3">
                 <VStack flex={1} mr="$2">
                   <Heading size="sm" color={colors.textPrimary} numberOfLines={1}>
                     {item.event?.name || "Sự kiện Tech Summit 2026"}
@@ -264,9 +297,7 @@ export default function TicketsListScreen() {
                 {renderBadge(item.status, item.checkedInAt)}
               </HStack>
 
-              <Box h={1} bg="#F1F5F9" my="$3" />
-
-              <HStack justifyContent="space-between" alignItems="center">
+              <HStack justifyContent="space-between" alignItems="center" pt="$1">
                 <HStack space="xs" alignItems="center" flex={1}>
                   <Ionicons name="location-outline" size={15} color={colors.textMuted} />
                   <Text color={colors.textMuted} fontSize="$xs" numberOfLines={1}>

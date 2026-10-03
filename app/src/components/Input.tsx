@@ -47,17 +47,23 @@ export const Input: React.FC<InputProps> = ({
       <GInput
         size="md"
         variant="underlined"
+        borderWidth={0}
         borderBottomWidth={0}
         borderRadius={12}
-        bg="#F1F5F9"
+        bg={colors.neutralFill}
         px="$4"
         py="$1"
         sx={{
+          minHeight: 48,
+          borderWidth: 0,
+          borderBottomWidth: 0,
           ":focus": {
+            borderWidth: 0,
             borderBottomWidth: 0,
-            bg: "#E2E8F0",
+            bg: colors.neutralDark,
           },
         }}
+        style={{ minHeight: 48 }}
       >
         <InputField
           value={value}
@@ -69,7 +75,8 @@ export const Input: React.FC<InputProps> = ({
           autoCapitalize={autoCapitalize}
           color={colors.textPrimary}
           fontSize="$sm"
-          style={style}
+          accessibilityLabel={label || placeholder}
+          style={[{ minHeight: 44 }, style]}
           {...(rest as any)}
         />
       </GInput>

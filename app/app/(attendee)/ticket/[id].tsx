@@ -3,7 +3,7 @@ import {
   ScrollView,
   Animated,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Box,
   VStack,
@@ -26,6 +26,7 @@ import { Ionicons } from "@expo/vector-icons";
 export default function TicketDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [ticketData, setTicketData] = useState<any>(null);
   const [qrToken, setQrToken] = useState<string>("");
@@ -94,19 +95,32 @@ export default function TicketDetailScreen() {
       <HStack
         bg={colors.surface}
         px="$5"
-        py="$4"
+        py="$3"
         alignItems="center"
         style={shadows.subtle}
       >
         <Pressable
           onPress={() => router.back()}
-          mr="$3"
-          p="$1.5"
-          borderRadius={8}
-          bg="#F1F5F9"
-          sx={{ ":active": { opacity: 0.7 } }}
+          mr="$2"
+          borderRadius={12}
+          bg={colors.neutralFill}
+          accessibilityRole="button"
+          accessibilityLabel="Quay lại danh sách vé"
+          sx={{
+            minWidth: 48,
+            minHeight: 48,
+            alignItems: "center",
+            justifyContent: "center",
+            ":active": { opacity: 0.7 },
+          }}
+          style={{
+            minWidth: 48,
+            minHeight: 48,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
         >
-          <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
+          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </Pressable>
         <VStack>
           <Heading size="md" color={colors.textPrimary}>
@@ -118,7 +132,13 @@ export default function TicketDetailScreen() {
         </VStack>
       </HStack>
 
-      <ScrollView contentContainerStyle={{ padding: 20, alignItems: "center" }}>
+      <ScrollView
+        contentContainerStyle={{
+          padding: 20,
+          paddingBottom: Math.max(insets.bottom + 20, 32),
+          alignItems: "center",
+        }}
+      >
         {loading && !qrToken ? (
           <Center mt="$10">
             <Spinner size="large" color={colors.primary} />
@@ -152,6 +172,7 @@ export default function TicketDetailScreen() {
                 borderRadius={16}
                 mb="$4"
                 alignItems="center"
+                borderWidth={0}
               >
                 <HStack space="xs" alignItems="center" mb="$1">
                   <Ionicons name="checkmark-done-circle" size={20} color={colors.success} />
@@ -174,6 +195,7 @@ export default function TicketDetailScreen() {
                 borderRadius={16}
                 mb="$4"
                 alignItems="center"
+                borderWidth={0}
               >
                 <HStack space="xs" alignItems="center" mb="$1">
                   <Ionicons name="time-outline" size={18} color={colors.primary} />
@@ -191,11 +213,12 @@ export default function TicketDetailScreen() {
             <HStack
               space="xs"
               alignItems="center"
-              bg="#F1F5F9"
+              bg={colors.neutralFill}
               px="$3"
               py="$1.5"
               borderRadius={20}
               mb="$4"
+              borderWidth={0}
             >
               <Ionicons name="shield-checkmark" size={14} color={colors.textSecondary} />
               <Text color={colors.textSecondary} fontSize="$2xs" fontWeight="$semibold">
@@ -206,9 +229,10 @@ export default function TicketDetailScreen() {
             {/* QR Code Container */}
             <Box
               p="$4"
-              bg="#FFFFFF"
+              bg={colors.white}
               borderRadius={20}
               mb="$4"
+              borderWidth={0}
               style={shadows.card}
             >
               {qrToken ? (
@@ -216,7 +240,7 @@ export default function TicketDetailScreen() {
                   value={qrToken}
                   size={210}
                   color={colors.textPrimary}
-                  backgroundColor="#FFFFFF"
+                  backgroundColor={colors.white}
                 />
               ) : (
                 <Text color={colors.textMuted} fontSize="$sm">Không có mã QR</Text>
@@ -237,7 +261,7 @@ export default function TicketDetailScreen() {
                 </Text>
               </HStack>
 
-              <Box h={6} bg="#F1F5F9" borderRadius={3} overflow="hidden">
+              <Box h={6} bg={colors.neutralFill} borderRadius={3} overflow="hidden">
                 <Animated.View
                   style={{
                     height: "100%",
@@ -249,8 +273,8 @@ export default function TicketDetailScreen() {
               </Box>
             </VStack>
 
-            {/* Metadata Rows */}
-            <VStack w="100%" space="sm" pt="$4" borderTopWidth={1} borderColor="#F1F5F9">
+            {/* Metadata Rows - Clean borderless tonal grouping */}
+            <VStack w="100%" space="sm" pt="$3" bg={colors.background} p="$3.5" borderRadius={16} borderWidth={0}>
               <HStack justifyContent="space-between" alignItems="center">
                 <Text color={colors.textMuted} fontSize="$xs">Mã vé (ID):</Text>
                 <Text color={colors.textPrimary} fontWeight="$bold" fontSize="$xs">
@@ -268,11 +292,11 @@ export default function TicketDetailScreen() {
               <HStack justifyContent="space-between" alignItems="center">
                 <Text color={colors.textMuted} fontSize="$xs">Trạng thái:</Text>
                 {isCheckedIn ? (
-                  <Badge action="success" variant="solid" borderRadius={12} px="$2" py="$0.5">
+                  <Badge action="success" variant="solid" borderRadius={12} px="$2" py="$0.5" borderWidth={0}>
                     <BadgeText fontSize="$2xs" fontWeight="$bold">ĐÃ CHECK-IN</BadgeText>
                   </Badge>
                 ) : (
-                  <Badge action="info" variant="solid" borderRadius={12} px="$2" py="$0.5">
+                  <Badge action="info" variant="solid" borderRadius={12} px="$2" py="$0.5" borderWidth={0}>
                     <BadgeText fontSize="$2xs" fontWeight="$bold">CHỜ SOÁT VÉ</BadgeText>
                   </Badge>
                 )}

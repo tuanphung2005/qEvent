@@ -120,7 +120,7 @@ export default function LoginScreen() {
               Đăng nhập tài khoản
             </Heading>
 
-            {/* Email Input using Gluestack Input */}
+            {/* Email Input */}
             <VStack mb="$3.5">
               <Text color={colors.textPrimary} fontWeight="$semibold" fontSize="$xs" mb="$1.5">
                 EMAIL
@@ -128,10 +128,16 @@ export default function LoginScreen() {
               <Input
                 size="md"
                 variant="underlined"
+                borderWidth={0}
                 borderBottomWidth={0}
                 borderRadius={12}
-                bg="#F1F5F9"
+                bg={colors.neutralFill}
                 px="$3.5"
+                sx={{
+                  minHeight: 48,
+                  borderWidth: 0,
+                  borderBottomWidth: 0,
+                }}
               >
                 <InputField
                   value={email}
@@ -142,11 +148,12 @@ export default function LoginScreen() {
                   placeholderTextColor={colors.textMuted}
                   color={colors.textPrimary}
                   fontSize="$sm"
+                  accessibilityLabel="Email đăng nhập"
                 />
               </Input>
             </VStack>
 
-            {/* Password Input using Gluestack Input */}
+            {/* Password Input */}
             <VStack mb="$4">
               <Text color={colors.textPrimary} fontWeight="$semibold" fontSize="$xs" mb="$1.5">
                 MẬT KHẨU
@@ -154,10 +161,16 @@ export default function LoginScreen() {
               <Input
                 size="md"
                 variant="underlined"
+                borderWidth={0}
                 borderBottomWidth={0}
                 borderRadius={12}
-                bg="#F1F5F9"
+                bg={colors.neutralFill}
                 px="$3.5"
+                sx={{
+                  minHeight: 48,
+                  borderWidth: 0,
+                  borderBottomWidth: 0,
+                }}
               >
                 <InputField
                   value={password}
@@ -167,32 +180,36 @@ export default function LoginScreen() {
                   placeholderTextColor={colors.textMuted}
                   color={colors.textPrimary}
                   fontSize="$sm"
+                  accessibilityLabel="Mật khẩu"
                 />
               </Input>
             </VStack>
 
-            {/* Gluestack Button */}
+            {/* Login Button */}
             <Button
               size="lg"
               borderRadius={12}
               bg={colors.primary}
               isDisabled={loading}
               onPress={handleLogin}
+              accessibilityRole="button"
+              accessibilityLabel="Đăng nhập"
               sx={{
+                minHeight: 48,
                 ":active": { opacity: 0.85 },
               }}
             >
               {loading ? (
-                <ButtonSpinner color="#FFFFFF" />
+                <ButtonSpinner color={colors.white} />
               ) : (
-                <ButtonText color="#FFFFFF" fontWeight="$bold" fontSize="$md">
+                <ButtonText color={colors.white} fontWeight="$bold" fontSize="$md">
                   Đăng nhập
                 </ButtonText>
               )}
             </Button>
 
-            {/* Quick test accounts with Gluestack Pressable and Buttons */}
-            <VStack mt="$6" pt="$4" borderTopWidth={1} borderColor="#F1F5F9">
+            {/* Quick test accounts - Clean borderless section */}
+            <VStack mt="$6" pt="$2">
               <Text color={colors.textMuted} fontSize="$2xs" fontWeight="$bold" mb="$2.5">
                 CHỌN TÀI KHOẢN MẪU TEST:
               </Text>
@@ -203,7 +220,10 @@ export default function LoginScreen() {
                     variant="outline"
                     borderRadius={10}
                     borderWidth={0}
-                    bg="#F1F5F9"
+                    bg={colors.neutralFill}
+                    accessibilityRole="button"
+                    accessibilityLabel="Tài khoản khách tham dự"
+                    sx={{ minHeight: 44 }}
                     onPress={() => setTestAccount("attendee@qcheck.com")}
                   >
                     <ButtonText color={colors.textPrimary} fontSize="$xs" fontWeight="$semibold">
@@ -217,7 +237,10 @@ export default function LoginScreen() {
                     variant="outline"
                     borderRadius={10}
                     borderWidth={0}
-                    bg="#F1F5F9"
+                    bg={colors.neutralFill}
+                    accessibilityRole="button"
+                    accessibilityLabel="Tài khoản nhân viên soát vé"
+                    sx={{ minHeight: 44 }}
                     onPress={() => setTestAccount("staff1@qcheck.com")}
                   >
                     <ButtonText color={colors.textPrimary} fontSize="$xs" fontWeight="$semibold">
@@ -228,22 +251,27 @@ export default function LoginScreen() {
               </HStack>
             </VStack>
 
-            {/* API Connection Indicator */}
-            <VStack mt="$4" pt="$3" borderTopWidth={1} borderColor="#F8FAFC" alignItems="center">
+            {/* API Connection Indicator - Clean borderless */}
+            <VStack mt="$4" pt="$2" alignItems="center">
               <HStack space="xs" alignItems="center">
                 <Ionicons name="server-outline" size={13} color={colors.textMuted} />
                 <Text color={colors.textMuted} fontSize="$2xs">
                   API: {currentUrl}
                 </Text>
-                <Pressable onPress={() => setIsCustomUrlOpen(!isCustomUrlOpen)} ml="$1">
-                  <Badge size="sm" action="info" variant="solid" borderRadius={6} px="$1.5" py="$0.5">
+                <Pressable
+                  onPress={() => setIsCustomUrlOpen(!isCustomUrlOpen)}
+                  ml="$1"
+                  accessibilityRole="button"
+                  accessibilityLabel="Đổi địa chỉ IP máy chủ"
+                >
+                  <Badge size="sm" action="info" variant="solid" borderRadius={6} px="$1.5" py="$0.5" borderWidth={0}>
                     <BadgeText fontSize="$2xs">Đổi IP</BadgeText>
                   </Badge>
                 </Pressable>
               </HStack>
 
               {isCustomUrlOpen && (
-                <VStack w="100%" mt="$2" p="$2" bg="#F8FAFC" borderRadius={8}>
+                <VStack w="100%" mt="$2" p="$2" bg={colors.background} borderRadius={8}>
                   <Text color={colors.textSecondary} fontSize="$2xs" mb="$1">
                     Chọn nhanh địa chỉ Server:
                   </Text>
@@ -251,32 +279,35 @@ export default function LoginScreen() {
                     <Pressable
                       onPress={() => switchApiUrl("http://localhost:3000")}
                       px="$2"
-                      py="$1"
-                      bg="#E2E8F0"
+                      py="$1.5"
+                      bg={colors.neutralDark}
                       borderRadius={6}
                       mb="$1"
+                      accessibilityRole="button"
                     >
-                      <Text fontSize="$2xs">localhost:3000</Text>
+                      <Text fontSize="$2xs" color={colors.textPrimary}>localhost:3000</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => switchApiUrl("http://10.0.2.2:3000")}
                       px="$2"
-                      py="$1"
-                      bg="#E2E8F0"
+                      py="$1.5"
+                      bg={colors.neutralDark}
                       borderRadius={6}
                       mb="$1"
+                      accessibilityRole="button"
                     >
-                      <Text fontSize="$2xs">10.0.2.2:3000 (Emulator)</Text>
+                      <Text fontSize="$2xs" color={colors.textPrimary}>10.0.2.2:3000 (Emulator)</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => switchApiUrl("http://192.168.99.39:3000")}
                       px="$2"
-                      py="$1"
-                      bg="#E2E8F0"
+                      py="$1.5"
+                      bg={colors.neutralDark}
                       borderRadius={6}
                       mb="$1"
+                      accessibilityRole="button"
                     >
-                      <Text fontSize="$2xs">192.168.99.39:3000 (LAN)</Text>
+                      <Text fontSize="$2xs" color={colors.textPrimary}>192.168.99.39:3000 (LAN)</Text>
                     </Pressable>
                   </HStack>
                 </VStack>

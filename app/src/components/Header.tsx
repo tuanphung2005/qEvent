@@ -20,7 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
     <HStack
       bg={colors.surface}
       px="$5"
-      py="$4"
+      py="$3"
       alignItems="center"
       justifyContent="space-between"
       style={shadows.subtle}
@@ -29,13 +29,24 @@ export const Header: React.FC<HeaderProps> = ({
         {onBack && (
           <Pressable
             onPress={onBack}
-            mr="$3"
-            p="$1"
-            borderRadius={8}
+            mr="$2"
+            borderRadius={12}
+            accessibilityRole="button"
+            accessibilityLabel="Quay lại"
             sx={{
+              minWidth: 48,
+              minHeight: 48,
+              alignItems: "center",
+              justifyContent: "center",
               ":active": {
                 opacity: 0.7,
               },
+            }}
+            style={{
+              minWidth: 48,
+              minHeight: 48,
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />

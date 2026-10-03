@@ -24,7 +24,7 @@ export const Badge: React.FC<BadgeProps> = ({ label, variant = "default", style 
       case "info":
         return { action: "info" as const, bg: colors.primaryLight, text: colors.primary };
       default:
-        return { action: "muted" as const, bg: "#F1F5F9", text: colors.textSecondary };
+        return { action: "muted" as const, bg: colors.neutralFill, text: colors.textSecondary };
     }
   };
 

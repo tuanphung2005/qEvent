@@ -1,10 +1,15 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { colors, shadows } from "../../src/constants/theme";
+import { colors } from "../../src/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function AttendeeLayout() {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === "ios" ? 24 : 10);
+  const barHeight = 56 + bottomPadding;
+
   return (
     <Tabs
       screenOptions={{
@@ -16,12 +21,12 @@ export default function AttendeeLayout() {
           borderTopWidth: 0, // Strict No Border rule
           borderWidth: 0,
           elevation: 6,
-          shadowColor: "#000000",
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.05,
-          shadowRadius: 10,
-          height: Platform.OS === "ios" ? 84 : 64,
-          paddingBottom: Platform.OS === "ios" ? 28 : 10,
+          shadowColor: colors.black,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          height: barHeight,
+          paddingBottom: bottomPadding,
           paddingTop: 8,
         },
         tabBarLabelStyle: {

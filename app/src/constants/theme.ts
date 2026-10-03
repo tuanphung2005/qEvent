@@ -1,9 +1,13 @@
 export const colors = {
   background: "#F8FAFC", // Slate-50
   surface: "#FFFFFF",
+  white: "#FFFFFF",
+  black: "#000000",
   textPrimary: "#0F172A", // Slate-900
   textSecondary: "#475569", // Slate-600
   textMuted: "#94A3B8", // Slate-400
+  neutralFill: "#F1F5F9", // Slate-100
+  neutralDark: "#E2E8F0", // Slate-200
   primary: "#2563EB", // Blue-600
   primaryHover: "#1D4ED8",
   primaryLight: "#EFF6FF",

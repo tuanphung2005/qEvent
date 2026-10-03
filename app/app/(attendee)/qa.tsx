@@ -99,15 +99,19 @@ export default function LiveQAScreen() {
   const isCheckedIn = matchingTicket?.status === "CHECKED_IN";
   const hasTicket = Boolean(matchingTicket);
 
-  // 2. Fetch questions for the selected session
+  // 2. Fetch questions for current session
   const fetchQuestions = async (sessionId: string) => {
     try {
       const res = await api.getSessionQuestions(sessionId);
       if (res?.questions) {
         setQuestions(res.questions);
+
+        // Pre-fill user voted list
         if (user?.id) {
           const userVoted = res.questions
-            .filter((q: any) => q.votes?.some((v: any) => v.userId === user.id))
+            .filter((q: any) =>
+              q.votes?.some((v: any) => v.userId === user.id)
+            )
             .map((q: any) => q.id);
           setVotedQuestionIds(userVoted);
         }
@@ -117,86 +121,73 @@ export default function LiveQAScreen() {
     }
   };
 
-  // 3. Connect WebSocket for Realtime Q&A
+  useEffect(() => {
+    if (selectedSession?.id) {
+      fetchQuestions(selectedSession.id);
+    }
+  }, [selectedSession]);
+
+  // 3. Connect realtime WebSocket
   useEffect(() => {
     if (!selectedSession?.id) return;
 
-    fetchQuestions(selectedSession.id);
-
-    const wsUrl = api.getBaseUrl().replace(/^http/, "ws") + "/ws/qa";
     try {
+      const wsUrl = api.getWebSocketUrl("/ws/qa");
       const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
       ws.onopen = () => {
         ws.send(JSON.stringify({ type: "JOIN_SESSION", sessionId: selectedSession.id }));
       };
+
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === "INITIAL_QUESTIONS") {
-            setQuestions(data.questions || []);
-            if (user?.id) {
-              const userVoted = (data.questions || [])
-                .filter((q: any) => q.votes?.some((v: any) => v.userId === user.id))
-                .map((q: any) => q.id);
-              setVotedQuestionIds(userVoted);
-            }
-          } else if (data.type === "QUESTION_ADDED") {
+          if (data.type === "NEW_QUESTION" && data.question) {
             setQuestions((prev) => [data.question, ...prev]);
-          } else if (data.type === "VOTE_UPDATED") {
+          } else if (data.type === "QUESTION_UPVOTED") {
             setQuestions((prev) =>
               prev.map((q) =>
                 q.id === data.questionId ? { ...q, upvotes: data.upvotes } : q
               )
             );
-            if (data.userId === user?.id) {
-              if (data.hasVoted) {
-                setVotedQuestionIds((prev) => Array.from(new Set([...prev, data.questionId])));
-              } else {
-                setVotedQuestionIds((prev) => prev.filter((id) => id !== data.questionId));
-              }
-            }
           }
         } catch {}
       };
-      wsRef.current = ws;
-    } catch {}
 
-    return () => {
-      wsRef.current?.close();
-    };
-  }, [selectedSession?.id, user?.id]);
+      return () => {
+        ws.close();
+      };
+    } catch (err) {
+      console.warn("WebSocket init error:", err);
+    }
+  }, [selectedSession?.id]);
 
   const handlePostQuestion = async () => {
-    if (!content.trim()) return;
-
-    // Strict Attendance Guard: User must be checked in
+    if (!content.trim() || !selectedSession?.id) return;
     if (!isCheckedIn) {
       Alert.alert(
-        "Chưa đủ điều kiện đặt câu hỏi",
-        hasTicket
-          ? "Bạn cần điểm danh (check-in) tại cổng sự kiện để được phép gửi câu hỏi trực tiếp cho diễn giả."
-          : "Bạn chưa có vé cho sự kiện này. Vui lòng nhận vé và check-in để tham gia Q&A."
+        "Yêu cầu Điểm danh",
+        "Bạn cần quét mã vé tại cổng để mở quyền đặt câu hỏi trực tiếp trên màn hình."
       );
       return;
     }
 
-    if (!selectedSession?.id) return;
     setSubmitting(true);
-
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(
         JSON.stringify({
           type: "POST_QUESTION",
           sessionId: selectedSession.id,
-          userId: user?.id || "anonymous",
           content: content.trim(),
+          userName: user?.fullName || "Khách tham dự",
         })
       );
       setContent("");
       setSubmitting(false);
     } else {
       try {
-        await api.postQuestion(selectedSession.id, user?.id || "anonymous", content.trim());
+        await api.postQuestion(selectedSession.id, user?.id || "guest", content.trim());
         setContent("");
         await fetchQuestions(selectedSession.id);
       } catch (err: any) {
@@ -256,7 +247,7 @@ export default function LiveQAScreen() {
       <HStack
         bg={colors.surface}
         px="$5"
-        py="$3.5"
+        py="$3"
         alignItems="center"
         justifyContent="space-between"
         style={shadows.subtle}
@@ -281,7 +272,7 @@ export default function LiveQAScreen() {
       {/* Attendance Verification Status Banner */}
       <Box px="$4" pt="$3" pb="$2">
         {isCheckedIn ? (
-          <Box bg={colors.successLight} px="$3" py="$2" borderRadius={12}>
+          <Box bg={colors.successLight} px="$3" py="$2.5" borderRadius={12}>
             <HStack space="xs" alignItems="center">
               <Ionicons name="shield-checkmark" size={16} color={colors.success} />
               <Text color={colors.success} fontSize="$xs" fontWeight="$bold">
@@ -290,7 +281,7 @@ export default function LiveQAScreen() {
             </HStack>
           </Box>
         ) : hasTicket ? (
-          <Box bg={colors.warningLight} px="$3" py="$2" borderRadius={12}>
+          <Box bg={colors.warningLight} px="$3" py="$2.5" borderRadius={12}>
             <HStack space="xs" alignItems="center">
               <Ionicons name="alert-circle" size={16} color={colors.warning} />
               <Text color={colors.warning} fontSize="$xs" fontWeight="$bold">
@@ -299,7 +290,7 @@ export default function LiveQAScreen() {
             </HStack>
           </Box>
         ) : (
-          <Box bg="#F1F5F9" px="$3" py="$2" borderRadius={12}>
+          <Box bg={colors.neutralFill} px="$3" py="$2.5" borderRadius={12}>
             <HStack space="xs" alignItems="center">
               <Ionicons name="information-circle" size={16} color={colors.textMuted} />
               <Text color={colors.textMuted} fontSize="$xs" fontWeight="$bold">
@@ -310,7 +301,7 @@ export default function LiveQAScreen() {
         )}
       </Box>
 
-      {/* Sessions Horizontal Selector */}
+      {/* Sessions Horizontal Selector with 48dp touch height */}
       {selectedEvent?.sessions && selectedEvent.sessions.length > 0 && (
         <Box px="$4" pb="$2">
           <Text color={colors.textMuted} fontSize="$2xs" fontWeight="$bold" mb="$1.5">
@@ -325,14 +316,22 @@ export default function LiveQAScreen() {
                     key={s.id}
                     onPress={() => setSelectedSession(s)}
                     bg={isSelected ? colors.primary : colors.surface}
-                    px="$3.5"
-                    py="$2"
+                    px="$4"
+                    py="$2.5"
                     borderRadius={12}
                     borderWidth={0}
-                    style={shadows.subtle}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Chọn phiên thảo luận ${s.title}`}
+                    accessibilityState={{ selected: isSelected }}
+                    sx={{
+                      minHeight: 48,
+                      justifyContent: "center",
+                      ":active": { opacity: 0.8 },
+                    }}
+                    style={[{ minHeight: 48, justifyContent: "center" }, shadows.subtle]}
                   >
                     <Text
-                      color={isSelected ? "#FFFFFF" : colors.textPrimary}
+                      color={isSelected ? colors.white : colors.textPrimary}
                       fontSize="$xs"
                       fontWeight={isSelected ? "$bold" : "$normal"}
                       numberOfLines={1}
@@ -341,7 +340,7 @@ export default function LiveQAScreen() {
                     </Text>
                     {s.room?.name && (
                       <Text
-                        color={isSelected ? "#E2E8F0" : colors.textMuted}
+                        color={isSelected ? colors.neutralDark : colors.textMuted}
                         fontSize="$2xs"
                         mt="$0.5"
                       >
@@ -378,7 +377,7 @@ export default function LiveQAScreen() {
                   Gửi câu hỏi cho diễn giả:
                 </Heading>
                 {!isCheckedIn && (
-                  <Badge action="muted" variant="solid" borderRadius={8} px="$2" py="$0.5">
+                  <Badge action="muted" variant="solid" borderRadius={8} px="$2" py="$0.5" borderWidth={0}>
                     <BadgeText fontSize="$2xs">Cần check-in</BadgeText>
                   </Badge>
                 )}
@@ -387,12 +386,18 @@ export default function LiveQAScreen() {
               <Input
                 size="md"
                 variant="underlined"
+                borderWidth={0}
                 borderBottomWidth={0}
                 borderRadius={12}
-                bg={isCheckedIn ? "#F1F5F9" : "#F8FAFC"}
+                bg={isCheckedIn ? colors.neutralFill : colors.background}
                 px="$3.5"
                 py="$2"
                 mb="$3"
+                sx={{
+                  minHeight: 48,
+                  borderWidth: 0,
+                  borderBottomWidth: 0,
+                }}
               >
                 <InputField
                   value={content}
@@ -407,6 +412,7 @@ export default function LiveQAScreen() {
                   color={colors.textPrimary}
                   fontSize="$sm"
                   multiline
+                  accessibilityLabel="Nội dung câu hỏi gửi diễn giả"
                 />
               </Input>
 
@@ -414,15 +420,20 @@ export default function LiveQAScreen() {
                 size="md"
                 bg={isCheckedIn ? colors.primary : colors.textMuted}
                 borderRadius={12}
+                borderWidth={0}
                 isDisabled={submitting || !isCheckedIn}
                 onPress={handlePostQuestion}
+                accessibilityRole="button"
+                accessibilityLabel="Gửi câu hỏi lên màn hình"
+                sx={{ minHeight: 48 }}
+                style={{ minHeight: 48 }}
               >
                 {submitting ? (
-                  <ButtonSpinner color="#FFFFFF" />
+                  <ButtonSpinner color={colors.white} />
                 ) : (
                   <>
-                    <ButtonIcon as={() => <Ionicons name="send" size={16} color="#FFFFFF" />} mr="$2" />
-                    <ButtonText color="#FFFFFF" fontWeight="$bold" fontSize="$sm">
+                    <ButtonIcon as={() => <Ionicons name="send" size={16} color={colors.white} />} mr="$2" />
+                    <ButtonText color={colors.white} fontWeight="$bold" fontSize="$sm">
                       {isCheckedIn ? "Gửi câu hỏi lên màn hình" : "Khóa (Chưa check-in)"}
                     </ButtonText>
                   </>
@@ -465,7 +476,7 @@ export default function LiveQAScreen() {
                     </Text>
                   </VStack>
 
-                  {/* Single toggleable upvote button */}
+                  {/* Single toggleable upvote button with minimum 48x48dp target */}
                   <Pressable
                     onPress={() => handleToggleUpvote(item.id)}
                     alignItems="center"
@@ -474,15 +485,28 @@ export default function LiveQAScreen() {
                     px="$3"
                     py="$2"
                     borderRadius={12}
-                    sx={{ ":active": { opacity: 0.8 } }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Bình chọn câu hỏi, hiện có ${item.upvotes} lượt bình chọn`}
+                    accessibilityState={{ selected: isVoted }}
+                    sx={{
+                      minWidth: 48,
+                      minHeight: 48,
+                      ":active": { opacity: 0.8 },
+                    }}
+                    style={{
+                      minWidth: 48,
+                      minHeight: 48,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
                   >
                     <Ionicons
                       name="caret-up"
                       size={18}
-                      color={isVoted ? "#FFFFFF" : colors.primary}
+                      color={isVoted ? colors.white : colors.primary}
                     />
                     <Text
-                      color={isVoted ? "#FFFFFF" : colors.primary}
+                      color={isVoted ? colors.white : colors.primary}
                       fontWeight="$bold"
                       fontSize="$xs"
                     >
