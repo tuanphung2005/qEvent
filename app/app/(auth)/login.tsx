@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
   View,
-  Text,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -16,13 +15,17 @@ import {
   Card,
   SegmentedButtons,
   Chip,
+  Text,
+  useTheme,
+  Surface,
 } from "react-native-paper";
 import { useAuth } from "../../src/context/AuthContext";
 import { api } from "../../src/api/client";
-import { colors, shadows, m3Shapes } from "../../src/constants/theme";
+import { colors, m3Shapes } from "../../src/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function LoginScreen() {
+  const theme = useTheme();
   const [email, setEmail] = useState("attendee@qcheck.com");
   const [password, setPassword] = useState("password123");
   const [showPassword, setShowPassword] = useState(false);
@@ -44,7 +47,6 @@ export default function LoginScreen() {
       const loggedUser = await login(email, password);
       console.log("[Login] Success! Logged user:", loggedUser);
 
-      // Explicit navigation based on role
       if (loggedUser.role === "STAFF" || loggedUser.role === "ORGANIZER") {
         router.replace("/(staff)/scanner");
       } else {
@@ -87,45 +89,44 @@ export default function LoginScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Logo & Branding */}
-          <View style={styles.logoSection}>
-            <View style={styles.logoWrapper}>
-              <Ionicons name="qr-code" size={52} color={colors.black} />
-            </View>
-            <Text style={styles.brandTitle}>qCheck</Text>
-            <Text style={styles.brandSubtitle}>
-              Soát vé sự kiện tức thời & Chống trùng lặp
+          {/* M3 Hero Branding Header */}
+          <View style={styles.heroSection}>
+            <Surface style={styles.heroIconBadge} elevation={2}>
+              <Ionicons name="qr-code" size={40} color={theme.colors.primary} />
+            </Surface>
+            <Text variant="headlineMedium" style={styles.brandTitle}>
+              qCheck
+            </Text>
+            <Text variant="bodyMedium" style={styles.brandSubtitle}>
+              Soát vé sự kiện tức thời & Chống vé giả
             </Text>
           </View>
 
           {/* M3 Expressive Card Container */}
-          <Card
-            mode="contained"
-            style={[styles.loginCard, shadows.floating]}
-          >
-            <Card.Content>
-              <Text style={styles.cardHeading}>Đăng nhập tài khoản</Text>
+          <Card mode="elevated" style={styles.loginCard} elevation={1}>
+            <Card.Content style={styles.cardContent}>
+              <Text variant="titleMedium" style={styles.cardTitle}>
+                Đăng nhập tài khoản
+              </Text>
 
               {/* M3 Segmented Buttons Role Switcher */}
-              <View style={styles.segmentedWrapper}>
-                <SegmentedButtons
-                  value={selectedRole}
-                  onValueChange={handleRoleChange}
-                  buttons={[
-                    {
-                      value: "attendee",
-                      label: "Khách tham dự",
-                      icon: "account",
-                    },
-                    {
-                      value: "staff",
-                      label: "Staff Soát vé",
-                      icon: "shield-account",
-                    },
-                  ]}
-                  style={styles.segmentedButtons}
-                />
-              </View>
+              <SegmentedButtons
+                value={selectedRole}
+                onValueChange={handleRoleChange}
+                buttons={[
+                  {
+                    value: "attendee",
+                    label: "Khách tham dự",
+                    icon: "ticket-confirmation-outline",
+                  },
+                  {
+                    value: "staff",
+                    label: "Staff soát vé",
+                    icon: "camera-iris",
+                  },
+                ]}
+                style={styles.roleSegment}
+              />
 
               {/* Email Input */}
               <TextInput
@@ -151,70 +152,69 @@ export default function LoginScreen() {
                 left={<TextInput.Icon icon="lock-outline" />}
                 right={
                   <TextInput.Icon
-                    icon={showPassword ? "eye-off" : "eye"}
+                    icon={showPassword ? "eye-off-outline" : "eye-outline"}
                     onPress={() => setShowPassword(!showPassword)}
                   />
                 }
                 style={styles.inputField}
               />
 
-              {/* Login Action Button */}
+              {/* M3 Large Pill Login Button */}
               <Button
                 mode="contained"
                 loading={loading}
                 disabled={loading}
                 onPress={handleLogin}
-                icon="login"
+                icon="arrow-right"
                 contentStyle={styles.loginBtnContent}
                 style={styles.loginBtn}
               >
-                Đăng nhập
+                Đăng nhập ngay
               </Button>
 
-              {/* API Connection Indicator */}
-              <View style={styles.apiSection}>
-                <View style={styles.apiIndicatorRow}>
-                  <Ionicons name="server-outline" size={14} color={colors.textSecondary} />
-                  <Text style={styles.apiText}>API: {currentUrl}</Text>
+              {/* M3 Server / Environment Tonal Chip */}
+              <Surface style={styles.serverSurface} elevation={0}>
+                <View style={styles.serverRow}>
+                  <Ionicons name="cloud-outline" size={16} color={theme.colors.onSurfaceVariant} />
+                  <Text variant="labelMedium" style={styles.serverLabel} numberOfLines={1}>
+                    Server: {currentUrl.replace("http://", "")}
+                  </Text>
                   <Chip
                     compact
-                    mode="outlined"
+                    mode="flat"
                     onPress={() => setIsCustomUrlOpen(!isCustomUrlOpen)}
-                    style={styles.ipChip}
+                    style={styles.switchChip}
                   >
                     Đổi IP
                   </Chip>
                 </View>
 
                 {isCustomUrlOpen && (
-                  <View style={styles.serverPickerBox}>
-                    <Text style={styles.serverPickerHeading}>Chọn nhanh địa chỉ Server:</Text>
-                    <View style={styles.serverOptionsRow}>
-                      <Chip
-                        compact
-                        onPress={() => switchApiUrl("http://localhost:3000")}
-                        style={styles.serverChip}
-                      >
-                        localhost:3000
-                      </Chip>
-                      <Chip
-                        compact
-                        onPress={() => switchApiUrl("http://10.0.2.2:3000")}
-                        style={styles.serverChip}
-                      >
-                        10.0.2.2:3000 (Emulator)
-                      </Chip>
-                      <Chip
-                        compact
-                        onPress={() => switchApiUrl("http://192.168.99.39:3000")}
-                        style={styles.serverChip}
-                      >
-                        192.168.99.39:3000 (LAN)
-                      </Chip>
-                    </View>
+                  <View style={styles.serverChoices}>
+                    <Chip
+                      compact
+                      mode={currentUrl.includes("localhost") ? "flat" : "outlined"}
+                      onPress={() => switchApiUrl("http://localhost:3000")}
+                    >
+                      localhost:3000
+                    </Chip>
+                    <Chip
+                      compact
+                      mode={currentUrl.includes("10.0.2.2") ? "flat" : "outlined"}
+                      onPress={() => switchApiUrl("http://10.0.2.2:3000")}
+                    >
+                      10.0.2.2 (Android)
+                    </Chip>
+                    <Chip
+                      compact
+                      mode={currentUrl.includes("192.168") ? "flat" : "outlined"}
+                      onPress={() => switchApiUrl("http://192.168.99.39:3000")}
+                    >
+                      192.168.99.39 (LAN)
+                    </Chip>
                   </View>
                 )}
-              </View>
+              </Surface>
             </Card.Content>
           </Card>
         </ScrollView>
@@ -237,23 +237,24 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
   },
-  logoSection: {
+  heroSection: {
     alignItems: "center",
     marginBottom: 24,
   },
-  logoWrapper: {
-    marginBottom: 10,
+  heroIconBadge: {
+    width: 68,
+    height: 68,
+    borderRadius: 24,
+    backgroundColor: colors.m3.primaryContainer,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 12,
   },
   brandTitle: {
-    fontSize: 30,
     fontWeight: "800",
-    color: colors.textPrimary,
     letterSpacing: -0.5,
   },
   brandSubtitle: {
-    fontSize: 14,
     color: colors.textSecondary,
     marginTop: 4,
     textAlign: "center",
@@ -261,20 +262,17 @@ const styles = StyleSheet.create({
   loginCard: {
     backgroundColor: colors.surface,
     borderRadius: 28,
-    borderWidth: 0,
-    paddingVertical: 8,
   },
-  cardHeading: {
-    fontSize: 20,
+  cardContent: {
+    padding: 24,
+  },
+  cardTitle: {
     fontWeight: "700",
-    color: colors.textPrimary,
     marginBottom: 16,
+    color: colors.textPrimary,
   },
-  segmentedWrapper: {
+  roleSegment: {
     marginBottom: 18,
-  },
-  segmentedButtons: {
-    borderRadius: m3Shapes.full,
   },
   inputField: {
     marginBottom: 14,
@@ -282,50 +280,40 @@ const styles = StyleSheet.create({
   },
   inputOutline: {
     borderRadius: 16,
-    borderColor: colors.neutralDark,
   },
   loginBtn: {
-    marginTop: 8,
+    marginTop: 10,
     borderRadius: m3Shapes.full,
   },
   loginBtnContent: {
-    height: 50,
+    height: 52,
   },
-  apiSection: {
+  serverSurface: {
     marginTop: 20,
-    alignItems: "center",
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: colors.m3.surfaceContainerLow,
   },
-  apiIndicatorRow: {
+  serverRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: 8,
   },
-  apiText: {
-    fontSize: 12,
+  serverLabel: {
+    flex: 1,
     color: colors.textSecondary,
   },
-  ipChip: {
-    height: 28,
+  switchChip: {
+    borderRadius: m3Shapes.full,
   },
-  serverPickerBox: {
-    width: "100%",
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: colors.m3.surfaceContainerLow,
-    borderRadius: 16,
-  },
-  serverPickerHeading: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginBottom: 8,
-    fontWeight: "600",
-  },
-  serverOptionsRow: {
+  serverChoices: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 6,
-  },
-  serverChip: {
-    backgroundColor: colors.m3.surfaceContainerHigh,
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutralDark,
   },
 });

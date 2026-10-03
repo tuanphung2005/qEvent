@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   Platform,
@@ -20,18 +19,22 @@ import {
   Chip,
   Button,
   TextInput,
+  Text,
+  useTheme,
+  Surface,
 } from "react-native-paper";
 import { useAuth } from "../../src/context/AuthContext";
 import { useOfflineSync } from "../../src/context/OfflineSyncContext";
 import { api } from "../../src/api/client";
 import { hapticFeedback } from "../../src/services/haptics";
 import { soundService } from "../../src/services/sound";
-import { colors, shadows, m3Shapes } from "../../src/constants/theme";
+import { colors, m3Shapes } from "../../src/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 
 type ScanFeedback = "IDLE" | "VALID" | "DUPLICATE" | "INVALID";
 
 export default function ScannerScreen() {
+  const theme = useTheme();
   const { user, logout } = useAuth();
   const {
     isOnline,
@@ -58,7 +61,6 @@ export default function ScannerScreen() {
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    // Proactively download cache on start if online
     if (isOnline) {
       downloadCache("any").catch(() => {});
     }
@@ -101,14 +103,13 @@ export default function ScannerScreen() {
 
     if (type === "VALID") {
       soundService.playSuccess();
-      hapticFeedback.success(); // 1 light vibration
+      hapticFeedback.success();
     } else if (type === "DUPLICATE") {
-      hapticFeedback.duplicate(); // 2 vibrations
+      hapticFeedback.duplicate();
     } else if (type === "INVALID") {
-      hapticFeedback.error(); // long vibration
+      hapticFeedback.error();
     }
 
-    // Reset scanner after 650ms for high gate throughput, or tap screen to dismiss instantly
     if (resetTimer.current) clearTimeout(resetTimer.current);
     resetTimer.current = setTimeout(() => {
       dismissFeedbackImmediately();
@@ -122,7 +123,6 @@ export default function ScannerScreen() {
 
     try {
       if (isOnline) {
-        // Online verification
         try {
           const res = await api.verifyCheckin(qrToken, "device-staff-1");
           if (res?.status === "SUCCESS") {
@@ -137,19 +137,16 @@ export default function ScannerScreen() {
           }
         } catch (err: any) {
           if (err.status === 409) {
-            // DUPLICATE CHECK-IN (Already checked in)
             triggerFeedback(
               "DUPLICATE",
               "VÉ ĐÃ QUÉT TRƯỚC ĐÓ",
               err.data?.ticket?.attendeeName || ""
             );
           } else {
-            // If network fails midway, fallback to offline
             triggerFeedback("INVALID", err.message || "MÃ KHÔNG HỢP LỆ HOẶC HẾT HẠN");
           }
         }
       } else {
-        // Offline-first verification
         let ticketId = qrToken;
         try {
           const [dataB64] = qrToken.split(".");
@@ -257,22 +254,23 @@ export default function ScannerScreen() {
         />
       </Appbar.Header>
 
-      {/* Live Check-in Attendance Progress Bar */}
+      {/* Floating Check-in Attendance Pill HUD */}
       {stats && (
-        <View style={styles.statsBar}>
+        <Surface style={styles.statsHud} elevation={2}>
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>ĐÃ QUÉT:</Text>
-            <Text style={[styles.statValue, { color: colors.success }]}>
-              {stats.checkedIn} / {stats.total}
+            <Text variant="labelSmall" style={styles.statLabel}>ĐÃ QUÉT</Text>
+            <Text variant="titleMedium" style={{ color: colors.success, fontWeight: "800" }}>
+              {stats.checkedIn}/{stats.total}
             </Text>
           </View>
+          <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>CHƯA VÀO:</Text>
-            <Text style={[styles.statValue, { color: colors.primary }]}>
+            <Text variant="labelSmall" style={styles.statLabel}>CÒN LẠI</Text>
+            <Text variant="titleMedium" style={{ color: theme.colors.primary, fontWeight: "800" }}>
               {stats.remaining} vé
             </Text>
           </View>
-        </View>
+        </Surface>
       )}
 
       {/* Camera View Area */}
@@ -286,22 +284,22 @@ export default function ScannerScreen() {
             onBarcodeScanned={isScanningActive ? handleBarcodeScanned : undefined}
           />
         ) : (
-          <Card mode="contained" style={styles.permissionBox}>
-            <Card.Content style={{ alignItems: "center" }}>
-              <Ionicons name="camera-outline" size={54} color={colors.textSecondary} />
-              <Text style={styles.permissionTitle}>Cần quyền truy cập Camera</Text>
-              <Text style={styles.permissionSubtitle}>
-                Để quét mã Dynamic QR soát vé sự kiện
-              </Text>
-              <Button
-                mode="contained"
-                onPress={requestPermission}
-                style={{ marginTop: 16 }}
-              >
-                Cấp quyền Camera
-              </Button>
-            </Card.Content>
-          </Card>
+          <Surface style={styles.permissionBox} elevation={2}>
+            <Ionicons name="camera-outline" size={54} color={colors.textSecondary} />
+            <Text variant="titleMedium" style={styles.permissionTitle}>
+              Cần quyền truy cập Camera
+            </Text>
+            <Text variant="bodySmall" style={styles.permissionSubtitle}>
+              Để quét mã Dynamic QR soát vé sự kiện tức thời
+            </Text>
+            <Button
+              mode="contained"
+              onPress={requestPermission}
+              style={{ marginTop: 16, borderRadius: m3Shapes.full }}
+            >
+              Cấp quyền Camera
+            </Button>
+          </Surface>
         )}
 
         {/* Scan Target Reticle */}
@@ -317,7 +315,7 @@ export default function ScannerScreen() {
           </View>
         )}
 
-        {/* Multi-sensory Fullscreen Color Flash Feedback Overlay */}
+        {/* Multi-sensory Color Flash Feedback Overlay */}
         {feedback !== "IDLE" && (
           <TouchableOpacity
             activeOpacity={0.95}
@@ -351,15 +349,18 @@ export default function ScannerScreen() {
       </View>
 
       {/* Bottom Floating Control Bar */}
-      <View style={[styles.bottomControlBar, shadows.floating, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+      <Surface
+        style={[styles.bottomControlBar, { paddingBottom: Math.max(insets.bottom, 16) }]}
+        elevation={3}
+      >
         <Button
           mode="elevated"
           icon="pencil-outline"
           onPress={() => setTestModalVisible(true)}
-          style={{ flex: 1, borderRadius: m3Shapes.full }}
+          style={styles.bottomBtn}
           contentStyle={{ height: 48 }}
         >
-          Nhập / Thử test mã
+          Thử test mã
         </Button>
         <Button
           mode="contained"
@@ -367,14 +368,14 @@ export default function ScannerScreen() {
           loading={isSyncing}
           disabled={isSyncing}
           onPress={handleSyncNow}
-          style={{ flex: 1, borderRadius: m3Shapes.full }}
+          style={styles.bottomBtn}
           contentStyle={{ height: 48 }}
         >
           Đồng bộ vé
         </Button>
-      </View>
+      </Surface>
 
-      {/* Manual / Simulation Modal with KeyboardAvoidingView */}
+      {/* Manual / Simulation Modal */}
       <Modal
         visible={testModalVisible}
         transparent
@@ -387,65 +388,65 @@ export default function ScannerScreen() {
         >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={{ flex: 1, justifyContent: "center" }}>
-              <Card mode="contained" style={styles.modalCard}>
-                <Card.Content>
-                  <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Thử nghiệm Quét mã</Text>
-                    <TouchableOpacity
-                      onPress={() => setTestModalVisible(false)}
-                      accessibilityRole="button"
-                      accessibilityLabel="Đóng cửa sổ"
-                      style={styles.standaloneIconBtn}
-                    >
-                      <Ionicons name="close" size={24} color={colors.black} />
-                    </TouchableOpacity>
-                  </View>
-
-                  <Text style={styles.modalHint}>
-                    Dán chuỗi mã Dynamic QR hoặc nhập để kiểm tra phản hồi Xanh (Hợp lệ) / Vàng (Trùng vé) / Đỏ (Lỗi):
+              <Surface style={styles.modalCard} elevation={4}>
+                <View style={styles.modalHeader}>
+                  <Text variant="titleMedium" style={{ fontWeight: "700" }}>
+                    Thử nghiệm Quét mã
                   </Text>
+                  <TouchableOpacity
+                    onPress={() => setTestModalVisible(false)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Đóng cửa sổ"
+                    style={styles.standaloneIconBtn}
+                  >
+                    <Ionicons name="close" size={24} color={colors.black} />
+                  </TouchableOpacity>
+                </View>
 
-                  <TextInput
-                    value={manualToken}
-                    onChangeText={setManualToken}
-                    placeholder="Dán chuỗi mã QR token..."
-                    mode="outlined"
-                    outlineStyle={{ borderRadius: 16 }}
-                    multiline
-                    numberOfLines={3}
-                    style={{ minHeight: 80, marginBottom: 16 }}
-                  />
+                <Text variant="bodySmall" style={styles.modalHint}>
+                  Dán chuỗi mã Dynamic QR hoặc nhập để kiểm tra phản hồi Xanh (Hợp lệ) / Vàng (Trùng vé) / Đỏ (Lỗi):
+                </Text>
 
-                  <View style={{ gap: 10 }}>
-                    <Button
-                      mode="contained"
-                      onPress={() => {
-                        if (!manualToken.trim()) return;
-                        setTestModalVisible(false);
-                        processScannedToken(manualToken.trim());
-                        setManualToken("");
-                      }}
-                      style={{ borderRadius: m3Shapes.full }}
-                    >
-                      Xác thực mã đã dán
-                    </Button>
-                    <Button
-                      mode="contained-tonal"
-                      onPress={async () => {
-                        try {
-                          const res = await downloadCache("any");
-                          Alert.alert("Thành công", `Đã lưu ${res.count} vé vào bộ nhớ đệm SQLite`);
-                        } catch (e: any) {
-                          Alert.alert("Lỗi", e.message);
-                        }
-                      }}
-                      style={{ borderRadius: m3Shapes.full }}
-                    >
-                      Tải lại vé vào Cache Offline
-                    </Button>
-                  </View>
-                </Card.Content>
-              </Card>
+                <TextInput
+                  value={manualToken}
+                  onChangeText={setManualToken}
+                  placeholder="Dán chuỗi mã QR token..."
+                  mode="outlined"
+                  outlineStyle={{ borderRadius: 16 }}
+                  multiline
+                  numberOfLines={3}
+                  style={{ minHeight: 80, marginBottom: 16, backgroundColor: colors.surface }}
+                />
+
+                <View style={{ gap: 10 }}>
+                  <Button
+                    mode="contained"
+                    onPress={() => {
+                      if (!manualToken.trim()) return;
+                      setTestModalVisible(false);
+                      processScannedToken(manualToken.trim());
+                      setManualToken("");
+                    }}
+                    style={{ borderRadius: m3Shapes.full }}
+                  >
+                    Xác thực mã đã dán
+                  </Button>
+                  <Button
+                    mode="contained-tonal"
+                    onPress={async () => {
+                      try {
+                        const res = await downloadCache("any");
+                        Alert.alert("Thành công", `Đã lưu ${res.count} vé vào bộ nhớ đệm SQLite`);
+                      } catch (e: any) {
+                        Alert.alert("Lỗi", e.message);
+                      }
+                    }}
+                    style={{ borderRadius: m3Shapes.full }}
+                  >
+                    Tải lại vé vào Cache Offline
+                  </Button>
+                </View>
+              </Surface>
             </View>
           </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
@@ -461,7 +462,6 @@ const styles = StyleSheet.create({
   },
   appbar: {
     backgroundColor: colors.surface,
-    borderWidth: 0,
   },
   appbarTitle: {
     fontSize: 18,
@@ -473,12 +473,13 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   syncChip: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.m3.primaryContainer,
     height: 32,
     marginRight: 4,
+    borderRadius: m3Shapes.full,
   },
   syncChipText: {
-    color: colors.primary,
+    color: colors.m3.onPrimaryContainer,
     fontSize: 11,
     fontWeight: "700",
   },
@@ -489,27 +490,28 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: m3Shapes.full,
   },
-  statsBar: {
-    backgroundColor: colors.background,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    borderWidth: 0,
-  },
-  statItem: {
+  statsHud: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    justifyContent: "space-around",
+    backgroundColor: colors.surface,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  statItem: {
+    alignItems: "center",
   },
   statLabel: {
-    fontSize: 10,
-    fontWeight: "700",
     color: colors.textSecondary,
-  },
-  statValue: {
-    fontSize: 12,
     fontWeight: "700",
+    marginBottom: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: colors.neutralFill,
   },
   cameraContainer: {
     flex: 1,
@@ -520,18 +522,17 @@ const styles = StyleSheet.create({
   },
   permissionBox: {
     backgroundColor: colors.surface,
-    borderRadius: 24,
+    borderRadius: 28,
     marginHorizontal: 30,
-    borderWidth: 0,
+    padding: 28,
+    alignItems: "center",
   },
   permissionTitle: {
-    fontSize: 18,
     fontWeight: "700",
     color: colors.textPrimary,
     marginTop: 12,
   },
   permissionSubtitle: {
-    fontSize: 14,
     color: colors.textSecondary,
     textAlign: "center",
     marginTop: 6,
@@ -617,7 +618,10 @@ const styles = StyleSheet.create({
     padding: 16,
     flexDirection: "row",
     gap: 12,
-    borderWidth: 0,
+  },
+  bottomBtn: {
+    flex: 1,
+    borderRadius: m3Shapes.full,
   },
   modalBackdrop: {
     flex: 1,
@@ -628,7 +632,7 @@ const styles = StyleSheet.create({
   modalCard: {
     backgroundColor: colors.surface,
     borderRadius: 28,
-    borderWidth: 0,
+    padding: 24,
   },
   modalHeader: {
     flexDirection: "row",
@@ -636,13 +640,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: colors.textPrimary,
-  },
   modalHint: {
-    fontSize: 13,
     color: colors.textSecondary,
     marginBottom: 14,
     lineHeight: 18,

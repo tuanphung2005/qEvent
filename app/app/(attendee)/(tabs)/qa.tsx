@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import {
   View,
-  Text,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -13,14 +12,17 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Appbar,
-  Card,
   Chip,
   TextInput,
   Button,
+  Avatar,
+  Text,
+  useTheme,
+  Surface,
 } from "react-native-paper";
 import { useAuth } from "../../../src/context/AuthContext";
 import { api } from "../../../src/api/client";
-import { colors, shadows, m3Shapes } from "../../../src/constants/theme";
+import { colors, m3Shapes } from "../../../src/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 
 interface Session {
@@ -42,6 +44,7 @@ interface Question {
 }
 
 export default function LiveQAScreen() {
+  const theme = useTheme();
   const { user } = useAuth();
   const [events, setEvents] = useState<any[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
@@ -54,7 +57,7 @@ export default function LiveQAScreen() {
   const [submitting, setSubmitting] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
 
-  // 1. Load active events & user tickets to determine attendance permission
+  // 1. Load active events & user tickets
   const loadEventAndAttendance = async () => {
     try {
       const [eventsRes, ticketsRes] = await Promise.all([
@@ -85,7 +88,6 @@ export default function LiveQAScreen() {
     loadEventAndAttendance();
   }, []);
 
-  // Check attendance status for the selected event
   const matchingTicket = userTickets.find(
     (t) => t.eventId === selectedEvent?.id
   );
@@ -99,7 +101,6 @@ export default function LiveQAScreen() {
       if (res?.questions) {
         setQuestions(res.questions);
 
-        // Pre-fill user voted list
         if (user?.id) {
           const userVoted = res.questions
             .filter((q: any) =>
@@ -199,7 +200,6 @@ export default function LiveQAScreen() {
 
     const hasAlreadyVoted = votedQuestionIds.includes(questionId);
 
-    // Optimistic UI update
     if (hasAlreadyVoted) {
       setVotedQuestionIds((prev) => prev.filter((id) => id !== questionId));
       setQuestions((prev) =>
@@ -216,7 +216,6 @@ export default function LiveQAScreen() {
       );
     }
 
-    // Send through WebSocket or REST fallback
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(
         JSON.stringify({
@@ -234,34 +233,44 @@ export default function LiveQAScreen() {
     }
   };
 
+  const getInitials = (name?: string) => {
+    if (!name) return "K";
+    const parts = name.trim().split(" ");
+    return parts[parts.length - 1].slice(0, 1).toUpperCase();
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       {/* Material 3 Appbar Header */}
-      <Appbar.Header elevated style={styles.appbar}>
+      <Appbar.Header mode="center-aligned" elevated style={styles.appbar}>
         <Appbar.Content
-          title="Live Q&A"
+          title="Hỏi đáp Diễn giả"
           titleStyle={styles.appbarTitle}
           subtitle={selectedEvent?.name || "Đang tải sự kiện..."}
           subtitleStyle={styles.appbarSubtitle}
         />
       </Appbar.Header>
 
-      {/* Subtle Attendance Notice */}
+      {/* Attendance Gate Status Banner */}
       {!isCheckedIn && (
-        <View style={styles.noticeContainer}>
-          <View style={styles.noticeBanner}>
-            <Ionicons name="alert-circle-outline" size={15} color={colors.warning} />
-            <Text style={styles.noticeText}>
-              {hasTicket ? "Cần điểm danh tại cổng để đặt câu hỏi" : "Chưa có vé sự kiện"}
-            </Text>
-          </View>
-        </View>
+        <Surface style={styles.attendanceBanner} elevation={0}>
+          <Ionicons name="alert-circle" size={18} color={colors.warning} />
+          <Text variant="bodySmall" style={styles.attendanceText}>
+            {hasTicket
+              ? "Cần check-in vé tại cổng để mở quyền đặt câu hỏi trực tiếp."
+              : "Bạn cần có vé sự kiện đã điểm danh để tham gia đặt câu hỏi."}
+          </Text>
+        </Surface>
       )}
 
       {/* Sessions Horizontal Selector */}
       {selectedEvent?.sessions && selectedEvent.sessions.length > 0 && (
         <View style={styles.sessionsWrapper}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sessionsContent}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.sessionsContent}
+          >
             {selectedEvent.sessions.map((s: Session) => {
               const isSelected = selectedSession?.id === s.id;
               return (
@@ -269,24 +278,16 @@ export default function LiveQAScreen() {
                   key={s.id}
                   selected={isSelected}
                   showSelectedCheck
-                  mode="flat"
+                  mode={isSelected ? "flat" : "outlined"}
                   onPress={() => setSelectedSession(s)}
                   style={[
                     styles.sessionChip,
-                    {
-                      backgroundColor: isSelected
-                        ? colors.m3.primaryContainer
-                        : colors.m3.surfaceContainer,
-                    },
+                    isSelected && { backgroundColor: colors.m3.primaryContainer },
                   ]}
-                  textStyle={[
-                    styles.sessionChipText,
-                    {
-                      color: isSelected
-                        ? colors.m3.onPrimaryContainer
-                        : colors.textPrimary,
-                    },
-                  ]}
+                  textStyle={{
+                    color: isSelected ? colors.m3.onPrimaryContainer : colors.textPrimary,
+                    fontWeight: isSelected ? "700" : "500",
+                  }}
                 >
                   {s.title}
                 </Chip>
@@ -305,81 +306,96 @@ export default function LiveQAScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={
-            <Card mode="contained" style={[styles.askCard, shadows.card]}>
-              <Card.Content>
-                <TextInput
-                  value={content}
-                  onChangeText={setContent}
-                  editable={isCheckedIn}
-                  placeholder={
-                    isCheckedIn
-                      ? "Nhập câu hỏi của bạn cho diễn giả..."
-                      : "Cần điểm danh tại cổng để nhập câu hỏi..."
-                  }
-                  mode="outlined"
-                  outlineStyle={styles.inputOutline}
-                  multiline
-                  numberOfLines={2}
-                  style={styles.askInput}
-                />
+            /* Compose Question Card */
+            <Surface style={styles.composeCard} elevation={2}>
+              <Text variant="titleSmall" style={styles.composeTitle}>
+                {isCheckedIn ? "Gửi câu hỏi cho diễn giả" : "Khóa đặt câu hỏi"}
+              </Text>
+              <TextInput
+                value={content}
+                onChangeText={setContent}
+                editable={isCheckedIn}
+                placeholder={
+                  isCheckedIn
+                    ? "Nhập nội dung câu hỏi thảo luận..."
+                    : "Bạn cần điểm danh tại cổng để kích hoạt tính năng này..."
+                }
+                mode="outlined"
+                outlineStyle={styles.inputOutline}
+                multiline
+                numberOfLines={2}
+                style={styles.composeInput}
+              />
 
-                <Button
-                  mode="contained"
-                  loading={submitting}
-                  disabled={submitting || !isCheckedIn}
-                  onPress={handlePostQuestion}
-                  icon="send"
-                  contentStyle={styles.submitBtnContent}
-                  style={styles.submitBtn}
-                >
-                  {submitting
-                    ? "Đang gửi..."
-                    : isCheckedIn
-                    ? "Gửi câu hỏi"
-                    : "Khóa (Chưa check-in)"}
-                </Button>
-              </Card.Content>
-            </Card>
+              <Button
+                mode="contained"
+                loading={submitting}
+                disabled={submitting || !isCheckedIn || !content.trim()}
+                onPress={handlePostQuestion}
+                icon="send"
+                contentStyle={styles.submitBtnContent}
+                style={styles.submitBtn}
+              >
+                {submitting ? "Đang gửi..." : "Gửi câu hỏi lên màn hình"}
+              </Button>
+            </Surface>
           }
           ListEmptyComponent={
             !loading ? (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="chatbubbles-outline" size={40} color={colors.textSecondary} />
-                <Text style={styles.emptyText}>
-                  Chưa có câu hỏi nào trong phiên này. Hãy là người đầu tiên!
+              <Surface style={styles.emptySurface} elevation={0}>
+                <Ionicons name="chatbubbles-outline" size={44} color={theme.colors.primary} />
+                <Text variant="titleMedium" style={styles.emptyTitle}>
+                  Chưa có câu hỏi nào
                 </Text>
-              </View>
+                <Text variant="bodySmall" style={styles.emptySubtitle}>
+                  Hãy là người đầu tiên đặt câu hỏi cho diễn giả trong phiên này!
+                </Text>
+              </Surface>
             ) : (
               <View style={styles.loaderContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
+                <ActivityIndicator size="large" color={theme.colors.primary} />
               </View>
             )
           }
           renderItem={({ item }) => {
             const isVoted = votedQuestionIds.includes(item.id);
             return (
-              <Card mode="contained" style={[styles.questionCard, shadows.card]}>
-                <Card.Content style={styles.questionCardContent}>
-                  <View style={styles.questionContentCol}>
-                    <Text style={styles.questionAuthor}>
-                      {item.user?.fullName || "Khách tham dự"}
-                    </Text>
-                    <Text style={styles.questionText}>
-                      {item.content}
-                    </Text>
+              <Surface style={styles.questionCard} elevation={1}>
+                {/* Question Author & Content */}
+                <View style={styles.questionMain}>
+                  <View style={styles.authorRow}>
+                    <Avatar.Text
+                      size={34}
+                      label={getInitials(item.user?.fullName)}
+                      style={{
+                        backgroundColor: isVoted
+                          ? colors.m3.primaryContainer
+                          : colors.m3.surfaceContainerHigh,
+                      }}
+                      color={isVoted ? colors.primary : colors.textPrimary}
+                    />
+                    <View style={styles.authorInfo}>
+                      <Text variant="labelLarge" style={styles.authorName}>
+                        {item.user?.fullName || "Khách tham dự"}
+                      </Text>
+                      <Text variant="bodySmall" style={styles.questionContent}>
+                        {item.content}
+                      </Text>
+                    </View>
                   </View>
+                </View>
 
-                  <Button
-                    mode={isVoted ? "contained" : "contained-tonal"}
-                    icon="arrow-up-bold"
-                    onPress={() => handleToggleUpvote(item.id)}
-                    compact
-                    style={styles.upvoteBtn}
-                  >
-                    {item.upvotes}
-                  </Button>
-                </Card.Content>
-              </Card>
+                {/* Material 3 Upvote Action */}
+                <Button
+                  mode={isVoted ? "contained" : "contained-tonal"}
+                  icon={isVoted ? "thumb-up" : "thumb-up-outline"}
+                  onPress={() => handleToggleUpvote(item.id)}
+                  compact
+                  style={styles.upvoteBtn}
+                >
+                  {item.upvotes}
+                </Button>
+              </Surface>
             );
           }}
         />
@@ -395,7 +411,6 @@ const styles = StyleSheet.create({
   },
   appbar: {
     backgroundColor: colors.surface,
-    borderWidth: 0,
   },
   appbarTitle: {
     fontSize: 20,
@@ -406,24 +421,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
   },
-  noticeContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 4,
-  },
-  noticeBanner: {
+  attendanceBanner: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 16,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.warningLight,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 0,
+    gap: 8,
+    backgroundColor: colors.m3.warningContainer,
   },
-  noticeText: {
-    color: colors.warning,
-    fontSize: 12,
+  attendanceText: {
+    flex: 1,
+    color: colors.m3.onWarningContainer,
     fontWeight: "500",
   },
   sessionsWrapper: {
@@ -437,25 +448,25 @@ const styles = StyleSheet.create({
     borderRadius: m3Shapes.full,
     height: 38,
   },
-  sessionChipText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
   listContent: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 48,
   },
-  askCard: {
+  composeCard: {
     backgroundColor: colors.surface,
     borderRadius: 24,
+    padding: 18,
     marginBottom: 16,
-    borderWidth: 0,
+  },
+  composeTitle: {
+    fontWeight: "700",
+    marginBottom: 10,
+    color: colors.textPrimary,
   },
   inputOutline: {
     borderRadius: 16,
-    borderColor: colors.neutralDark,
   },
-  askInput: {
+  composeInput: {
     marginBottom: 12,
     backgroundColor: colors.surface,
   },
@@ -465,44 +476,54 @@ const styles = StyleSheet.create({
   submitBtnContent: {
     height: 48,
   },
-  emptyContainer: {
-    paddingVertical: 32,
+  emptySurface: {
+    padding: 36,
     alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    marginTop: 12,
   },
-  emptyText: {
+  emptyTitle: {
+    fontWeight: "700",
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  emptySubtitle: {
     color: colors.textSecondary,
-    fontSize: 13,
-    marginTop: 8,
     textAlign: "center",
   },
   loaderContainer: {
-    paddingVertical: 32,
+    paddingVertical: 36,
     alignItems: "center",
   },
   questionCard: {
     backgroundColor: colors.surface,
-    borderRadius: 20,
+    borderRadius: 22,
+    padding: 16,
     marginBottom: 12,
-    borderWidth: 0,
-  },
-  questionCardContent: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: 12,
-    paddingVertical: 14,
   },
-  questionContentCol: {
+  questionMain: {
     flex: 1,
   },
-  questionAuthor: {
-    color: colors.textSecondary,
-    fontWeight: "600",
-    fontSize: 11,
-    marginBottom: 4,
+  authorRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
   },
-  questionText: {
+  authorInfo: {
+    flex: 1,
+  },
+  authorName: {
+    fontWeight: "700",
+    marginBottom: 4,
     color: colors.textPrimary,
-    fontSize: 14,
+  },
+  questionContent: {
+    color: colors.textSecondary,
     lineHeight: 20,
   },
   upvoteBtn: {

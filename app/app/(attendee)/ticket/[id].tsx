@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
   View,
-  Text,
   ScrollView,
   ActivityIndicator,
   StyleSheet,
@@ -11,15 +10,19 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import QRCode from "react-native-qrcode-svg";
 import {
   Appbar,
-  Card,
   Chip,
   ProgressBar,
+  Text,
+  useTheme,
+  Surface,
 } from "react-native-paper";
 import { api } from "../../../src/api/client";
 import { securityService } from "../../../src/services/security";
-import { colors, shadows, m3Shapes } from "../../../src/constants/theme";
+import { colors, m3Shapes } from "../../../src/constants/theme";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function TicketDetailScreen() {
+  const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -72,14 +75,14 @@ export default function TicketDetailScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       {/* Material 3 Appbar Header */}
-      <Appbar.Header elevated style={styles.appbar}>
+      <Appbar.Header mode="center-aligned" elevated style={styles.appbar}>
         <Appbar.BackAction
           color={colors.black}
           onPress={() => router.back()}
           accessibilityLabel="Quay lại danh sách vé"
         />
         <Appbar.Content
-          title="Chi tiết mã vé"
+          title="Mã vé vào cổng"
           titleStyle={styles.appbarTitle}
         />
       </Appbar.Header>
@@ -87,110 +90,161 @@ export default function TicketDetailScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: Math.max(insets.bottom + 20, 32) },
+          { paddingBottom: Math.max(insets.bottom + 20, 36) },
         ]}
       >
         {loading && !qrToken ? (
           <View style={styles.loaderContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <ActivityIndicator size="large" color={theme.colors.primary} />
           </View>
         ) : (
-          <Card
-            mode="contained"
-            style={[styles.ticketDetailCard, shadows.floating]}
-          >
-            <Card.Content style={styles.cardContent}>
-              {/* Event Info */}
-              <View style={styles.eventInfoContainer}>
-                <Text style={styles.eventName}>
+          <View style={styles.passWrapper}>
+            {/* Google Wallet Style Ticket Pass */}
+            <Surface style={styles.passContainer} elevation={3}>
+              {/* Event Header Stub */}
+              <View
+                style={[
+                  styles.passHeaderStub,
+                  {
+                    backgroundColor: isCheckedIn
+                      ? colors.m3.surfaceContainerHigh
+                      : colors.m3.primaryContainer,
+                  },
+                ]}
+              >
+                <Text
+                  variant="headlineSmall"
+                  style={[
+                    styles.eventName,
+                    {
+                      color: isCheckedIn
+                        ? colors.textPrimary
+                        : colors.m3.onPrimaryContainer,
+                    },
+                  ]}
+                >
                   {ticketData?.event?.name || "Tech Summit Vietnam 2026"}
                 </Text>
+
                 <View style={styles.badgeRow}>
-                  <Text style={styles.ticketTypeLabel}>
+                  <Text
+                    variant="labelLarge"
+                    style={{
+                      color: isCheckedIn
+                        ? colors.textSecondary
+                        : colors.primary,
+                      fontWeight: "700",
+                    }}
+                  >
                     {ticketData?.ticketType?.name || "Standard Pass"}
                   </Text>
                   <Chip
                     compact
-                    icon={isCheckedIn ? "check-circle" : "clock-outline"}
-                    style={[
-                      styles.statusChip,
-                      {
-                        backgroundColor: isCheckedIn
-                          ? colors.m3.successContainer
-                          : colors.m3.surfaceContainer,
-                      },
-                    ]}
+                    icon={isCheckedIn ? "check-circle" : "shield-check"}
+                    style={{
+                      backgroundColor: isCheckedIn
+                        ? colors.m3.successContainer
+                        : colors.surface,
+                      borderRadius: m3Shapes.full,
+                    }}
                     textStyle={{
                       color: isCheckedIn
                         ? colors.m3.onSuccessContainer
-                        : colors.textSecondary,
+                        : colors.primary,
                       fontSize: 11,
                       fontWeight: "700",
                     }}
                   >
-                    {isCheckedIn ? "ĐÃ CHECK-IN" : "CHỜ SOÁT VÉ"}
+                    {isCheckedIn ? "ĐÃ CHECK-IN" : "HỢP LỆ"}
                   </Chip>
                 </View>
               </View>
 
-              {/* QR Code Container */}
-              <View style={[styles.qrWrapper, shadows.card]}>
-                {qrToken ? (
-                  <QRCode
-                    value={qrToken}
-                    size={220}
-                    color={colors.textPrimary}
-                    backgroundColor={colors.white}
-                  />
-                ) : (
-                  <Text style={styles.noQrText}>Không có mã QR</Text>
-                )}
+              {/* Perforated Ticket Notches */}
+              <View style={styles.perforatedRow}>
+                <View style={[styles.notch, styles.notchLeft]} />
+                <View style={styles.dashedLine} />
+                <View style={[styles.notch, styles.notchRight]} />
               </View>
 
-              {/* Dynamic Progress Indicator */}
-              <View style={styles.progressContainer}>
-                <View style={styles.progressLabelRow}>
-                  <Text style={styles.progressLabel}>Làm mới sau:</Text>
-                  <Text style={styles.progressSeconds}>{secondsLeft}s</Text>
-                </View>
+              {/* Main Ticket Body */}
+              <View style={styles.passBody}>
+                {/* QR Code Container */}
+                <Surface style={styles.qrSurface} elevation={1}>
+                  {qrToken ? (
+                    <QRCode
+                      value={qrToken}
+                      size={210}
+                      color={colors.textPrimary}
+                      backgroundColor={colors.white}
+                    />
+                  ) : (
+                    <Text variant="bodyMedium" style={{ color: colors.textSecondary }}>
+                      Không có mã QR
+                    </Text>
+                  )}
+                </Surface>
 
-                <ProgressBar
-                  progress={secondsLeft / 30}
-                  color={colors.primary}
-                  style={styles.progressBar}
-                />
-              </View>
-
-              {/* Metadata Rows */}
-              <View style={styles.metadataCard}>
-                <View style={styles.metaRow}>
-                  <Text style={styles.metaLabel}>Mã vé (ID):</Text>
-                  <Text style={styles.metaValue}>
-                    {id ? `${id.slice(0, 13)}...` : ""}
-                  </Text>
-                </View>
-
-                <View style={styles.metaRow}>
-                  <Text style={styles.metaLabel}>Địa điểm:</Text>
-                  <Text style={[styles.metaValue, { fontWeight: "600" }]}>
-                    {ticketData?.event?.venue || "Hội trường chính"}
-                  </Text>
-                </View>
-
-                {isCheckedIn && ticketData?.checkedInAt && (
-                  <View style={styles.metaRow}>
-                    <Text style={styles.metaLabel}>Thời gian check-in:</Text>
-                    <Text style={[styles.metaValue, { color: colors.success, fontWeight: "600" }]}>
-                      {new Date(ticketData.checkedInAt).toLocaleTimeString("vi-VN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                {/* Dynamic Rotating Progress Indicator */}
+                <View style={styles.countdownContainer}>
+                  <View style={styles.countdownHeader}>
+                    <View style={styles.countdownLabelRow}>
+                      <Ionicons name="refresh-circle" size={18} color={theme.colors.primary} />
+                      <Text variant="bodySmall" style={styles.countdownLabel}>
+                        Mã Dynamic QR tự đổi sau:
+                      </Text>
+                    </View>
+                    <Text variant="labelLarge" style={styles.countdownSeconds}>
+                      {secondsLeft}s
                     </Text>
                   </View>
-                )}
+
+                  <ProgressBar
+                    progress={secondsLeft / 30}
+                    color={theme.colors.primary}
+                    style={styles.progressBar}
+                  />
+                </View>
+
+                {/* Metadata Details Surface */}
+                <Surface style={styles.metadataSurface} elevation={0}>
+                  <View style={styles.metaRow}>
+                    <Text variant="bodySmall" style={styles.metaLabel}>Mã vé (ID):</Text>
+                    <Text variant="labelMedium" style={styles.metaValue}>
+                      {id ? `${id.slice(0, 14)}...` : ""}
+                    </Text>
+                  </View>
+
+                  <View style={styles.metaRow}>
+                    <Text variant="bodySmall" style={styles.metaLabel}>Địa điểm:</Text>
+                    <Text variant="labelMedium" style={[styles.metaValue, { fontWeight: "700" }]}>
+                      {ticketData?.event?.venue || "Hội trường chính"}
+                    </Text>
+                  </View>
+
+                  {isCheckedIn && ticketData?.checkedInAt && (
+                    <View style={styles.metaRow}>
+                      <Text variant="bodySmall" style={styles.metaLabel}>Thời gian check-in:</Text>
+                      <Text variant="labelMedium" style={{ color: colors.success, fontWeight: "700" }}>
+                        {new Date(ticketData.checkedInAt).toLocaleTimeString("vi-VN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </Text>
+                    </View>
+                  )}
+                </Surface>
               </View>
-            </Card.Content>
-          </Card>
+            </Surface>
+
+            {/* M3 Security Protection Notice */}
+            <Surface style={styles.securityNotice} elevation={0}>
+              <Ionicons name="shield-checkmark" size={18} color={theme.colors.primary} />
+              <Text variant="bodySmall" style={styles.securityText}>
+                Bảo vệ chống chụp ảnh màn hình và sao chép vé đang kích hoạt.
+              </Text>
+            </Surface>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -204,7 +258,6 @@ const styles = StyleSheet.create({
   },
   appbar: {
     backgroundColor: colors.surface,
-    borderWidth: 0,
   },
   appbarTitle: {
     fontSize: 18,
@@ -216,29 +269,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loaderContainer: {
-    marginTop: 40,
+    marginTop: 48,
     alignItems: "center",
   },
-  ticketDetailCard: {
+  passWrapper: {
     width: "100%",
-    backgroundColor: colors.surface,
+    maxWidth: 420,
+    alignItems: "center",
+  },
+  passContainer: {
+    width: "100%",
     borderRadius: 28,
-    borderWidth: 0,
+    backgroundColor: colors.surface,
+    overflow: "hidden",
   },
-  cardContent: {
-    padding: 20,
+  passHeaderStub: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
     alignItems: "center",
-  },
-  eventInfoContainer: {
-    alignItems: "center",
-    marginBottom: 20,
   },
   eventName: {
-    fontSize: 20,
     fontWeight: "800",
-    color: colors.textPrimary,
+    letterSpacing: -0.3,
     textAlign: "center",
-    lineHeight: 26,
   },
   badgeRow: {
     flexDirection: "row",
@@ -246,58 +299,81 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 8,
   },
-  ticketTypeLabel: {
-    color: colors.primary,
-    fontWeight: "700",
-    fontSize: 13,
+  perforatedRow: {
+    height: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    position: "relative",
+    backgroundColor: colors.surface,
   },
-  statusChip: {
-    borderRadius: m3Shapes.full,
-    height: 28,
+  notch: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.background,
+    position: "absolute",
+    top: 0,
+    zIndex: 10,
   },
-  qrWrapper: {
+  notchLeft: {
+    left: -9,
+  },
+  notchRight: {
+    right: -9,
+  },
+  dashedLine: {
+    flex: 1,
+    height: 1,
+    borderWidth: 1,
+    borderColor: colors.neutralDark,
+    borderStyle: "dashed",
+    marginHorizontal: 16,
+  },
+  passBody: {
+    padding: 24,
+    paddingTop: 12,
+    alignItems: "center",
+  },
+  qrSurface: {
     padding: 16,
+    borderRadius: 24,
     backgroundColor: colors.white,
-    borderRadius: 20,
     marginBottom: 20,
-    borderWidth: 0,
   },
-  noQrText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-  },
-  progressContainer: {
+  countdownContainer: {
     width: "100%",
     marginBottom: 20,
   },
-  progressLabelRow: {
+  countdownHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
   },
-  progressLabel: {
+  countdownLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  countdownLabel: {
     color: colors.textSecondary,
-    fontSize: 12,
     fontWeight: "500",
   },
-  progressSeconds: {
+  countdownSeconds: {
     color: colors.primary,
-    fontWeight: "700",
-    fontSize: 14,
+    fontWeight: "800",
   },
   progressBar: {
     height: 6,
     borderRadius: 3,
     backgroundColor: colors.neutralFill,
   },
-  metadataCard: {
+  metadataSurface: {
     width: "100%",
-    gap: 8,
-    backgroundColor: colors.m3.surfaceContainerLowest,
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 0,
+    gap: 10,
+    backgroundColor: colors.m3.surfaceContainerLow,
+    padding: 16,
+    borderRadius: 18,
   },
   metaRow: {
     flexDirection: "row",
@@ -305,12 +381,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   metaLabel: {
-    fontSize: 12,
     color: colors.textSecondary,
   },
   metaValue: {
-    fontSize: 12,
-    fontWeight: "700",
     color: colors.textPrimary,
+    fontWeight: "600",
+  },
+  securityNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: colors.m3.primaryContainer,
+  },
+  securityText: {
+    color: colors.m3.onPrimaryContainer,
+    fontSize: 12,
+    fontWeight: "500",
+    flex: 1,
   },
 });

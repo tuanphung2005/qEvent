@@ -7,8 +7,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
-  const bottomPadding = Math.max(insets.bottom, Platform.OS === "ios" ? 24 : 10);
-  const barHeight = 56 + bottomPadding;
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === "ios" ? 20 : 8);
+  const barHeight = 64 + bottomPadding;
 
   return (
     <Tabs
@@ -20,36 +20,40 @@ export default function TabsLayout() {
           backgroundColor: colors.surface,
           borderTopWidth: 0,
           borderWidth: 0,
-          elevation: 6,
-          shadowColor: colors.black,
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 8,
+          elevation: 4,
           height: barHeight,
           paddingBottom: bottomPadding,
           paddingTop: 8,
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: "600",
+          fontWeight: "700",
         },
       }}
     >
       <Tabs.Screen
         name="tickets"
         options={{
-          title: "Vé của tôi",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="ticket" size={size} color={color} />
+          title: "Ví vé sự kiện",
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? "ticket" : "ticket-outline"}
+              size={size + 2}
+              color={color}
+            />
           ),
         }}
       />
       <Tabs.Screen
         name="qa"
         options={{
-          title: "Live Q&A",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubbles" size={size} color={color} />
+          title: "Hỏi đáp Live",
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? "chatbubbles" : "chatbubbles-outline"}
+              size={size + 2}
+              color={color}
+            />
           ),
         }}
       />

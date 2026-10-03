@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 import {
   View,
-  Text,
   FlatList,
   RefreshControl,
   Alert,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -16,16 +16,23 @@ import {
   Chip,
   Button,
   FAB,
+  Text,
+  useTheme,
+  Surface,
 } from "react-native-paper";
 import { useAuth } from "../../../src/context/AuthContext";
 import { api } from "../../../src/api/client";
-import { colors, shadows, m3Shapes } from "../../../src/constants/theme";
+import { colors, m3Shapes } from "../../../src/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 
+type TicketFilter = "ALL" | "PENDING" | "CHECKED_IN";
+
 export default function TicketsListScreen() {
+  const theme = useTheme();
   const { user, logout } = useAuth();
   const router = useRouter();
   const [tickets, setTickets] = useState<any[]>([]);
+  const [filter, setFilter] = useState<TicketFilter>("ALL");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
@@ -87,13 +94,20 @@ export default function TicketsListScreen() {
   };
 
   const checkedInCount = tickets.filter((t) => t.status === "CHECKED_IN").length;
+  const pendingCount = Math.max(0, tickets.length - checkedInCount);
+
+  const filteredTickets = tickets.filter((t) => {
+    if (filter === "CHECKED_IN") return t.status === "CHECKED_IN";
+    if (filter === "PENDING") return t.status !== "CHECKED_IN";
+    return true;
+  });
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       {/* Material 3 Appbar Header */}
-      <Appbar.Header elevated style={styles.appbar}>
+      <Appbar.Header mode="center-aligned" elevated style={styles.appbar}>
         <Appbar.Content
-          title="Vé sự kiện của tôi"
+          title="Ví vé sự kiện"
           titleStyle={styles.appbarTitle}
           subtitle={`Xin chào, ${user?.fullName || "Khách"}`}
           subtitleStyle={styles.appbarSubtitle}
@@ -107,7 +121,7 @@ export default function TicketsListScreen() {
       </Appbar.Header>
 
       <FlatList
-        data={tickets}
+        data={filteredTickets}
         keyExtractor={(item) => item.id}
         refreshControl={
           <RefreshControl
@@ -116,74 +130,73 @@ export default function TicketsListScreen() {
               setRefreshing(true);
               fetchTickets();
             }}
-            colors={[colors.primary]}
+            colors={[theme.colors.primary]}
           />
         }
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View style={styles.listHeader}>
-            {/* Quick Stats Banner - M3 Surface Container */}
-            <Card mode="contained" style={[styles.statsCard, shadows.card]}>
-              <Card.Content style={styles.statsCardContent}>
-                <View style={styles.statCol}>
-                  <Text style={styles.statLabel}>TỔNG SỐ VÉ</Text>
-                  <Text style={styles.statValue}>{tickets.length}</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statCol}>
-                  <Text style={styles.statLabel}>ĐÃ ĐIỂM DANH</Text>
-                  <Text style={[styles.statValue, { color: colors.success }]}>
-                    {checkedInCount}
-                  </Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statCol}>
-                  <Text style={styles.statLabel}>CHƯA QUÉT</Text>
-                  <Text style={[styles.statValue, { color: colors.primary }]}>
-                    {Math.max(0, tickets.length - checkedInCount)}
-                  </Text>
-                </View>
-              </Card.Content>
-            </Card>
-
-            {/* M3 Tonal Action Button */}
-            <Button
-              mode="contained-tonal"
-              icon="ticket-outline"
-              loading={purchasing}
-              disabled={purchasing}
-              onPress={handlePurchaseSandbox}
-              contentStyle={styles.purchaseBtnContent}
-              style={styles.purchaseBtn}
+            {/* Interactive Material 3 Filter Chips */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filtersScroll}
             >
-              {purchasing ? "Đang tạo vé..." : "+ Đăng ký / Nhận thêm vé (Sandbox)"}
-            </Button>
-
-            <Text style={styles.sectionTitle}>
-              Danh sách vé sở hữu ({tickets.length})
-            </Text>
+              <Chip
+                selected={filter === "ALL"}
+                showSelectedCheck
+                mode={filter === "ALL" ? "flat" : "outlined"}
+                onPress={() => setFilter("ALL")}
+                style={styles.filterChip}
+              >
+                Tất cả ({tickets.length})
+              </Chip>
+              <Chip
+                selected={filter === "PENDING"}
+                showSelectedCheck
+                mode={filter === "PENDING" ? "flat" : "outlined"}
+                onPress={() => setFilter("PENDING")}
+                style={styles.filterChip}
+              >
+                Chưa quét ({pendingCount})
+              </Chip>
+              <Chip
+                selected={filter === "CHECKED_IN"}
+                showSelectedCheck
+                mode={filter === "CHECKED_IN" ? "flat" : "outlined"}
+                onPress={() => setFilter("CHECKED_IN")}
+                style={styles.filterChip}
+              >
+                Đã vào cổng ({checkedInCount})
+              </Chip>
+            </ScrollView>
           </View>
         }
         ListEmptyComponent={
           !loading ? (
-            <Card mode="contained" style={[styles.emptyCard, shadows.card]}>
-              <Card.Content style={styles.emptyCardContent}>
-                <Ionicons name="ticket-outline" size={48} color={colors.textSecondary} />
-                <Text style={styles.emptyText}>
-                  Bạn chưa có vé sự kiện nào
-                </Text>
-                <Button
-                  mode="contained"
-                  onPress={handlePurchaseSandbox}
-                  style={styles.emptyActionBtn}
-                >
-                  Nhận vé mẫu trải nghiệm
-                </Button>
-              </Card.Content>
-            </Card>
+            <Surface style={styles.emptySurface} elevation={1}>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="ticket-outline" size={44} color={theme.colors.primary} />
+              </View>
+              <Text variant="titleMedium" style={styles.emptyTitle}>
+                Không có vé nào trong danh mục
+              </Text>
+              <Text variant="bodyMedium" style={styles.emptySubtitle}>
+                Nhấn nút bên dưới để nhận ngay 1 vé sự kiện mẫu thử nghiệm.
+              </Text>
+              <Button
+                mode="contained"
+                icon="plus"
+                loading={purchasing}
+                onPress={handlePurchaseSandbox}
+                style={styles.emptyBtn}
+              >
+                Nhận vé mẫu thử nghiệm
+              </Button>
+            </Surface>
           ) : (
             <View style={styles.loaderContainer}>
-              <ActivityIndicator size="large" color={colors.primary} />
+              <ActivityIndicator size="large" color={theme.colors.primary} />
             </View>
           )
         }
@@ -197,66 +210,118 @@ export default function TicketsListScreen() {
             : "";
 
           return (
-            <Card
-              mode="contained"
-              onPress={() => router.push(`/(attendee)/ticket/${item.id}`)}
-              style={[styles.ticketCard, shadows.card]}
-            >
-              <Card.Content style={styles.ticketContent}>
-                <View style={styles.ticketHeader}>
-                  <View style={styles.ticketTitleContainer}>
-                    <Text style={styles.ticketEventName} numberOfLines={1}>
-                      {item.event?.name || "Sự kiện Tech Summit 2026"}
-                    </Text>
-                    <Text style={styles.ticketTypeName}>
-                      {item.ticketType?.name || "Standard Pass"}
-                    </Text>
-                  </View>
-
-                  <Chip
-                    compact
-                    icon={isCheckedIn ? "check-circle" : "clock-outline"}
+            <Surface style={styles.walletPassCard} elevation={2}>
+              {/* Top Banner Stub */}
+              <View
+                style={[
+                  styles.passTopStub,
+                  {
+                    backgroundColor: isCheckedIn
+                      ? colors.m3.surfaceContainerHigh
+                      : colors.m3.primaryContainer,
+                  },
+                ]}
+              >
+                <View style={styles.passTitleCol}>
+                  <Text
+                    variant="titleMedium"
                     style={[
-                      styles.statusChip,
-                      {
-                        backgroundColor: isCheckedIn
-                          ? colors.m3.successContainer
-                          : colors.m3.surfaceContainer,
-                      },
-                    ]}
-                    textStyle={[
-                      styles.statusChipText,
+                      styles.passEventName,
                       {
                         color: isCheckedIn
-                          ? colors.m3.onSuccessContainer
-                          : colors.textSecondary,
+                          ? colors.textPrimary
+                          : colors.m3.onPrimaryContainer,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {item.event?.name || "Tech Summit 2026"}
+                  </Text>
+                  <Text
+                    variant="labelMedium"
+                    style={[
+                      styles.passTypeLabel,
+                      {
+                        color: isCheckedIn
+                          ? colors.textSecondary
+                          : colors.primary,
                       },
                     ]}
                   >
-                    {isCheckedIn
-                      ? `ĐÃ ĐIỂM DANH ${timeStr ? `(${timeStr})` : ""}`
-                      : "CHỜ ĐIỂM DANH"}
-                  </Chip>
+                    {item.ticketType?.name || "Standard Pass"}
+                  </Text>
                 </View>
 
-                <View style={styles.ticketFooter}>
-                  <View style={styles.venueRow}>
-                    <Ionicons name="location-outline" size={15} color={colors.textSecondary} />
-                    <Text style={styles.venueText} numberOfLines={1}>
-                      {item.event?.venue || "Trung tâm hội nghị"}
+                <Chip
+                  compact
+                  icon={isCheckedIn ? "check-circle" : "clock-outline"}
+                  style={{
+                    backgroundColor: isCheckedIn
+                      ? colors.m3.successContainer
+                      : colors.surface,
+                    borderRadius: m3Shapes.full,
+                  }}
+                  textStyle={{
+                    color: isCheckedIn
+                      ? colors.m3.onSuccessContainer
+                      : colors.primary,
+                    fontSize: 11,
+                    fontWeight: "700",
+                  }}
+                >
+                  {isCheckedIn ? "ĐÃ CHECK-IN" : "HỢP LỆ"}
+                </Chip>
+              </View>
+
+              {/* Perforated Divider */}
+              <View style={styles.perforatedRow}>
+                <View style={[styles.notch, styles.notchLeft]} />
+                <View style={styles.dashedLine} />
+                <View style={[styles.notch, styles.notchRight]} />
+              </View>
+
+              {/* Bottom Body */}
+              <View style={styles.passBody}>
+                <View style={styles.passDetailsRow}>
+                  <View style={styles.detailItem}>
+                    <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
+                    <Text variant="bodySmall" style={styles.detailText} numberOfLines={1}>
+                      {item.event?.venue || "Trung tâm hội nghị Quốc Gia"}
                     </Text>
                   </View>
-                  <View style={styles.qrActionRow}>
-                    <Ionicons name="qr-code-outline" size={15} color={colors.primary} />
-                    <Text style={styles.qrActionText}>
-                      Mở Dynamic QR
-                    </Text>
-                  </View>
+                  {isCheckedIn && timeStr && (
+                    <View style={styles.detailItem}>
+                      <Ionicons name="time-outline" size={16} color={colors.success} />
+                      <Text variant="bodySmall" style={{ color: colors.success, fontWeight: "600" }}>
+                        Vào lúc: {timeStr}
+                      </Text>
+                    </View>
+                  )}
                 </View>
-              </Card.Content>
-            </Card>
+
+                {/* Primary Action Button */}
+                <Button
+                  mode={isCheckedIn ? "outlined" : "contained"}
+                  icon="qrcode-scan"
+                  onPress={() => router.push(`/(attendee)/ticket/${item.id}`)}
+                  style={styles.openQrBtn}
+                  contentStyle={styles.openQrBtnContent}
+                >
+                  {isCheckedIn ? "Xem lại mã QR" : "Mở mã Dynamic QR"}
+                </Button>
+              </View>
+            </Surface>
           );
         }}
+      />
+
+      {/* Material 3 Floating Action Button */}
+      <FAB
+        icon="plus"
+        label="Thêm vé test"
+        loading={purchasing}
+        onPress={handlePurchaseSandbox}
+        style={styles.fab}
       />
     </SafeAreaView>
   );
@@ -269,7 +334,6 @@ const styles = StyleSheet.create({
   },
   appbar: {
     backgroundColor: colors.surface,
-    borderWidth: 0,
   },
   appbarTitle: {
     fontSize: 20,
@@ -281,144 +345,136 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   listContent: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: 16,
+    paddingBottom: 96,
   },
   listHeader: {
     marginBottom: 16,
   },
-  statsCard: {
-    backgroundColor: colors.m3.surfaceContainerLowest,
-    borderRadius: 24,
-    marginBottom: 16,
-    borderWidth: 0,
+  filtersScroll: {
+    gap: 8,
+    paddingVertical: 4,
   },
-  statsCardContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    paddingVertical: 14,
-  },
-  statCol: {
-    alignItems: "center",
-    flex: 1,
-  },
-  statDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: colors.neutralFill,
-  },
-  statLabel: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: colors.textSecondary,
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: colors.textPrimary,
-  },
-  purchaseBtn: {
-    marginBottom: 16,
+  filterChip: {
     borderRadius: m3Shapes.full,
   },
-  purchaseBtnContent: {
-    height: 48,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.textPrimary,
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  emptyCard: {
-    backgroundColor: colors.m3.surfaceContainerLowest,
+  walletPassCard: {
     borderRadius: 24,
-    borderWidth: 0,
+    backgroundColor: colors.surface,
+    marginBottom: 16,
+    overflow: "hidden",
   },
-  emptyCardContent: {
-    padding: 28,
+  passTopStub: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
   },
-  emptyText: {
+  passTitleCol: {
+    flex: 1,
+    marginRight: 12,
+  },
+  passEventName: {
+    fontWeight: "800",
+    letterSpacing: -0.2,
+  },
+  passTypeLabel: {
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  perforatedRow: {
+    height: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    position: "relative",
+    backgroundColor: colors.surface,
+  },
+  notch: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.background,
+    position: "absolute",
+    top: 0,
+    zIndex: 10,
+  },
+  notchLeft: {
+    left: -8,
+  },
+  notchRight: {
+    right: -8,
+  },
+  dashedLine: {
+    flex: 1,
+    height: 1,
+    borderWidth: 1,
+    borderColor: colors.neutralDark,
+    borderStyle: "dashed",
+    marginHorizontal: 16,
+  },
+  passBody: {
+    padding: 20,
+    paddingTop: 8,
+    backgroundColor: colors.surface,
+  },
+  passDetailsRow: {
+    marginBottom: 16,
+    gap: 6,
+  },
+  detailItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  detailText: {
     color: colors.textSecondary,
-    fontSize: 14,
-    marginTop: 8,
+  },
+  openQrBtn: {
+    borderRadius: m3Shapes.full,
+  },
+  openQrBtnContent: {
+    height: 48,
+  },
+  emptySurface: {
+    borderRadius: 24,
+    padding: 32,
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    marginTop: 20,
+  },
+  emptyIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.m3.primaryContainer,
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 16,
   },
-  emptyActionBtn: {
+  emptyTitle: {
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  emptySubtitle: {
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  emptyBtn: {
     borderRadius: m3Shapes.full,
   },
   loaderContainer: {
-    paddingVertical: 32,
+    paddingVertical: 48,
     alignItems: "center",
   },
-  ticketCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    marginBottom: 14,
-    borderWidth: 0,
-  },
-  ticketContent: {
-    padding: 16,
-  },
-  ticketHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  ticketTitleContainer: {
-    flex: 1,
-    marginRight: 8,
-  },
-  ticketEventName: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.textPrimary,
-  },
-  ticketTypeName: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.primary,
-    marginTop: 3,
-  },
-  statusChip: {
+  fab: {
+    position: "absolute",
+    right: 16,
+    bottom: 24,
     borderRadius: m3Shapes.full,
-    height: 28,
-  },
-  statusChipText: {
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  ticketFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: 6,
-  },
-  venueRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    gap: 4,
-  },
-  venueText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    flex: 1,
-  },
-  qrActionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  qrActionText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.primary,
+    backgroundColor: colors.m3.primaryContainer,
   },
 });
