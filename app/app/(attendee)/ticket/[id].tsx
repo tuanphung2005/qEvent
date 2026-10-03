@@ -124,11 +124,8 @@ export default function TicketDetailScreen() {
         </Pressable>
         <VStack>
           <Heading size="md" color={colors.textPrimary}>
-            Mã vé & Điểm danh
+            Mã vé
           </Heading>
-          <Text color={colors.textSecondary} fontSize="$xs">
-            Dynamic QR xoay mã 30s chống giả mạo
-          </Text>
         </VStack>
       </HStack>
 
@@ -154,77 +151,25 @@ export default function TicketDetailScreen() {
             style={shadows.floating}
           >
             {/* Event Info */}
-            <VStack alignItems="center" mb="$3">
+            <VStack alignItems="center" mb="$4">
               <Heading size="lg" color={colors.textPrimary} textAlign="center">
                 {ticketData?.event?.name || "Tech Summit Vietnam 2026"}
               </Heading>
-              <Text color={colors.primary} fontWeight="$bold" fontSize="$sm" mt="$1">
-                {ticketData?.ticketType?.name || "Standard Pass"}
-              </Text>
+              <HStack space="xs" alignItems="center" mt="$1.5">
+                <Text color={colors.primary} fontWeight="$bold" fontSize="$sm">
+                  {ticketData?.ticketType?.name || "Standard Pass"}
+                </Text>
+                {isCheckedIn ? (
+                  <Badge action="success" variant="solid" borderRadius={12} px="$2" py="$0.5" borderWidth={0}>
+                    <BadgeText fontSize="$2xs" fontWeight="$bold">ĐÃ CHECK-IN</BadgeText>
+                  </Badge>
+                ) : (
+                  <Badge action="info" variant="solid" borderRadius={12} px="$2" py="$0.5" borderWidth={0}>
+                    <BadgeText fontSize="$2xs" fontWeight="$bold">CHỜ SOÁT VÉ</BadgeText>
+                  </Badge>
+                )}
+              </HStack>
             </VStack>
-
-            {/* Attendance Status Banner */}
-            {isCheckedIn ? (
-              <Box
-                w="100%"
-                bg={colors.successLight}
-                p="$3.5"
-                borderRadius={16}
-                mb="$4"
-                alignItems="center"
-                borderWidth={0}
-              >
-                <HStack space="xs" alignItems="center" mb="$1">
-                  <Ionicons name="checkmark-done-circle" size={20} color={colors.success} />
-                  <Heading size="xs" color={colors.success}>
-                    ĐÃ ĐIỂM DANH THÀNH CÔNG
-                  </Heading>
-                </HStack>
-                <Text color={colors.success} fontSize="$2xs" textAlign="center">
-                  Thời gian: {ticketData?.checkedInAt ? new Date(ticketData.checkedInAt).toLocaleString("vi-VN") : "Hôm nay"}
-                </Text>
-                <Text color={colors.success} fontSize="$2xs" textAlign="center" mt="$0.5">
-                  Vé đã được xác thực tại cổng sự kiện.
-                </Text>
-              </Box>
-            ) : (
-              <Box
-                w="100%"
-                bg={colors.primaryLight}
-                p="$3"
-                borderRadius={16}
-                mb="$4"
-                alignItems="center"
-                borderWidth={0}
-              >
-                <HStack space="xs" alignItems="center" mb="$1">
-                  <Ionicons name="time-outline" size={18} color={colors.primary} />
-                  <Heading size="xs" color={colors.primary}>
-                    SẴN SÀNG ĐIỂM DANH TẠI CỔNG
-                  </Heading>
-                </HStack>
-                <Text color={colors.primary} fontSize="$2xs" textAlign="center">
-                  Xuất trình mã QR bên dưới cho nhân viên soát vé khi vào hội trường
-                </Text>
-              </Box>
-            )}
-
-            {/* Anti-screenshot indicator */}
-            <HStack
-              space="xs"
-              alignItems="center"
-              bg={colors.neutralFill}
-              px="$3"
-              py="$1.5"
-              borderRadius={20}
-              mb="$4"
-              borderWidth={0}
-            >
-              <Ionicons name="shield-checkmark" size={14} color={colors.textSecondary} />
-              <Text color={colors.textSecondary} fontSize="$2xs" fontWeight="$semibold">
-                Bảo vệ chống chụp / quay lén màn hình
-              </Text>
-            </HStack>
 
             {/* QR Code Container */}
             <Box
@@ -238,7 +183,7 @@ export default function TicketDetailScreen() {
               {qrToken ? (
                 <QRCode
                   value={qrToken}
-                  size={210}
+                  size={220}
                   color={colors.textPrimary}
                   backgroundColor={colors.white}
                 />
@@ -250,12 +195,9 @@ export default function TicketDetailScreen() {
             {/* Dynamic Progress Indicator */}
             <VStack w="100%" mb="$5">
               <HStack justifyContent="space-between" alignItems="center" mb="$1.5">
-                <HStack space="xs" alignItems="center" bg={colors.primaryLight} px="$2.5" py="$1" borderRadius={12}>
-                  <Ionicons name="timer-outline" size={14} color={colors.primary} />
-                  <Text color={colors.primary} fontSize="$2xs" fontWeight="$bold">
-                    Tự làm mới mã sau:
-                  </Text>
-                </HStack>
+                <Text color={colors.textSecondary} fontSize="$xs" fontWeight="$medium">
+                  Làm mới sau:
+                </Text>
                 <Text color={colors.primary} fontWeight="$bold" fontSize="$sm">
                   {secondsLeft}s
                 </Text>
@@ -273,8 +215,8 @@ export default function TicketDetailScreen() {
               </Box>
             </VStack>
 
-            {/* Metadata Rows - Clean borderless tonal grouping */}
-            <VStack w="100%" space="sm" pt="$3" bg={colors.background} p="$3.5" borderRadius={16} borderWidth={0}>
+            {/* Metadata Rows */}
+            <VStack w="100%" space="sm" bg={colors.background} p="$3.5" borderRadius={16} borderWidth={0}>
               <HStack justifyContent="space-between" alignItems="center">
                 <Text color={colors.textMuted} fontSize="$xs">Mã vé (ID):</Text>
                 <Text color={colors.textPrimary} fontWeight="$bold" fontSize="$xs">
@@ -289,18 +231,14 @@ export default function TicketDetailScreen() {
                 </Text>
               </HStack>
 
-              <HStack justifyContent="space-between" alignItems="center">
-                <Text color={colors.textMuted} fontSize="$xs">Trạng thái:</Text>
-                {isCheckedIn ? (
-                  <Badge action="success" variant="solid" borderRadius={12} px="$2" py="$0.5" borderWidth={0}>
-                    <BadgeText fontSize="$2xs" fontWeight="$bold">ĐÃ CHECK-IN</BadgeText>
-                  </Badge>
-                ) : (
-                  <Badge action="info" variant="solid" borderRadius={12} px="$2" py="$0.5" borderWidth={0}>
-                    <BadgeText fontSize="$2xs" fontWeight="$bold">CHỜ SOÁT VÉ</BadgeText>
-                  </Badge>
-                )}
-              </HStack>
+              {isCheckedIn && ticketData?.checkedInAt && (
+                <HStack justifyContent="space-between" alignItems="center">
+                  <Text color={colors.textMuted} fontSize="$xs">Thời gian check-in:</Text>
+                  <Text color={colors.success} fontWeight="$semibold" fontSize="$xs">
+                    {new Date(ticketData.checkedInAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                  </Text>
+                </HStack>
+              )}
             </VStack>
           </Box>
         )}

@@ -243,70 +243,40 @@ export default function LiveQAScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top", "left", "right"]}>
-      {/* Gluestack Clean Header */}
+      {/* Gluestack Clean Header - Realtime chip removed */}
       <HStack
         bg={colors.surface}
         px="$5"
-        py="$3"
+        py="$3.5"
         alignItems="center"
         justifyContent="space-between"
         style={shadows.subtle}
       >
         <VStack>
           <Heading size="md" color={colors.textPrimary}>
-            Live Q&A Hội Trường
+            Live Q&A
           </Heading>
           <Text color={colors.textSecondary} fontSize="$xs">
             {selectedEvent?.name || "Đang tải sự kiện..."}
           </Text>
         </VStack>
-
-        <HStack space="xs" alignItems="center" bg={colors.primaryLight} px="$2.5" py="$1" borderRadius={12}>
-          <Box w={7} h={7} borderRadius={4} bg={colors.primary} />
-          <Text color={colors.primary} fontSize="$2xs" fontWeight="$bold">
-            Realtime
-          </Text>
-        </HStack>
       </HStack>
 
-      {/* Attendance Verification Status Banner */}
-      <Box px="$4" pt="$3" pb="$2">
-        {isCheckedIn ? (
-          <Box bg={colors.successLight} px="$3" py="$2.5" borderRadius={12}>
-            <HStack space="xs" alignItems="center">
-              <Ionicons name="shield-checkmark" size={16} color={colors.success} />
-              <Text color={colors.success} fontSize="$xs" fontWeight="$bold">
-                ĐÃ ĐIỂM DANH: Được phép đặt câu hỏi & bình chọn trực tiếp
-              </Text>
-            </HStack>
-          </Box>
-        ) : hasTicket ? (
-          <Box bg={colors.warningLight} px="$3" py="$2.5" borderRadius={12}>
-            <HStack space="xs" alignItems="center">
-              <Ionicons name="alert-circle" size={16} color={colors.warning} />
-              <Text color={colors.warning} fontSize="$xs" fontWeight="$bold">
-                CHƯA ĐIỂM DANH: Quét mã QR tại cổng để mở quyền gửi câu hỏi
-              </Text>
-            </HStack>
-          </Box>
-        ) : (
-          <Box bg={colors.neutralFill} px="$3" py="$2.5" borderRadius={12}>
-            <HStack space="xs" alignItems="center">
-              <Ionicons name="information-circle" size={16} color={colors.textMuted} />
-              <Text color={colors.textMuted} fontSize="$xs" fontWeight="$bold">
-                CHƯA CÓ VÉ: Nhận vé ở tab Vé của tôi để tham gia sự kiện
-              </Text>
-            </HStack>
-          </Box>
-        )}
-      </Box>
+      {/* Subtle Attendance Notice only when action is restricted */}
+      {!isCheckedIn && (
+        <Box px="$4" pt="$2.5" pb="$1">
+          <HStack space="xs" alignItems="center" bg={colors.warningLight} px="$3" py="$2" borderRadius={10}>
+            <Ionicons name="alert-circle-outline" size={15} color={colors.warning} />
+            <Text color={colors.warning} fontSize="$xs" fontWeight="$medium">
+              {hasTicket ? "Cần điểm danh tại cổng để đặt câu hỏi" : "Chưa có vé sự kiện"}
+            </Text>
+          </HStack>
+        </Box>
+      )}
 
-      {/* Sessions Horizontal Selector with 48dp touch height */}
+      {/* Sessions Horizontal Selector */}
       {selectedEvent?.sessions && selectedEvent.sessions.length > 0 && (
-        <Box px="$4" pb="$2">
-          <Text color={colors.textMuted} fontSize="$2xs" fontWeight="$bold" mb="$1.5">
-            CHỌN PHIÊN DIỄN THUYẾT / HỘI THẢO:
-          </Text>
+        <Box px="$4" pt="$2" pb="$2">
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <HStack space="sm">
               {selectedEvent.sessions.map((s: Session) => {
@@ -372,17 +342,6 @@ export default function LiveQAScreen() {
               borderWidth={0}
               style={shadows.card}
             >
-              <HStack justifyContent="space-between" alignItems="center" mb="$2">
-                <Heading size="xs" color={colors.textPrimary}>
-                  Gửi câu hỏi cho diễn giả:
-                </Heading>
-                {!isCheckedIn && (
-                  <Badge action="muted" variant="solid" borderRadius={8} px="$2" py="$0.5" borderWidth={0}>
-                    <BadgeText fontSize="$2xs">Cần check-in</BadgeText>
-                  </Badge>
-                )}
-              </HStack>
-
               <Input
                 size="md"
                 variant="underlined"
@@ -406,7 +365,7 @@ export default function LiveQAScreen() {
                   placeholder={
                     isCheckedIn
                       ? "Nhập câu hỏi của bạn cho diễn giả..."
-                      : "Bạn cần điểm danh tại cổng để nhập câu hỏi..."
+                      : "Cần điểm danh tại cổng để nhập câu hỏi..."
                   }
                   placeholderTextColor={colors.textMuted}
                   color={colors.textPrimary}
@@ -424,7 +383,7 @@ export default function LiveQAScreen() {
                 isDisabled={submitting || !isCheckedIn}
                 onPress={handlePostQuestion}
                 accessibilityRole="button"
-                accessibilityLabel="Gửi câu hỏi lên màn hình"
+                accessibilityLabel="Gửi câu hỏi"
                 sx={{ minHeight: 48 }}
                 style={{ minHeight: 48 }}
               >
@@ -434,7 +393,7 @@ export default function LiveQAScreen() {
                   <>
                     <ButtonIcon as={() => <Ionicons name="send" size={16} color={colors.white} />} mr="$2" />
                     <ButtonText color={colors.white} fontWeight="$bold" fontSize="$sm">
-                      {isCheckedIn ? "Gửi câu hỏi lên màn hình" : "Khóa (Chưa check-in)"}
+                      {isCheckedIn ? "Gửi câu hỏi" : "Khóa (Chưa check-in)"}
                     </ButtonText>
                   </>
                 )}
@@ -476,7 +435,7 @@ export default function LiveQAScreen() {
                     </Text>
                   </VStack>
 
-                  {/* Single toggleable upvote button with minimum 48x48dp target */}
+                  {/* Single toggleable upvote button */}
                   <Pressable
                     onPress={() => handleToggleUpvote(item.id)}
                     alignItems="center"
