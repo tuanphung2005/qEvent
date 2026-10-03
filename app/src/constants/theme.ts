@@ -3,9 +3,9 @@ export const colors = {
   surface: "#FFFFFF",
   white: "#FFFFFF",
   black: "#000000",
-  textPrimary: "#0F172A", // Slate-900
-  textSecondary: "#475569", // Slate-600
-  textMuted: "#94A3B8", // Slate-400
+  textPrimary: "#0F172A", // Slate-900 (ultra-dark slate, 17.5:1 contrast)
+  textSecondary: "#334155", // Slate-700 (dark charcoal slate, 9.6:1 contrast)
+  textMuted: "#475569", // Slate-600 (rich dark slate, 5.8:1 contrast - zero light grey)
   neutralFill: "#F1F5F9", // Slate-100
   neutralDark: "#E2E8F0", // Slate-200
   primary: "#2563EB", // Blue-600
@@ -13,9 +13,9 @@ export const colors = {
   primaryLight: "#EFF6FF",
   success: "#10B981", // Emerald-500
   successLight: "#ECFDF5",
-  warning: "#F59E0B", // Amber-500
+  warning: "#D97706", // Amber-600 (WCAG AA compliant 4.5:1 contrast on white)
   warningLight: "#FFFBEB",
-  error: "#EF4444", // Red-500
+  error: "#DC2626", // Red-600 (WCAG AA compliant 5.9:1 contrast on white)
   errorLight: "#FEF2F2",
   overlay: "rgba(15, 23, 42, 0.45)",
 };

@@ -8,14 +8,14 @@ colors:
   surface: "#FFFFFF"
   neutral-bg: "#F8FAFC"
   text-primary: "#0F172A"
-  text-secondary: "#475569"
-  text-muted: "#94A3B8"
+  text-secondary: "#334155"
+  text-muted: "#475569"
   neutral-fill: "#F1F5F9"
   success: "#10B981"
   success-light: "#ECFDF5"
-  warning: "#F59E0B"
+  warning: "#D97706"
   warning-light: "#FFFBEB"
-  error: "#EF4444"
+  error: "#DC2626"
   error-light: "#FEF2F2"
   overlay: "rgba(15, 23, 42, 0.45)"
 typography:
@@ -100,7 +100,8 @@ The aesthetic posture is clean, modern, and rigorously utilitarian. Visual group
 - **Zero-Border Discipline:** Total elimination of outline borders, hairlines, and card strokes. Spatial separation is managed via background contrast (`#F8FAFC` vs `#FFFFFF`) and downward shadow elevation.
 - **High-Visibility Status Hierarchy:** Immediate color-coded states (Emerald for valid check-in, Amber for duplicate/offline, Red for invalid) paired with multi-sensory haptic and audio feedback.
 - **Glare-Resistant Light Theme:** High-contrast dark Slate typography (`#0F172A`) over immaculate white and slate foundations.
-- **Gluestack + Native Ergonomics:** Large touch targets, predictable bottom bar layouts, and touchable card containers tailored to single-handed operation.
+- **No Light Grey Text:** Total elimination of washed-out light grey typography (`#94A3B8`, `#CBD5E1`). All body text, subheadings, labels, and placeholders maintain high contrast (≥4.5:1) for daylight outdoor readability.
+- **Gluestack + Native Ergonomics:** Large touch targets (≥48dp), predictable bottom bar layouts, and touchable card containers tailored to single-handed operation.
 
 ## Colors
 
@@ -114,20 +115,23 @@ The qCheck color system employs a high-contrast functional palette rooted in cle
 ### Neutral
 - **Background Slate** (`#F8FAFC`): The global screen background, establishing a soft, glare-free canvas.
 - **Surface White** (`#FFFFFF`): Primary elevated surface for cards, bottom sheets, headers, and floating dialogs.
-- **Text Slate 900** (`#0F172A`): High-contrast primary headlines, titles, and critical attendee details.
-- **Text Slate 600** (`#475569`): Secondary descriptions, session timestamps, and venue sub-metadata.
-- **Text Slate 400** (`#94A3B8`): Muted placeholder labels, disabled indicators, and timestamps.
+- **Text Slate 900** (`#0F172A`): High-contrast primary headlines, titles, and critical attendee details (17.5:1 contrast).
+- **Text Slate 700** (`#334155`): Secondary descriptions, uppercase tracking labels, timestamps, and venue metadata (9.6:1 contrast).
+- **Text Slate 600** (`#475569`): Muted input placeholder hints, subtle category headers (5.8:1 contrast). Total elimination of low-contrast light grey (`#94A3B8`).
 - **Field Neutral** (`#F1F5F9`): Unbordered input container and secondary button fill.
+- **Neutral Dark** (`#E2E8F0`): Subtle fill for pressed states and active toggles.
 
 ### Functional / Semantic
 - **Emerald Valid** (`#10B981` / Light: `#ECFDF5`): Sub-second successful scan validation, active check-in badges, and verified ticket state.
-- **Amber Warning** (`#F59E0B` / Light: `#FFFBEB`): Duplicate scan warnings, offline queuing mode, and pending synchronization items.
-- **Crimson Error** (`#EF4444` / Light: `#FEF2F2`): Fraudulent ticket signals, revoked QR tokens, and network error alerts.
+- **Amber Warning** (`#D97706` / Light: `#FFFBEB`): Duplicate scan warnings, offline queuing mode, and pending synchronization items (4.5:1 contrast).
+- **Crimson Error** (`#DC2626` / Light: `#FEF2F2`): Fraudulent ticket signals, revoked QR tokens, and network error alerts (5.9:1 contrast).
 
 ### Named Rules
 **The Borderless Boundary Rule.** Never use `borderWidth: 1` or hairline divider lines to separate components or card sections. Content hierarchy must be defined by surface contrast (`#FFFFFF` on `#F8FAFC`), 12–20px spacing gaps, or subtle background tint fills.
 
-**The Semantic Monosemy Rule.** Emerald (`#10B981`), Amber (`#F59E0B`), and Crimson (`#EF4444`) are strictly reserved for ticket validation and synchronization state. They are never used for decorative accents.
+**The High-Contrast Legibility Rule.** Never use light grey text colors (`#94A3B8`, `#CBD5E1`, `#9CA3AF`, etc.) for any label, placeholder, or indicator. All typography must maintain sharp, high-visibility contrast (≥4.5:1 against surface background) to guarantee instant readability outdoors and under harsh gate lighting.
+
+**The Semantic Monosemy Rule.** Emerald (`#10B981`), Amber (`#D97706`), and Crimson (`#DC2626`) are strictly reserved for ticket validation and synchronization state. They are never used for decorative accents.
 
 ## Typography
 
@@ -182,7 +186,7 @@ qCheck utilizes natural, downward-directed elevation rather than multi-direction
 - **Shape:** Rounded rectangle (12px radius)
 - **Primary:** Background `#2563EB`, text `#FFFFFF`, font weight 600, min-height 48dp.
 - **Secondary:** Background `#F1F5F9`, text `#0F172A`, font weight 600.
-- **States:** Active opacity `0.85` on press; disabled background `#E2E8F0` with text `#94A3B8`.
+- **States:** Active opacity `0.85` on press; disabled background `#E2E8F0` with text `#334155`.
 
 ### Cards
 - **Shape:** Rounded container (16px radius), background `#FFFFFF`, zero border.
@@ -193,11 +197,12 @@ qCheck utilizes natural, downward-directed elevation rather than multi-direction
 - **Shape:** Soft pill-cornered box (12px radius), background `#F1F5F9`, zero border.
 - **Focus:** Background shifts to `#E2E8F0` without adding a stroke outline.
 - **Label:** Small uppercase label (12px, SemiBold) placed 6px above field.
+- **Placeholder:** Crisp Slate-600 (`#475569`, 5.8:1 contrast).
 
 ### Badges / Status Chips
 - **Shape:** Pill container (full radius 20px), padding `4px 10px`, zero border.
 - **Success:** Background `#ECFDF5`, text `#10B981`.
-- **Warning:** Background `#FFFBEB`, text `#F59E0B`.
+- **Warning:** Background `#FFFBEB`, text `#D97706`.
 - **Info:** Background `#EFF6FF`, text `#2563EB`.
 
 ### Top Header Bar
@@ -212,10 +217,11 @@ qCheck utilizes natural, downward-directed elevation rather than multi-direction
 - **Do** ensure all interactive buttons and icons have at least 48×48dp touchable bounding boxes.
 - **Do** preserve the anti-screenshot screen capture protection on the ticket detail screen.
 - **Do** display dynamic 30-second countdown rings or progress indicators on QR codes.
+- **Do** enforce high text contrast (≥4.5:1) for all typography and placeholders.
 
 ### Don't:
 - **Don't** add outline borders, border-bottom lines, or hairlines anywhere in the application.
+- **Don't** use light grey text colors (`#94A3B8`, `#CBD5E1`, `#9CA3AF`, etc.) for any label, placeholder, or indicator.
 - **Don't** introduce dark mode or dark themes unless explicitly directed; the app is built exclusively as an outdoor glare-resistant Light Theme.
 - **Don't** use `expo-blur`, `BlurView`, or frosted glass backgrounds.
 - **Don't** place critical gate validation controls in the hard-to-reach top quarter of the screen.
-- **Don't** allow QR tokens to be cached without cryptographic expiration metadata.

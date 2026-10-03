@@ -198,6 +198,7 @@ export default function LoginScreen() {
                 minHeight: 48,
                 ":active": { opacity: 0.85 },
               }}
+              style={{ minHeight: 48 }}
             >
               {loading ? (
                 <ButtonSpinner color={colors.white} />
@@ -210,7 +211,7 @@ export default function LoginScreen() {
 
             {/* Quick test accounts - Clean borderless section */}
             <VStack mt="$6" pt="$2">
-              <Text color={colors.textMuted} fontSize="$2xs" fontWeight="$bold" mb="$2.5">
+              <Text color={colors.textSecondary} fontSize="$2xs" fontWeight="$bold" mb="$2.5">
                 CHỌN TÀI KHOẢN MẪU TEST:
               </Text>
               <HStack space="sm">
@@ -254,8 +255,8 @@ export default function LoginScreen() {
             {/* API Connection Indicator - Clean borderless */}
             <VStack mt="$4" pt="$2" alignItems="center">
               <HStack space="xs" alignItems="center">
-                <Ionicons name="server-outline" size={13} color={colors.textMuted} />
-                <Text color={colors.textMuted} fontSize="$2xs">
+                <Ionicons name="server-outline" size={13} color={colors.textSecondary} />
+                <Text color={colors.textSecondary} fontSize="$2xs">
                   API: {currentUrl}
                 </Text>
                 <Pressable

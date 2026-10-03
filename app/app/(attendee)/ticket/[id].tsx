@@ -188,7 +188,7 @@ export default function TicketDetailScreen() {
                   backgroundColor={colors.white}
                 />
               ) : (
-                <Text color={colors.textMuted} fontSize="$sm">Không có mã QR</Text>
+                <Text color={colors.textSecondary} fontSize="$sm">Không có mã QR</Text>
               )}
             </Box>
 
@@ -218,14 +218,14 @@ export default function TicketDetailScreen() {
             {/* Metadata Rows */}
             <VStack w="100%" space="sm" bg={colors.background} p="$3.5" borderRadius={16} borderWidth={0}>
               <HStack justifyContent="space-between" alignItems="center">
-                <Text color={colors.textMuted} fontSize="$xs">Mã vé (ID):</Text>
+                <Text color={colors.textSecondary} fontSize="$xs">Mã vé (ID):</Text>
                 <Text color={colors.textPrimary} fontWeight="$bold" fontSize="$xs">
                   {id ? `${id.slice(0, 13)}...` : ""}
                 </Text>
               </HStack>
 
               <HStack justifyContent="space-between" alignItems="center">
-                <Text color={colors.textMuted} fontSize="$xs">Địa điểm:</Text>
+                <Text color={colors.textSecondary} fontSize="$xs">Địa điểm:</Text>
                 <Text color={colors.textPrimary} fontWeight="$semibold" fontSize="$xs">
                   {ticketData?.event?.venue || "Hội trường chính"}
                 </Text>
@@ -233,7 +233,7 @@ export default function TicketDetailScreen() {
 
               {isCheckedIn && ticketData?.checkedInAt && (
                 <HStack justifyContent="space-between" alignItems="center">
-                  <Text color={colors.textMuted} fontSize="$xs">Thời gian check-in:</Text>
+                  <Text color={colors.textSecondary} fontSize="$xs">Thời gian check-in:</Text>
                   <Text color={colors.success} fontWeight="$semibold" fontSize="$xs">
                     {new Date(ticketData.checkedInAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
                   </Text>

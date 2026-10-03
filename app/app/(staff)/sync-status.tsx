@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   },
   itemTime: {
     fontSize: 12,
-    color: colors.textMuted,
+    color: colors.textSecondary,
     marginTop: 4,
   },
 });

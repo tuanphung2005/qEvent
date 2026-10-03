@@ -1,184 +1,104 @@
 {
-  "schemaVersion": 2,
-  "generatedAt": "2026-10-03T15:08:15Z",
-  "title": "Design System: qCheck",
-  "extensions": {
-    "colorMeta": {
-      "primary": {
-        "role": "primary",
-        "displayName": "Electric Blue",
-        "canonical": "#2563EB",
-        "tonalRamp": ["#1E3A8A", "#1D4ED8", "#2563EB", "#3B82F6", "#60A5FA", "#93C5FD", "#BFDBFE", "#EFF6FF"]
+  \"schemaVersion\": 2,
+  \"generatedAt\": \"2026-10-03T15:28:00Z\",
+  \"title\": \"Design System: qCheck\",
+  \"extensions\": {
+    \"colorMeta\": {
+      \"primary\": {
+        \"role\": \"primary\",
+        \"displayName\": \"Electric Blue\",
+        \"canonical\": \"#2563EB\",
+        \"tonalRamp\": [\"#1E3A8A\", \"#1D4ED8\", \"#2563EB\", \"#3B82F6\", \"#60A5FA\", \"#93C5FD\", \"#BFDBFE\", \"#EFF6FF\"]
       },
-      "surface": {
-        "role": "surface",
-        "displayName": "Surface White",
-        "canonical": "#FFFFFF",
-        "tonalRamp": ["#64748B", "#94A3B8", "#CBD5E1", "#E2E8F0", "#F1F5F9", "#F8FAFC", "#FAFAFA", "#FFFFFF"]
+      \"surface\": {
+        \"role\": \"surface\",
+        \"displayName\": \"Surface White\",
+        \"canonical\": \"#FFFFFF\",
+        \"tonalRamp\": [\"#64748B\", \"#94A3B8\", \"#CBD5E1\", \"#E2E8F0\", \"#F1F5F9\", \"#F8FAFC\", \"#FAFAFA\", \"#FFFFFF\"]
       },
-      "neutral-bg": {
-        "role": "background",
-        "displayName": "Slate Background",
-        "canonical": "#F8FAFC",
-        "tonalRamp": ["#334155", "#475569", "#64748B", "#94A3B8", "#CBD5E1", "#E2E8F0", "#F1F5F9", "#F8FAFC"]
+      \"neutral-bg\": {
+        \"role\": \"background\",
+        \"displayName\": \"Slate Background\",
+        \"canonical\": \"#F8FAFC\",
+        \"tonalRamp\": [\"#334155\", \"#475569\", \"#64748B\", \"#94A3B8\", \"#CBD5E1\", \"#E2E8F0\", \"#F1F5F9\", \"#F8FAFC\"]
       },
-      "text-primary": {
-        "role": "text-primary",
-        "displayName": "Slate 900 Text",
-        "canonical": "#0F172A",
-        "tonalRamp": ["#020617", "#0F172A", "#1E293B", "#334155", "#475569", "#64748B", "#94A3B8", "#CBD5E1"]
+      \"text-primary\": {
+        \"role\": \"text-primary\",
+        \"displayName\": \"Slate 900 Text\",
+        \"canonical\": \"#0F172A\",
+        \"tonalRamp\": [\"#020617\", \"#0F172A\", \"#1E293B\", \"#334155\", \"#475569\", \"#64748B\", \"#94A3B8\", \"#CBD5E1\"]
       },
-      "success": {
-        "role": "semantic-success",
-        "displayName": "Emerald Valid",
-        "canonical": "#10B981",
-        "tonalRamp": ["#064E3B", "#065F46", "#047857", "#059669", "#10B981", "#34D399", "#A7F3D0", "#ECFDF5"]
+      \"text-secondary\": {
+        \"role\": \"text-secondary\",
+        \"displayName\": \"Slate 700 Text\",
+        \"canonical\": \"#334155\",
+        \"tonalRamp\": [\"#0F172A\", \"#1E293B\", \"#334155\", \"#475569\", \"#64748B\"]
       },
-      "warning": {
-        "role": "semantic-warning",
-        "displayName": "Amber Warning",
-        "canonical": "#F59E0B",
-        "tonalRamp": ["#78350F", "#92400E", "#B45309", "#D97706", "#F59E0B", "#FBBF24", "#FDE68A", "#FFFBEB"]
+      \"text-muted\": {
+        \"role\": \"text-muted\",
+        \"displayName\": \"Slate 600 Text\",
+        \"canonical\": \"#475569\",
+        \"tonalRamp\": [\"#1E293B\", \"#334155\", \"#475569\", \"#64748B\"]
       },
-      "error": {
-        "role": "semantic-error",
-        "displayName": "Crimson Error",
-        "canonical": "#EF4444",
-        "tonalRamp": ["#7F1D1D", "#991B1B", "#B91C1C", "#DC2626", "#EF4444", "#F87171", "#FCA5A5", "#FEF2F2"]
+      \"success\": {
+        \"role\": \"semantic-success\",
+        \"displayName\": \"Emerald Valid\",
+        \"canonical\": \"#10B981\",
+        \"tonalRamp\": [\"#064E3B\", \"#065F46\", \"#047857\", \"#059669\", \"#10B981\", \"#34D399\", \"#A7F3D0\", \"#ECFDF5\"]
+      },
+      \"warning\": {
+        \"role\": \"semantic-warning\",
+        \"displayName\": \"Amber Warning\",
+        \"canonical\": \"#D97706\",
+        \"tonalRamp\": [\"#78350F\", \"#92400E\", \"#B45309\", \"#D97706\", \"#F59E0B\", \"#FBBF24\", \"#FDE68A\", \"#FFFBEB\"]
+      },
+      \"error\": {
+        \"role\": \"semantic-error\",
+        \"displayName\": \"Crimson Error\",
+        \"canonical\": \"#DC2626\",
+        \"tonalRamp\": [\"#7F1D1D\", \"#991B1B\", \"#B91C1C\", \"#DC2626\", \"#EF4444\", \"#F87171\", \"#FCA5A5\", \"#FEF2F2\"]
       }
     },
-    "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "Hero event headers and critical statistics." },
-      "headline": { "displayName": "Headline", "purpose": "Section headings and modal titles." },
-      "title": { "displayName": "Title", "purpose": "Card titles, attendee names, and button text." },
-      "body": { "displayName": "Body", "purpose": "Instructions, descriptions, and Q&A entries." },
-      "label": { "displayName": "Label", "purpose": "Input headers, status tags, and countdown counters." }
+    \"typographyMeta\": {
+      \"display\": { \"displayName\": \"Display\", \"purpose\": \"Hero event headers and critical statistics.\" },
+      \"headline\": { \"displayName\": \"Headline\", \"purpose\": \"Section headings and modal titles.\" },
+      \"title\": { \"displayName\": \"Title\", \"purpose\": \"Card titles, attendee names, and button text.\" },
+      \"body\": { \"displayName\": \"Body\", \"purpose\": \"Instructions, descriptions, and Q&A entries.\" },
+      \"label\": { \"displayName\": \"Label\", \"purpose\": \"Input headers, status tags, and countdown counters.\" }
     },
-    "shadows": [
+    \"shadows\": [
       {
-        "name": "subtle",
-        "value": "0 2px 6px rgba(0, 0, 0, 0.05)",
-        "purpose": "Header bars and subtle navigational affordances."
+        \"name\": \"subtle\",
+        \"value\": \"0 2px 6px rgba(0, 0, 0, 0.05)\",
+        \"purpose\": \"Header bars and subtle navigational affordances.\"
       },
       {
-        "name": "card",
-        "value": "0 4px 10px rgba(0, 0, 0, 0.07)",
-        "purpose": "Content cards, ticket items, and interactive list rows."
+        \"name\": \"card\",
+        \"value\": \"0 4px 10px rgba(0, 0, 0, 0.07)\",
+        \"purpose\": \"Content cards, ticket items, and interactive list rows.\"
       },
       {
-        "name": "floating",
-        "value": "0 8px 16px rgba(0, 0, 0, 0.12)",
-        "purpose": "Floating action buttons, check-in feedback banners, and bottom sheets."
+        \"name\": \"floating\",
+        \"value\": \"0 8px 16px rgba(0, 0, 0, 0.12)\",
+        \"purpose\": \"Floating action buttons, check-in feedback banners, and bottom sheets.\"
       }
     ],
-    "motion": [
+    \"motion\": [
       {
-        "name": "ease-standard",
-        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
-        "purpose": "Default easing for touch feedback and modal transitions."
+        \"name\": \"ease-standard\",
+        \"value\": \"cubic-bezier(0.4, 0, 0.2, 1)\",
+        \"purpose\": \"Default easing for touch feedback and modal transitions.\"
       },
       {
-        "name": "qr-countdown",
-        "value": "linear",
-        "purpose": "30-second continuous linear countdown for Dynamic QR code."
+        \"name\": \"qr-countdown\",
+        \"value\": \"linear\",
+        \"purpose\": \"30-second continuous linear countdown for Dynamic QR code.\"
       }
     ],
-    "breakpoints": [
-      { "name": "phone", "value": "390px" },
-      { "name": "tablet", "value": "768px" }
+    \"breakpoints\": [
+      { \"name\": \"phone\", \"value\": \"390px\" },
+      { \"name\": \"tablet\", \"value\": \"768px\" }
     ]
   },
-  "components": [
-    {
-      "name": "Primary Button",
-      "kind": "button",
-      "refersTo": "button-primary",
-      "description": "Primary high-priority action button for login, ticket purchase, and check-in confirmation.",
-      "html": "<button class=\"ds-btn-primary\">Điểm danh vé</button>",
-      "css": ".ds-btn-primary { background: #2563EB; color: #FFFFFF; font-family: sans-serif; font-size: 14px; font-weight: 600; padding: 12px 24px; border: none; border-radius: 12px; cursor: pointer; transition: background 0.2s, opacity 0.2s; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; } .ds-btn-primary:hover { background: #1D4ED8; } .ds-btn-primary:active { opacity: 0.85; }"
-    },
-    {
-      "name": "Secondary Button",
-      "kind": "button",
-      "refersTo": "button-secondary",
-      "description": "Secondary neutral button for filters, downloads, or alternative options.",
-      "html": "<button class=\"ds-btn-secondary\">Tải lại Cache</button>",
-      "css": ".ds-btn-secondary { background: #F1F5F9; color: #0F172A; font-family: sans-serif; font-size: 14px; font-weight: 600; padding: 12px 24px; border: none; border-radius: 12px; cursor: pointer; transition: background 0.2s; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; } .ds-btn-secondary:hover { background: #E2E8F0; }"
-    },
-    {
-      "name": "Content Card",
-      "kind": "card",
-      "refersTo": "card",
-      "description": "Standard borderless content card elevated by bottom drop shadow.",
-      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">Tech Expo 2026</div><div class=\"ds-card-body\">Vé VIP • Cổng A • Ghế 12A</div></div>",
-      "css": ".ds-card { background: #FFFFFF; border-radius: 16px; padding: 16px; border: none; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.07); font-family: sans-serif; } .ds-card-title { font-size: 16px; font-weight: 600; color: #0F172A; margin-bottom: 4px; } .ds-card-body { font-size: 14px; color: #475569; }"
-    },
-    {
-      "name": "Pill Badge (Success)",
-      "kind": "chip",
-      "refersTo": "badge",
-      "description": "High-contrast status pill indicating confirmed check-in or valid state.",
-      "html": "<span class=\"ds-badge-success\">ĐÃ ĐIỂM DANH</span>",
-      "css": ".ds-badge-success { background: #ECFDF5; color: #10B981; font-family: sans-serif; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; border: none; display: inline-flex; align-items: center; letter-spacing: 0.5px; }"
-    },
-    {
-      "name": "Text Input",
-      "kind": "input",
-      "refersTo": "input",
-      "description": "Borderless, tinted text input field with high contrast text.",
-      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"nhap.email@example.com\" />",
-      "css": ".ds-input { background: #F1F5F9; color: #0F172A; font-family: sans-serif; font-size: 14px; padding: 12px 16px; border-radius: 12px; border: none; outline: none; width: 100%; box-sizing: border-box; transition: background 0.2s; } .ds-input:focus { background: #E2E8F0; }"
-    }
-  ],
-  "narrative": {
-    "northStar": "The High-Throughput Beacon",
-    "overview": "qCheck is an operational mobile tool built for intense, high-stakes physical environments: noisy venue entrance gates, dim auditoriums, and crowded queue lines under bright outdoor glare. The visual architecture rejects decorative fluff, blurred materials, and multi-layered visual noise in favor of immediate, unambiguous clarity.",
-    "keyCharacteristics": [
-      "Zero-Border Discipline: Total elimination of outline borders, hairlines, and card strokes.",
-      "High-Visibility Status Hierarchy: Immediate color-coded states paired with multi-sensory feedback.",
-      "Glare-Resistant Light Theme: High-contrast dark Slate typography over white and slate foundations.",
-      "Gluestack + Native Ergonomics: Large touch targets, predictable bottom bar layouts, and touchable card containers."
-    ],
-    "rules": [
-      {
-        "name": "The Borderless Boundary Rule",
-        "body": "Never use borderWidth: 1 or hairline divider lines to separate components or card sections.",
-        "section": "colors"
-      },
-      {
-        "name": "The Semantic Monosemy Rule",
-        "body": "Emerald, Amber, and Crimson are strictly reserved for ticket validation and synchronization state.",
-        "section": "colors"
-      },
-      {
-        "name": "The No-Hairline-Type Rule",
-        "body": "Thin or ultra-light weights are prohibited. All interactive labels and status badges must use a minimum weight of 600.",
-        "section": "typography"
-      },
-      {
-        "name": "The Downward Gravity Rule",
-        "body": "Shadows must have a strictly positive Y-offset (height >= 2). Omni-directional glow shadows are banned.",
-        "section": "elevation"
-      },
-      {
-        "name": "The Absolute No-Blur Rule",
-        "body": "Glassmorphism and BlurView components are prohibited. Translucent sheets must use flat alpha scrims.",
-        "section": "elevation"
-      }
-    ],
-    "dos": [
-      "Do maintain strict zero-border geometry (borderWidth: 0) across all UI elements.",
-      "Do provide immediate haptic and audio feedback on gate scanning operations.",
-      "Do ensure all interactive buttons and icons have at least 48x48dp touchable bounding boxes.",
-      "Do preserve the anti-screenshot screen capture protection on the ticket detail screen.",
-      "Do display dynamic 30-second countdown rings or progress indicators on QR codes."
-    ],
-    "donts": [
-      "Don't add outline borders, border-bottom lines, or hairlines anywhere in the application.",
-      "Don't introduce dark mode or dark themes; the app is exclusively an outdoor glare-resistant Light Theme.",
-      "Don't use expo-blur, BlurView, or frosted glass backgrounds.",
-      "Don't place critical gate validation controls in the hard-to-reach top quarter of the screen.",
-      "Don't allow QR tokens to be cached without cryptographic expiration metadata."
-    ]
-  }
-}
+  \"components\": [
+    {\n      \"name\": \"Primary Button\",\n      \"kind\": \"button\",\n      \"refersTo\": \"button-primary\",\n      \"description\": \"Primary high-priority action button for login, ticket purchase, and check-in confirmation.\",\n      \"html\": \"<button class=\\\"ds-btn-primary\\\">Điểm danh vé</button>\",\n      \"css\": \".ds-btn-primary { background: #2563EB; color: #FFFFFF; font-family: sans-serif; font-size: 14px; font-weight: 600; padding: 12px 24px; border: none; border-radius: 12px; cursor: pointer; transition: background 0.2s, opacity 0.2s; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; } .ds-btn-primary:hover { background: #1D4ED8; } .ds-btn-primary:active { opacity: 0.85; }\"\n    },\n    {\n      \"name\": \"Secondary Button\",\n      \"kind\": \"button\",\n      \"refersTo\": \"button-secondary\",\n      \"description\": \"Secondary neutral button for filters, downloads, or alternative options.\",\n      \"html\": \"<button class=\\\"ds-btn-secondary\\\">Tải lại Cache</button>\",\n      \"css\": \".ds-btn-secondary { background: #F1F5F9; color: #0F172A; font-family: sans-serif; font-size: 14px; font-weight: 600; padding: 12px 24px; border: none; border-radius: 12px; cursor: pointer; transition: background 0.2s; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; } .ds-btn-secondary:hover { background: #E2E8F0; }\"\n    },\n    {\n      \"name\": \"Content Card\",\n      \"kind\": \"card\",\n      \"refersTo\": \"card\",\n      \"description\": \"Standard borderless content card elevated by bottom drop shadow.\",\n      \"html\": \"<div class=\\\"ds-card\\\"><div class=\\\"ds-card-title\\\">Tech Expo 2026</div><div class=\\\"ds-card-body\\\">Vé VIP • Cổng A • Ghế 12A</div></div>\",\n      \"css\": \".ds-card { background: #FFFFFF; border-radius: 16px; padding: 16px; border: none; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.07); font-family: sans-serif; } .ds-card-title { font-size: 16px; font-weight: 600; color: #0F172A; margin-bottom: 4px; } .ds-card-body { font-size: 14px; color: #334155; }\"\n    },\n    {\n      \"name\": \"Pill Badge (Success)\",\n      \"kind\": \"chip\",\n      \"refersTo\": \"badge\",\n      \"description\": \"High-contrast status pill indicating confirmed check-in or valid state.\",\n      \"html\": \"<span class=\\\"ds-badge-success\\\">ĐÃ ĐIỂM DANH</span>\",\n      \"css\": \".ds-badge-success { background: #ECFDF5; color: #10B981; font-family: sans-serif; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; border: none; display: inline-flex; align-items: center; letter-spacing: 0.5px; }\"\n    },\n    {\n      \"name\": \"Text Input\",\n      \"kind\": \"input\",\n      \"refersTo\": \"input\",\n      \"description\": \"Borderless, high-contrast text input field with readable placeholder.\",\n      \"html\": \"<input class=\\\"ds-input\\\" type=\\\"text\\\" placeholder=\\\"nhap.email@example.com\\\" />\",\n      \"css\": \".ds-input { background: #F1F5F9; color: #0F172A; font-family: sans-serif; font-size: 14px; padding: 12px 16px; border-radius: 12px; border: none; outline: none; width: 100%; box-sizing: border-box; transition: background 0.2s; } .ds-input::placeholder { color: #475569; opacity: 1; } .ds-input:focus { background: #E2E8F0; }\"\n    }\n  ],\n  \"narrative\": {\n    \"northStar\": \"The High-Throughput Beacon\",\n    \"overview\": \"qCheck is an operational mobile tool built for intense, high-stakes physical environments: noisy venue entrance gates, dim auditoriums, and crowded queue lines under bright outdoor glare. The visual architecture rejects decorative fluff, blurred materials, and multi-layered visual noise in favor of immediate, unambiguous clarity.\",\n    \"keyCharacteristics\": [\n      \"Zero-Border Discipline: Total elimination of outline borders, hairlines, and card strokes.\",\n      \"High-Visibility Status Hierarchy: Immediate color-coded states paired with multi-sensory feedback.\",\n      \"Glare-Resistant Light Theme: High-contrast dark Slate typography over white and slate foundations.\",\n      \"No Light Grey Text: Absolute elimination of low-contrast light grey text across all screens.\",\n      \"Gluestack + Native Ergonomics: Large touch targets, predictable bottom bar layouts, and touchable card containers.\"\n    ],\n    \"rules\": [\n      {\n        \"name\": \"The Borderless Boundary Rule\",\n        \"body\": \"Never use borderWidth: 1 or hairline divider lines to separate components or card sections.\",\n        \"section\": \"colors\"\n      },\n      {\n        \"name\": \"The High-Contrast Legibility Rule\",\n        \"body\": \"Never use light grey text colors (#94A3B8, #CBD5E1, #9CA3AF) for any label, placeholder, or indicator. All typography must maintain sharp contrast >= 4.5:1 against its background.\",\n        \"section\": \"colors\"\n      },\n      {\n        \"name\": \"The Semantic Monosemy Rule\",\n        \"body\": \"Emerald, Amber, and Crimson are strictly reserved for ticket validation and synchronization state.\",\n        \"section\": \"colors\"\n      },\n      {\n        \"name\": \"The No-Hairline-Type Rule\",\n        \"body\": \"Thin or ultra-light weights are prohibited. All interactive labels and status badges must use a minimum weight of 600.\",\n        \"section\": \"typography\"\n      },\n      {\n        \"name\": \"The Downward Gravity Rule\",\n        \"body\": \"Shadows must have a strictly positive Y-offset (height >= 2). Omni-directional glow shadows are banned.\",\n        \"section\": \"elevation\"\n      },\n      {\n        \"name\": \"The Absolute No-Blur Rule\",\n        \"body\": \"Glassmorphism and BlurView components are prohibited. Translucent sheets must use flat alpha scrims.\",\n        \"section\": \"elevation\"\n      }\n    ],\n    \"dos\": [\n      \"Do maintain strict zero-border geometry (borderWidth: 0) across all UI elements.\",\n      \"Do provide immediate haptic and audio feedback on gate scanning operations.\",\n      \"Do ensure all interactive buttons and icons have at least 48x48dp touchable bounding boxes.\",\n      \"Do preserve the anti-screenshot screen capture protection on the ticket detail screen.\",\n      \"Do display dynamic 30-second countdown rings or progress indicators on QR codes.\",\n      \"Do enforce high text contrast (>=4.5:1) for all typography and placeholders.\"\n    ],\n    \"donts\": [\n      \"Don't add outline borders, border-bottom lines, or hairlines anywhere in the application.\",\n      \"Don't use light grey text colors (#94A3B8 or lighter) for any label, placeholder, or indicator.\",\n      \"Don't introduce dark mode or dark themes; the app is exclusively an outdoor glare-resistant Light Theme.\",\n      \"Don't use expo-blur, BlurView, or frosted glass backgrounds.\",\n      \"Don't place critical gate validation controls in the hard-to-reach top quarter of the screen.\",\n      \"Don't allow QR tokens to be cached without cryptographic expiration metadata.\"\n    ]\n  }\n}\n

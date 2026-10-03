@@ -189,7 +189,7 @@ export default function TicketsListScreen() {
             >
               <HStack justifyContent="space-around" alignItems="center">
                 <VStack alignItems="center">
-                  <Text color={colors.textMuted} fontSize="$2xs" fontWeight="$bold">
+                  <Text color={colors.textSecondary} fontSize="$2xs" fontWeight="$bold">
                     TỔNG SỐ VÉ
                   </Text>
                   <Heading size="xl" color={colors.textPrimary}>
@@ -197,7 +197,7 @@ export default function TicketsListScreen() {
                   </Heading>
                 </VStack>
                 <VStack alignItems="center">
-                  <Text color={colors.textMuted} fontSize="$2xs" fontWeight="$bold">
+                  <Text color={colors.textSecondary} fontSize="$2xs" fontWeight="$bold">
                     ĐÃ ĐIỂM DANH
                   </Text>
                   <Heading size="xl" color={colors.success}>
@@ -205,7 +205,7 @@ export default function TicketsListScreen() {
                   </Heading>
                 </VStack>
                 <VStack alignItems="center">
-                  <Text color={colors.textMuted} fontSize="$2xs" fontWeight="$bold">
+                  <Text color={colors.textSecondary} fontSize="$2xs" fontWeight="$bold">
                     CHƯA QUÉT
                   </Text>
                   <Heading size="xl" color={colors.primary}>
@@ -249,7 +249,7 @@ export default function TicketsListScreen() {
               borderWidth={0}
               style={shadows.card}
             >
-              <Ionicons name="ticket-outline" size={48} color={colors.textMuted} />
+              <Ionicons name="ticket-outline" size={48} color={colors.textSecondary} />
               <Text color={colors.textSecondary} fontSize="$sm" mt="$2" mb="$3">
                 Bạn chưa có vé sự kiện nào
               </Text>
@@ -299,8 +299,8 @@ export default function TicketsListScreen() {
 
               <HStack justifyContent="space-between" alignItems="center" pt="$1">
                 <HStack space="xs" alignItems="center" flex={1}>
-                  <Ionicons name="location-outline" size={15} color={colors.textMuted} />
-                  <Text color={colors.textMuted} fontSize="$xs" numberOfLines={1}>
+                  <Ionicons name="location-outline" size={15} color={colors.textSecondary} />
+                  <Text color={colors.textSecondary} fontSize="$xs" numberOfLines={1}>
                     {item.event?.venue || "Trung tâm hội nghị"}
                   </Text>
                 </HStack>

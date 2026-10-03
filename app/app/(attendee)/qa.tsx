@@ -310,7 +310,7 @@ export default function LiveQAScreen() {
                     </Text>
                     {s.room?.name && (
                       <Text
-                        color={isSelected ? colors.neutralDark : colors.textMuted}
+                        color={isSelected ? colors.white : colors.textSecondary}
                         fontSize="$2xs"
                         mt="$0.5"
                       >
@@ -377,7 +377,7 @@ export default function LiveQAScreen() {
 
               <Button
                 size="md"
-                bg={isCheckedIn ? colors.primary : colors.textMuted}
+                bg={isCheckedIn ? colors.primary : colors.neutralDark}
                 borderRadius={12}
                 borderWidth={0}
                 isDisabled={submitting || !isCheckedIn}
@@ -391,8 +391,8 @@ export default function LiveQAScreen() {
                   <ButtonSpinner color={colors.white} />
                 ) : (
                   <>
-                    <ButtonIcon as={() => <Ionicons name="send" size={16} color={colors.white} />} mr="$2" />
-                    <ButtonText color={colors.white} fontWeight="$bold" fontSize="$sm">
+                    <ButtonIcon as={() => <Ionicons name="send" size={16} color={isCheckedIn ? colors.white : colors.textSecondary} />} mr="$2" />
+                    <ButtonText color={isCheckedIn ? colors.white : colors.textSecondary} fontWeight="$bold" fontSize="$sm">
                       {isCheckedIn ? "Gửi câu hỏi" : "Khóa (Chưa check-in)"}
                     </ButtonText>
                   </>
@@ -403,8 +403,8 @@ export default function LiveQAScreen() {
           ListEmptyComponent={
             !loading ? (
               <Center py="$8">
-                <Ionicons name="chatbubbles-outline" size={40} color={colors.textMuted} />
-                <Text color={colors.textMuted} fontSize="$xs" mt="$2">
+                <Ionicons name="chatbubbles-outline" size={40} color={colors.textSecondary} />
+                <Text color={colors.textSecondary} fontSize="$xs" mt="$2">
                   Chưa có câu hỏi nào trong phiên này. Hãy là người đầu tiên!
                 </Text>
               </Center>
@@ -427,7 +427,7 @@ export default function LiveQAScreen() {
               >
                 <HStack space="md" alignItems="center">
                   <VStack flex={1}>
-                    <Text color={colors.textMuted} fontWeight="$semibold" fontSize="$2xs" mb="$1">
+                    <Text color={colors.textSecondary} fontWeight="$semibold" fontSize="$2xs" mb="$1">
                       {item.user?.fullName || "Khách tham dự"}
                     </Text>
                     <Text color={colors.textPrimary} fontSize="$sm">

@@ -349,7 +349,7 @@ export default function ScannerScreen() {
           justifyContent="space-around"
         >
           <HStack space="xs" alignItems="center">
-            <Text color={colors.textMuted} fontSize="$2xs" fontWeight="$bold">
+            <Text color={colors.textSecondary} fontSize="$2xs" fontWeight="$bold">
               ĐÃ QUÉT:
             </Text>
             <Text color={colors.success} fontSize="$xs" fontWeight="$bold">
@@ -357,7 +357,7 @@ export default function ScannerScreen() {
             </Text>
           </HStack>
           <HStack space="xs" alignItems="center">
-            <Text color={colors.textMuted} fontSize="$2xs" fontWeight="$bold">
+            <Text color={colors.textSecondary} fontSize="$2xs" fontWeight="$bold">
               CHƯA VÀO:
             </Text>
             <Text color={colors.primary} fontSize="$xs" fontWeight="$bold">
@@ -379,7 +379,7 @@ export default function ScannerScreen() {
           />
         ) : (
           <View style={styles.permissionBox}>
-            <Ionicons name="camera-outline" size={54} color={colors.textMuted} />
+            <Ionicons name="camera-outline" size={54} color={colors.textSecondary} />
             <Text style={styles.permissionTitle}>Cần quyền truy cập Camera</Text>
             <Text style={styles.permissionSubtitle}>
               Để quét mã Dynamic QR soát vé sự kiện
