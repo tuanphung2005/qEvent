@@ -1,25 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { FlatList, RefreshControl, Alert } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  Box,
-  VStack,
-  HStack,
+  View,
   Text,
-  Heading,
   Pressable,
-  Center,
-  Spinner,
-  Badge,
-  BadgeText,
-  Button,
-  ButtonText,
-  ButtonIcon,
-} from "@gluestack-ui/themed";
+  FlatList,
+  RefreshControl,
+  Alert,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../../src/context/AuthContext";
 import { api } from "../../../src/api/client";
-import { colors, shadows } from "../../../src/constants/theme";
+import { Badge } from "../../../src/components/Badge";
+import { Button } from "../../../src/components/Button";
+import { colors, shadows, m3Shapes, m3Ripples } from "../../../src/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function TicketsListScreen() {
@@ -95,72 +91,45 @@ export default function TicketsListScreen() {
           })
         : "";
       return (
-        <Badge action="success" variant="solid" borderRadius={20} px="$2.5" py="$1" borderWidth={0}>
-          <HStack space="xs" alignItems="center">
-            <Ionicons name="checkmark-circle" size={12} color={colors.white} />
-            <BadgeText fontSize="$2xs" fontWeight="$bold">
-              ĐÃ ĐIỂM DANH {timeStr ? `(${timeStr})` : ""}
-            </BadgeText>
-          </HStack>
-        </Badge>
+        <Badge
+          label={`ĐÃ ĐIỂM DANH ${timeStr ? `(${timeStr})` : ""}`}
+          variant="success"
+          icon={<Ionicons name="checkmark-circle" size={13} color={colors.m3.onSuccessContainer} />}
+        />
       );
     }
     return (
-      <Badge action="info" variant="solid" borderRadius={20} px="$2.5" py="$1" borderWidth={0}>
-        <HStack space="xs" alignItems="center">
-          <Ionicons name="time-outline" size={12} color={colors.white} />
-          <BadgeText fontSize="$2xs" fontWeight="$bold">CHỜ ĐIỂM DANH</BadgeText>
-        </HStack>
-      </Badge>
+      <Badge
+        label="CHỜ ĐIỂM DANH"
+        variant="neutral"
+        icon={<Ionicons name="time-outline" size={13} color={colors.textSecondary} />}
+      />
     );
   };
 
   const checkedInCount = tickets.filter((t) => t.status === "CHECKED_IN").length;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top", "left", "right"]}>
-      {/* Gluestack Top Header Bar - Standalone logout button: no background, black icon */}
-      <HStack
-        bg={colors.surface}
-        px="$5"
-        py="$3"
-        alignItems="center"
-        justifyContent="space-between"
-        style={shadows.subtle}
-      >
-        <VStack>
-          <Heading size="md" color={colors.textPrimary}>
-            Vé sự kiện của tôi
-          </Heading>
-          <Text color={colors.textSecondary} fontSize="$xs">
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+      {/* Top Header Bar - Standalone logout button: no background, black icon */}
+      <View style={[styles.headerBar, shadows.subtle]}>
+        <View style={styles.headerInfo}>
+          <Text style={styles.headerTitle}>Vé sự kiện của tôi</Text>
+          <Text style={styles.headerSubtitle}>
             Xin chào, {user?.fullName || "Khách"}
           </Text>
-        </VStack>
+        </View>
 
-        <HStack space="sm" alignItems="center">
-          <Pressable
-            onPress={handleLogout}
-            borderRadius={12}
-            accessibilityRole="button"
-            accessibilityLabel="Đăng xuất tài khoản"
-            sx={{
-              minWidth: 48,
-              minHeight: 48,
-              alignItems: "center",
-              justifyContent: "center",
-              ":active": { opacity: 0.7 },
-            }}
-            style={{
-              minWidth: 48,
-              minHeight: 48,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Ionicons name="log-out-outline" size={22} color={colors.black} />
-          </Pressable>
-        </HStack>
-      </HStack>
+        <Pressable
+          onPress={handleLogout}
+          accessibilityRole="button"
+          accessibilityLabel="Đăng xuất tài khoản"
+          android_ripple={m3Ripples.borderlessDark}
+          style={styles.logoutBtn}
+        >
+          <Ionicons name="log-out-outline" size={22} color={colors.black} />
+        </Pressable>
+      </View>
 
       <FlatList
         data={tickets}
@@ -172,148 +141,270 @@ export default function TicketsListScreen() {
               setRefreshing(true);
               fetchTickets();
             }}
+            colors={[colors.primary]}
           />
         }
-        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+        contentContainerStyle={styles.listContent}
         ListHeaderComponent={
-          <VStack mb="$4">
-            {/* Quick Stats Banner - Zero border, spatial separation */}
-            <Box
-              bg={colors.surface}
-              borderRadius={16}
-              p="$4"
-              mb="$4"
-              borderWidth={0}
-              style={shadows.card}
-            >
-              <HStack justifyContent="space-around" alignItems="center">
-                <VStack alignItems="center">
-                  <Text color={colors.textSecondary} fontSize="$2xs" fontWeight="$bold">
-                    TỔNG SỐ VÉ
-                  </Text>
-                  <Heading size="xl" color={colors.textPrimary}>
-                    {tickets.length}
-                  </Heading>
-                </VStack>
-                <VStack alignItems="center">
-                  <Text color={colors.textSecondary} fontSize="$2xs" fontWeight="$bold">
-                    ĐÃ ĐIỂM DANH
-                  </Text>
-                  <Heading size="xl" color={colors.success}>
-                    {checkedInCount}
-                  </Heading>
-                </VStack>
-                <VStack alignItems="center">
-                  <Text color={colors.textSecondary} fontSize="$2xs" fontWeight="$bold">
-                    CHƯA QUÉT
-                  </Text>
-                  <Heading size="xl" color={colors.primary}>
-                    {Math.max(0, tickets.length - checkedInCount)}
-                  </Heading>
-                </VStack>
-              </HStack>
-            </Box>
+          <View style={styles.listHeader}>
+            {/* Quick Stats Banner - M3 Surface Container */}
+            <View style={[styles.statsCard, shadows.card]}>
+              <View style={styles.statCol}>
+                <Text style={styles.statLabel}>TỔNG SỐ VÉ</Text>
+                <Text style={styles.statValue}>{tickets.length}</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statCol}>
+                <Text style={styles.statLabel}>ĐÃ ĐIỂM DANH</Text>
+                <Text style={[styles.statValue, { color: colors.success }]}>
+                  {checkedInCount}
+                </Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statCol}>
+                <Text style={styles.statLabel}>CHƯA QUÉT</Text>
+                <Text style={[styles.statValue, { color: colors.primary }]}>
+                  {Math.max(0, tickets.length - checkedInCount)}
+                </Text>
+              </View>
+            </View>
 
             <Button
-              size="md"
-              bg={colors.primary}
-              borderRadius={12}
-              mb="$4"
-              borderWidth={0}
-              isDisabled={purchasing}
+              title={purchasing ? "Đang tạo vé..." : "+ Đăng ký / Nhận thêm vé sự kiện (Sandbox)"}
+              variant="primary"
+              loading={purchasing}
               onPress={handlePurchaseSandbox}
-              accessibilityRole="button"
-              accessibilityLabel="Nhận thêm vé sự kiện sandbox"
-              sx={{ minHeight: 48 }}
-              style={{ minHeight: 48 }}
-            >
-              <ButtonIcon as={() => <Ionicons name="ticket-outline" size={18} color={colors.white} />} mr="$2" />
-              <ButtonText color={colors.white} fontWeight="$bold" fontSize="$sm">
-                {purchasing ? "Đang tạo vé..." : "+ Đăng ký / Nhận thêm vé sự kiện (Sandbox)"}
-              </ButtonText>
-            </Button>
+              icon={<Ionicons name="ticket-outline" size={18} color={colors.white} />}
+              style={styles.purchaseBtn}
+            />
 
-            <Heading size="sm" color={colors.textPrimary}>
+            <Text style={styles.sectionTitle}>
               Danh sách vé sở hữu ({tickets.length})
-            </Heading>
-          </VStack>
+            </Text>
+          </View>
         }
         ListEmptyComponent={
           !loading ? (
-            <Box
-              bg={colors.surface}
-              borderRadius={16}
-              p="$6"
-              alignItems="center"
-              borderWidth={0}
-              style={shadows.card}
-            >
+            <View style={[styles.emptyCard, shadows.card]}>
               <Ionicons name="ticket-outline" size={48} color={colors.textSecondary} />
-              <Text color={colors.textSecondary} fontSize="$sm" mt="$2" mb="$3">
+              <Text style={styles.emptyText}>
                 Bạn chưa có vé sự kiện nào
               </Text>
               <Button
-                size="sm"
-                bg={colors.primary}
-                borderRadius={10}
-                borderWidth={0}
+                title="Nhận vé mẫu trải nghiệm"
+                variant="secondary"
                 onPress={handlePurchaseSandbox}
-                sx={{ minHeight: 44 }}
-              >
-                <ButtonText color={colors.white} fontSize="$xs">Nhận vé mẫu trải nghiệm</ButtonText>
-              </Button>
-            </Box>
+                style={styles.emptyActionBtn}
+              />
+            </View>
           ) : (
-            <Center py="$8">
-              <Spinner size="large" color={colors.primary} />
-            </Center>
+            <View style={styles.loaderContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
           )
         }
         renderItem={({ item }) => (
-          <Pressable
-            onPress={() => router.push(`/(attendee)/ticket/${item.id}`)}
-            mb="$4"
-            accessibilityRole="button"
-            accessibilityLabel={`Vé sự kiện ${item.event?.name || 'Sự kiện'}, nhấn để xem Dynamic QR`}
-            sx={{ ":active": { opacity: 0.9 } }}
-          >
-            <Box
-              bg={colors.surface}
-              borderRadius={16}
-              p="$4"
-              borderWidth={0}
-              style={shadows.card}
+          <View style={[styles.ticketCardWrapper, shadows.card]}>
+            <Pressable
+              onPress={() => router.push(`/(attendee)/ticket/${item.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`Vé sự kiện ${item.event?.name || 'Sự kiện'}, nhấn để xem Dynamic QR`}
+              android_ripple={m3Ripples.light}
+              style={styles.ticketCardPressable}
             >
-              <HStack justifyContent="space-between" alignItems="flex-start" mb="$3">
-                <VStack flex={1} mr="$2">
-                  <Heading size="sm" color={colors.textPrimary} numberOfLines={1}>
+              <View style={styles.ticketHeader}>
+                <View style={styles.ticketTitleContainer}>
+                  <Text style={styles.ticketEventName} numberOfLines={1}>
                     {item.event?.name || "Sự kiện Tech Summit 2026"}
-                  </Heading>
-                  <Text color={colors.primary} fontWeight="$semibold" fontSize="$xs" mt="$0.5">
+                  </Text>
+                  <Text style={styles.ticketTypeName}>
                     {item.ticketType?.name || "Standard Pass"}
                   </Text>
-                </VStack>
+                </View>
                 {renderBadge(item.status, item.checkedInAt)}
-              </HStack>
+              </View>
 
-              <HStack justifyContent="space-between" alignItems="center" pt="$1">
-                <HStack space="xs" alignItems="center" flex={1}>
+              <View style={styles.ticketFooter}>
+                <View style={styles.venueRow}>
                   <Ionicons name="location-outline" size={15} color={colors.textSecondary} />
-                  <Text color={colors.textSecondary} fontSize="$xs" numberOfLines={1}>
+                  <Text style={styles.venueText} numberOfLines={1}>
                     {item.event?.venue || "Trung tâm hội nghị"}
                   </Text>
-                </HStack>
-                <HStack space="xs" alignItems="center">
+                </View>
+                <View style={styles.qrActionRow}>
                   <Ionicons name="qr-code-outline" size={15} color={colors.primary} />
-                  <Text color={colors.primary} fontWeight="$semibold" fontSize="$xs">
+                  <Text style={styles.qrActionText}>
                     Mở Dynamic QR
                   </Text>
-                </HStack>
-              </HStack>
-            </Box>
-          </Pressable>
+                </View>
+              </View>
+            </Pressable>
+          </View>
         )}
       />
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  headerBar: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 0,
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  logoutBtn: {
+    minWidth: 48,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: m3Shapes.full,
+    borderWidth: 0,
+  },
+  listContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  listHeader: {
+    marginBottom: 16,
+  },
+  statsCard: {
+    backgroundColor: colors.m3.surfaceContainerLowest,
+    borderRadius: m3Shapes.lg,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    borderWidth: 0,
+  },
+  statCol: {
+    alignItems: "center",
+    flex: 1,
+  },
+  statDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: colors.neutralFill,
+  },
+  statLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.textSecondary,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: colors.textPrimary,
+  },
+  purchaseBtn: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  emptyCard: {
+    backgroundColor: colors.m3.surfaceContainerLowest,
+    borderRadius: m3Shapes.lg,
+    padding: 28,
+    alignItems: "center",
+    borderWidth: 0,
+  },
+  emptyText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  emptyActionBtn: {
+    minWidth: 180,
+  },
+  loaderContainer: {
+    paddingVertical: 32,
+    alignItems: "center",
+  },
+  ticketCardWrapper: {
+    backgroundColor: colors.surface,
+    borderRadius: m3Shapes.lg,
+    marginBottom: 14,
+    borderWidth: 0,
+    overflow: "hidden",
+  },
+  ticketCardPressable: {
+    padding: 16,
+  },
+  ticketHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  ticketTitleContainer: {
+    flex: 1,
+    marginRight: 8,
+  },
+  ticketEventName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  ticketTypeName: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.primary,
+    marginTop: 3,
+  },
+  ticketFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 6,
+  },
+  venueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: 4,
+  },
+  venueText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  qrActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  qrActionText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+});

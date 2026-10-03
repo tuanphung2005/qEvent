@@ -1,26 +1,20 @@
 import React, { useEffect, useState, useRef } from "react";
 import {
+  View,
+  Text,
+  Pressable,
   ScrollView,
   Animated,
+  ActivityIndicator,
+  StyleSheet,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Heading,
-  Center,
-  Spinner,
-  Badge,
-  BadgeText,
-  Pressable,
-} from "@gluestack-ui/themed";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import QRCode from "react-native-qrcode-svg";
 import { api } from "../../../src/api/client";
 import { securityService } from "../../../src/services/security";
-import { colors, shadows } from "../../../src/constants/theme";
+import { Badge } from "../../../src/components/Badge";
+import { colors, shadows, m3Shapes, m3Ripples } from "../../../src/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function TicketDetailScreen() {
@@ -90,95 +84,60 @@ export default function TicketDetailScreen() {
   const isCheckedIn = ticketData?.status === "CHECKED_IN";
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top", "left", "right"]}>
-      {/* Gluestack Header Bar - No background on back icon, pure black icon */}
-      <HStack
-        bg={colors.surface}
-        px="$5"
-        py="$3"
-        alignItems="center"
-        style={shadows.subtle}
-      >
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+      {/* Top Header Bar - Standalone back button: no background, pure black icon */}
+      <View style={[styles.headerBar, shadows.subtle]}>
         <Pressable
           onPress={() => router.back()}
-          mr="$2"
-          borderRadius={12}
           accessibilityRole="button"
           accessibilityLabel="Quay lại danh sách vé"
-          sx={{
-            minWidth: 48,
-            minHeight: 48,
-            alignItems: "center",
-            justifyContent: "center",
-            ":active": { opacity: 0.7 },
-          }}
-          style={{
-            minWidth: 48,
-            minHeight: 48,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
+          android_ripple={m3Ripples.borderlessDark}
+          style={styles.backBtn}
         >
           <Ionicons name="arrow-back" size={24} color={colors.black} />
         </Pressable>
-        <VStack>
-          <Heading size="md" color={colors.textPrimary}>
-            Mã vé
-          </Heading>
-        </VStack>
-      </HStack>
+        <Text style={styles.headerTitle}>Mã vé</Text>
+      </View>
 
       <ScrollView
-        contentContainerStyle={{
-          padding: 20,
-          paddingBottom: Math.max(insets.bottom + 20, 32),
-          alignItems: "center",
-        }}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom + 20, 32) },
+        ]}
       >
         {loading && !qrToken ? (
-          <Center mt="$10">
-            <Spinner size="large" color={colors.primary} />
-          </Center>
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
         ) : (
-          <Box
-            w="100%"
-            bg={colors.surface}
-            borderRadius={24}
-            p="$6"
-            alignItems="center"
-            borderWidth={0}
-            style={shadows.floating}
-          >
+          <View style={[styles.ticketDetailCard, shadows.floating]}>
             {/* Event Info */}
-            <VStack alignItems="center" mb="$4">
-              <Heading size="lg" color={colors.textPrimary} textAlign="center">
+            <View style={styles.eventInfoContainer}>
+              <Text style={styles.eventName}>
                 {ticketData?.event?.name || "Tech Summit Vietnam 2026"}
-              </Heading>
-              <HStack space="xs" alignItems="center" mt="$1.5">
-                <Text color={colors.primary} fontWeight="$bold" fontSize="$sm">
+              </Text>
+              <View style={styles.badgeRow}>
+                <Text style={styles.ticketTypeLabel}>
                   {ticketData?.ticketType?.name || "Standard Pass"}
                 </Text>
                 {isCheckedIn ? (
-                  <Badge action="success" variant="solid" borderRadius={12} px="$2" py="$0.5" borderWidth={0}>
-                    <BadgeText fontSize="$2xs" fontWeight="$bold">ĐÃ CHECK-IN</BadgeText>
-                  </Badge>
+                  <Badge
+                    label="ĐÃ CHECK-IN"
+                    variant="success"
+                    icon={<Ionicons name="checkmark-circle" size={12} color={colors.m3.onSuccessContainer} />}
+                  />
                 ) : (
-                  <Badge action="info" variant="solid" borderRadius={12} px="$2" py="$0.5" borderWidth={0}>
-                    <BadgeText fontSize="$2xs" fontWeight="$bold">CHỜ SOÁT VÉ</BadgeText>
-                  </Badge>
+                  <Badge
+                    label="CHỜ SOÁT VÉ"
+                    variant="neutral"
+                    icon={<Ionicons name="time-outline" size={12} color={colors.textSecondary} />}
+                  />
                 )}
-              </HStack>
-            </VStack>
+              </View>
+            </View>
 
             {/* QR Code Container */}
-            <Box
-              p="$4"
-              bg={colors.white}
-              borderRadius={20}
-              mb="$4"
-              borderWidth={0}
-              style={shadows.card}
-            >
+            <View style={[styles.qrWrapper, shadows.card]}>
               {qrToken ? (
                 <QRCode
                   value={qrToken}
@@ -187,61 +146,191 @@ export default function TicketDetailScreen() {
                   backgroundColor={colors.white}
                 />
               ) : (
-                <Text color={colors.textSecondary} fontSize="$sm">Không có mã QR</Text>
+                <Text style={styles.noQrText}>Không có mã QR</Text>
               )}
-            </Box>
+            </View>
 
             {/* Dynamic Progress Indicator */}
-            <VStack w="100%" mb="$5">
-              <HStack justifyContent="space-between" alignItems="center" mb="$1.5">
-                <Text color={colors.textSecondary} fontSize="$xs" fontWeight="$medium">
-                  Làm mới sau:
-                </Text>
-                <Text color={colors.primary} fontWeight="$bold" fontSize="$sm">
-                  {secondsLeft}s
-                </Text>
-              </HStack>
+            <View style={styles.progressContainer}>
+              <View style={styles.progressLabelRow}>
+                <Text style={styles.progressLabel}>Làm mới sau:</Text>
+                <Text style={styles.progressSeconds}>{secondsLeft}s</Text>
+              </View>
 
-              <Box h={6} bg={colors.neutralFill} borderRadius={3} overflow="hidden">
+              <View style={styles.progressTrack}>
                 <Animated.View
-                  style={{
-                    height: "100%",
-                    backgroundColor: colors.primary,
-                    borderRadius: 3,
-                    width: progressWidth,
-                  }}
+                  style={[
+                    styles.progressBar,
+                    {
+                      width: progressWidth,
+                      backgroundColor: colors.primary,
+                    },
+                  ]}
                 />
-              </Box>
-            </VStack>
+              </View>
+            </View>
 
             {/* Metadata Rows */}
-            <VStack w="100%" space="sm" bg={colors.background} p="$3.5" borderRadius={16} borderWidth={0}>
-              <HStack justifyContent="space-between" alignItems="center">
-                <Text color={colors.textSecondary} fontSize="$xs">Mã vé (ID):</Text>
-                <Text color={colors.textPrimary} fontWeight="$bold" fontSize="$xs">
+            <View style={styles.metadataCard}>
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>Mã vé (ID):</Text>
+                <Text style={styles.metaValue}>
                   {id ? `${id.slice(0, 13)}...` : ""}
                 </Text>
-              </HStack>
+              </View>
 
-              <HStack justifyContent="space-between" alignItems="center">
-                <Text color={colors.textSecondary} fontSize="$xs">Địa điểm:</Text>
-                <Text color={colors.textPrimary} fontWeight="$semibold" fontSize="$xs">
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>Địa điểm:</Text>
+                <Text style={[styles.metaValue, { fontWeight: "600" }]}>
                   {ticketData?.event?.venue || "Hội trường chính"}
                 </Text>
-              </HStack>
+              </View>
 
               {isCheckedIn && ticketData?.checkedInAt && (
-                <HStack justifyContent="space-between" alignItems="center">
-                  <Text color={colors.textSecondary} fontSize="$xs">Thời gian check-in:</Text>
-                  <Text color={colors.success} fontWeight="$semibold" fontSize="$xs">
-                    {new Date(ticketData.checkedInAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaLabel}>Thời gian check-in:</Text>
+                  <Text style={[styles.metaValue, { color: colors.success, fontWeight: "600" }]}>
+                    {new Date(ticketData.checkedInAt).toLocaleTimeString("vi-VN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </Text>
-                </HStack>
+                </View>
               )}
-            </VStack>
-          </Box>
+            </View>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  headerBar: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 0,
+  },
+  backBtn: {
+    minWidth: 48,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: m3Shapes.full,
+    marginRight: 8,
+    borderWidth: 0,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  scrollContent: {
+    padding: 20,
+    alignItems: "center",
+  },
+  loaderContainer: {
+    marginTop: 40,
+    alignItems: "center",
+  },
+  ticketDetailCard: {
+    width: "100%",
+    backgroundColor: colors.surface,
+    borderRadius: m3Shapes.expressive,
+    padding: 24,
+    alignItems: "center",
+    borderWidth: 0,
+  },
+  eventInfoContainer: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  eventName: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: colors.textPrimary,
+    textAlign: "center",
+    lineHeight: 26,
+  },
+  badgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8,
+  },
+  ticketTypeLabel: {
+    color: colors.primary,
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  qrWrapper: {
+    padding: 16,
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    marginBottom: 20,
+    borderWidth: 0,
+  },
+  noQrText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+  },
+  progressContainer: {
+    width: "100%",
+    marginBottom: 20,
+  },
+  progressLabelRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  progressLabel: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  progressSeconds: {
+    color: colors.primary,
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  progressTrack: {
+    height: 6,
+    backgroundColor: colors.neutralFill,
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  progressBar: {
+    height: "100%",
+    borderRadius: 3,
+  },
+  metadataCard: {
+    width: "100%",
+    gap: 8,
+    backgroundColor: colors.m3.surfaceContainerLowest,
+    padding: 14,
+    borderRadius: m3Shapes.md,
+    borderWidth: 0,
+  },
+  metaRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  metaLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  metaValue: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+});

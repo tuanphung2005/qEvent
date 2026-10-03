@@ -1,24 +1,51 @@
 import React from "react";
-import { Box } from "@gluestack-ui/themed";
-import { ViewStyle } from "react-native";
-import { colors, shadows } from "../constants/theme";
+import { View, StyleSheet, ViewStyle } from "react-native";
+import { colors, shadows, m3Shapes } from "../constants/theme";
 
 interface CardProps {
   children: React.ReactNode;
   style?: ViewStyle;
   variant?: "card" | "floating" | "subtle";
+  containerVariant?: "surface" | "surfaceContainerLow" | "surfaceContainer" | "surfaceContainerHigh";
 }
 
-export const Card: React.FC<CardProps> = ({ children, style, variant = "card" }) => {
+export const Card: React.FC<CardProps> = ({
+  children,
+  style,
+  variant = "card",
+  containerVariant = "surface",
+}) => {
+  const getBackgroundColor = () => {
+    switch (containerVariant) {
+      case "surfaceContainerLow":
+        return colors.m3.surfaceContainerLow;
+      case "surfaceContainer":
+        return colors.m3.surfaceContainer;
+      case "surfaceContainerHigh":
+        return colors.m3.surfaceContainerHigh;
+      default:
+        return colors.surface;
+    }
+  };
+
   return (
-    <Box
-      bg={colors.surface}
-      borderRadius={16}
-      p="$4"
-      borderWidth={0}
-      style={[shadows[variant], style]}
+    <View
+      style={[
+        styles.base,
+        { backgroundColor: getBackgroundColor() },
+        shadows[variant],
+        style,
+      ]}
     >
       {children}
-    </Box>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  base: {
+    borderRadius: m3Shapes.lg,
+    padding: 16,
+    borderWidth: 0,
+  },
+});

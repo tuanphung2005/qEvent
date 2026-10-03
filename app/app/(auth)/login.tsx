@@ -1,31 +1,22 @@
 import React, { useState } from "react";
 import {
+  View,
+  Text,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Pressable,
+  StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Heading,
-  Center,
-  Pressable,
-  Input,
-  InputField,
-  Button,
-  ButtonText,
-  ButtonSpinner,
-  Badge,
-  BadgeText,
-} from "@gluestack-ui/themed";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../src/context/AuthContext";
 import { api } from "../../src/api/client";
-import { colors, shadows } from "../../src/constants/theme";
+import { colors, shadows, m3Shapes, m3Ripples } from "../../src/constants/theme";
+import { Input } from "../../src/components/Input";
+import { Button } from "../../src/components/Button";
+import { Badge } from "../../src/components/Badge";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function LoginScreen() {
@@ -76,241 +67,264 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
+        style={styles.keyboardAvoid}
       >
         <ScrollView
-          contentContainerStyle={{
-            paddingHorizontal: 20,
-            paddingVertical: 24,
-            flexGrow: 1,
-            justifyContent: "center",
-          }}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
           {/* Logo & Branding - Standalone QR code logo: no background box, pure black */}
-          <VStack alignItems="center" mb="$6">
-            <Center mb="$3">
-              <Ionicons name="qr-code" size={44} color={colors.black} />
-            </Center>
-            <Heading size="2xl" color={colors.textPrimary} fontWeight="$bold">
-              qCheck
-            </Heading>
-            <Text color={colors.textSecondary} fontSize="$sm" mt="$1">
+          <View style={styles.logoSection}>
+            <View style={styles.logoWrapper}>
+              <Ionicons name="qr-code" size={48} color={colors.black} />
+            </View>
+            <Text style={styles.brandTitle}>qCheck</Text>
+            <Text style={styles.brandSubtitle}>
               Soát vé sự kiện tức thời & Chống trùng lặp
             </Text>
-          </VStack>
+          </View>
 
-          {/* Gluestack Card Container */}
-          <Box
-            bg={colors.surface}
-            borderRadius={20}
-            p="$6"
-            style={shadows.floating}
-          >
-            <Heading size="md" color={colors.textPrimary} mb="$4">
-              Đăng nhập tài khoản
-            </Heading>
+          {/* M3 Expressive Card Container */}
+          <View style={[styles.loginCard, shadows.floating]}>
+            <Text style={styles.cardHeading}>Đăng nhập tài khoản</Text>
 
-            {/* Email Input */}
-            <VStack mb="$3.5">
-              <Text color={colors.textPrimary} fontWeight="$semibold" fontSize="$xs" mb="$1.5">
-                EMAIL
-              </Text>
-              <Input
-                size="md"
-                variant="underlined"
-                borderWidth={0}
-                borderBottomWidth={0}
-                borderRadius={12}
-                bg={colors.neutralFill}
-                px="$3.5"
-                sx={{
-                  minHeight: 48,
-                  borderWidth: 0,
-                  borderBottomWidth: 0,
-                }}
-              >
-                <InputField
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  placeholder="nhap.email@example.com"
-                  placeholderTextColor={colors.textMuted}
-                  color={colors.textPrimary}
-                  fontSize="$sm"
-                  accessibilityLabel="Email đăng nhập"
-                />
-              </Input>
-            </VStack>
+            {/* Email Field */}
+            <Input
+              label="EMAIL"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              placeholder="nhap.email@example.com"
+            />
 
-            {/* Password Input */}
-            <VStack mb="$4">
-              <Text color={colors.textPrimary} fontWeight="$semibold" fontSize="$xs" mb="$1.5">
-                MẬT KHẨU
-              </Text>
-              <Input
-                size="md"
-                variant="underlined"
-                borderWidth={0}
-                borderBottomWidth={0}
-                borderRadius={12}
-                bg={colors.neutralFill}
-                px="$3.5"
-                sx={{
-                  minHeight: 48,
-                  borderWidth: 0,
-                  borderBottomWidth: 0,
-                }}
-              >
-                <InputField
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  placeholder="••••••••"
-                  placeholderTextColor={colors.textMuted}
-                  color={colors.textPrimary}
-                  fontSize="$sm"
-                  accessibilityLabel="Mật khẩu"
-                />
-              </Input>
-            </VStack>
+            {/* Password Field */}
+            <Input
+              label="MẬT KHẨU"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              placeholder="••••••••"
+            />
 
-            {/* Login Button */}
+            {/* Login Action Button */}
             <Button
-              size="lg"
-              borderRadius={12}
-              bg={colors.primary}
-              isDisabled={loading}
+              title="Đăng nhập"
+              variant="primary"
+              loading={loading}
               onPress={handleLogin}
-              accessibilityRole="button"
-              accessibilityLabel="Đăng nhập"
-              sx={{
-                minHeight: 48,
-                ":active": { opacity: 0.85 },
-              }}
-              style={{ minHeight: 48 }}
-            >
-              {loading ? (
-                <ButtonSpinner color={colors.white} />
-              ) : (
-                <ButtonText color={colors.white} fontWeight="$bold" fontSize="$md">
-                  Đăng nhập
-                </ButtonText>
-              )}
-            </Button>
+              style={styles.loginBtn}
+            />
 
-            {/* Quick test accounts - Clean borderless section */}
-            <VStack mt="$6" pt="$2">
-              <Text color={colors.textSecondary} fontSize="$2xs" fontWeight="$bold" mb="$2.5">
-                CHỌN TÀI KHOẢN MẪU TEST:
-              </Text>
-              <HStack space="sm">
-                <Box flex={1}>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    borderRadius={10}
-                    borderWidth={0}
-                    bg={colors.neutralFill}
-                    accessibilityRole="button"
-                    accessibilityLabel="Tài khoản khách tham dự"
-                    sx={{ minHeight: 44 }}
-                    onPress={() => setTestAccount("attendee@qcheck.com")}
-                  >
-                    <ButtonText color={colors.textPrimary} fontSize="$xs" fontWeight="$semibold">
-                      Khách tham dự
-                    </ButtonText>
-                  </Button>
-                </Box>
-                <Box flex={1}>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    borderRadius={10}
-                    borderWidth={0}
-                    bg={colors.neutralFill}
-                    accessibilityRole="button"
-                    accessibilityLabel="Tài khoản nhân viên soát vé"
-                    sx={{ minHeight: 44 }}
-                    onPress={() => setTestAccount("staff1@qcheck.com")}
-                  >
-                    <ButtonText color={colors.textPrimary} fontSize="$xs" fontWeight="$semibold">
-                      Staff Soát vé
-                    </ButtonText>
-                  </Button>
-                </Box>
-              </HStack>
-            </VStack>
+            {/* Quick Test Accounts */}
+            <View style={styles.testSection}>
+              <Text style={styles.testSectionHeading}>CHỌN TÀI KHOẢN MẪU TEST:</Text>
+              <View style={styles.testButtonsRow}>
+                <Pressable
+                  onPress={() => setTestAccount("attendee@qcheck.com")}
+                  android_ripple={m3Ripples.dark}
+                  accessibilityRole="button"
+                  accessibilityLabel="Tài khoản khách tham dự"
+                  style={({ pressed }) => [
+                    styles.testChip,
+                    { opacity: Platform.OS === "ios" && pressed ? 0.7 : 1 },
+                  ]}
+                >
+                  <Text style={styles.testChipText}>Khách tham dự</Text>
+                </Pressable>
 
-            {/* API Connection Indicator - Clean borderless */}
-            <VStack mt="$4" pt="$2" alignItems="center">
-              <HStack space="xs" alignItems="center">
-                <Ionicons name="server-outline" size={13} color={colors.textSecondary} />
-                <Text color={colors.textSecondary} fontSize="$2xs">
-                  API: {currentUrl}
-                </Text>
+                <Pressable
+                  onPress={() => setTestAccount("staff1@qcheck.com")}
+                  android_ripple={m3Ripples.dark}
+                  accessibilityRole="button"
+                  accessibilityLabel="Tài khoản nhân viên soát vé"
+                  style={({ pressed }) => [
+                    styles.testChip,
+                    { opacity: Platform.OS === "ios" && pressed ? 0.7 : 1 },
+                  ]}
+                >
+                  <Text style={styles.testChipText}>Staff Soát vé</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* API Connection Indicator */}
+            <View style={styles.apiSection}>
+              <View style={styles.apiIndicatorRow}>
+                <Ionicons name="server-outline" size={14} color={colors.textSecondary} />
+                <Text style={styles.apiText}>API: {currentUrl}</Text>
                 <Pressable
                   onPress={() => setIsCustomUrlOpen(!isCustomUrlOpen)}
-                  ml="$1"
+                  android_ripple={m3Ripples.dark}
                   accessibilityRole="button"
                   accessibilityLabel="Đổi địa chỉ IP máy chủ"
                 >
-                  <Badge size="sm" action="info" variant="solid" borderRadius={6} px="$1.5" py="$0.5" borderWidth={0}>
-                    <BadgeText fontSize="$2xs">Đổi IP</BadgeText>
-                  </Badge>
+                  <Badge label="Đổi IP" variant="info" />
                 </Pressable>
-              </HStack>
+              </View>
 
               {isCustomUrlOpen && (
-                <VStack w="100%" mt="$2" p="$2" bg={colors.background} borderRadius={8}>
-                  <Text color={colors.textSecondary} fontSize="$2xs" mb="$1">
-                    Chọn nhanh địa chỉ Server:
-                  </Text>
-                  <HStack space="xs" flexWrap="wrap">
+                <View style={styles.serverPickerBox}>
+                  <Text style={styles.serverPickerHeading}>Chọn nhanh địa chỉ Server:</Text>
+                  <View style={styles.serverOptionsRow}>
                     <Pressable
                       onPress={() => switchApiUrl("http://localhost:3000")}
-                      px="$2"
-                      py="$1.5"
-                      bg={colors.neutralDark}
-                      borderRadius={6}
-                      mb="$1"
+                      android_ripple={m3Ripples.dark}
                       accessibilityRole="button"
+                      style={styles.serverOptionChip}
                     >
-                      <Text fontSize="$2xs" color={colors.textPrimary}>localhost:3000</Text>
+                      <Text style={styles.serverOptionText}>localhost:3000</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => switchApiUrl("http://10.0.2.2:3000")}
-                      px="$2"
-                      py="$1.5"
-                      bg={colors.neutralDark}
-                      borderRadius={6}
-                      mb="$1"
+                      android_ripple={m3Ripples.dark}
                       accessibilityRole="button"
+                      style={styles.serverOptionChip}
                     >
-                      <Text fontSize="$2xs" color={colors.textPrimary}>10.0.2.2:3000 (Emulator)</Text>
+                      <Text style={styles.serverOptionText}>10.0.2.2:3000 (Emulator)</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => switchApiUrl("http://192.168.99.39:3000")}
-                      px="$2"
-                      py="$1.5"
-                      bg={colors.neutralDark}
-                      borderRadius={6}
-                      mb="$1"
+                      android_ripple={m3Ripples.dark}
                       accessibilityRole="button"
+                      style={styles.serverOptionChip}
                     >
-                      <Text fontSize="$2xs" color={colors.textPrimary}>192.168.99.39:3000 (LAN)</Text>
+                      <Text style={styles.serverOptionText}>192.168.99.39:3000 (LAN)</Text>
                     </Pressable>
-                  </HStack>
-                </VStack>
+                  </View>
+                </View>
               )}
-            </VStack>
-          </Box>
+            </View>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  keyboardAvoid: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    flexGrow: 1,
+    justifyContent: "center",
+  },
+  logoSection: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  logoWrapper: {
+    marginBottom: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  brandTitle: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: colors.textPrimary,
+    letterSpacing: -0.5,
+  },
+  brandSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
+    textAlign: "center",
+  },
+  loginCard: {
+    backgroundColor: colors.surface,
+    borderRadius: m3Shapes.expressive,
+    padding: 24,
+    borderWidth: 0,
+  },
+  cardHeading: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    marginBottom: 16,
+  },
+  loginBtn: {
+    marginTop: 8,
+  },
+  testSection: {
+    marginTop: 24,
+    paddingTop: 8,
+  },
+  testSectionHeading: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.textSecondary,
+    marginBottom: 10,
+    letterSpacing: 0.4,
+  },
+  testButtonsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  testChip: {
+    flex: 1,
+    backgroundColor: colors.m3.surfaceContainer,
+    borderRadius: m3Shapes.md,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    borderWidth: 0,
+    overflow: "hidden",
+  },
+  testChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textPrimary,
+  },
+  apiSection: {
+    marginTop: 20,
+    alignItems: "center",
+  },
+  apiIndicatorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  apiText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  serverPickerBox: {
+    width: "100%",
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: colors.m3.surfaceContainerLow,
+    borderRadius: m3Shapes.sm,
+  },
+  serverPickerHeading: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginBottom: 6,
+  },
+  serverOptionsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  serverOptionChip: {
+    backgroundColor: colors.m3.surfaceContainerHigh,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: m3Shapes.xs,
+    overflow: "hidden",
+  },
+  serverOptionText: {
+    fontSize: 11,
+    color: colors.textPrimary,
+  },
+});

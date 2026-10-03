@@ -1,51 +1,69 @@
 import React from "react";
-import {
-  Badge as GBadge,
-  BadgeText as GBadgeText,
-} from "@gluestack-ui/themed";
-import { ViewStyle } from "react-native";
-import { colors } from "../constants/theme";
+import { View, Text, StyleSheet, ViewStyle, TextStyle } from "react-native";
+import { colors, m3Shapes } from "../constants/theme";
 
-interface BadgeProps {
+export interface BadgeProps {
   label: string;
-  variant?: "success" | "warning" | "error" | "info" | "default";
+  variant?: "success" | "warning" | "error" | "info" | "neutral" | "default";
   style?: ViewStyle;
+  textStyle?: TextStyle;
+  icon?: React.ReactNode;
 }
 
-export const Badge: React.FC<BadgeProps> = ({ label, variant = "default", style }) => {
+export const Badge: React.FC<BadgeProps> = ({
+  label,
+  variant = "default",
+  style,
+  textStyle,
+  icon,
+}) => {
   const getBadgeConfig = () => {
     switch (variant) {
       case "success":
-        return { action: "success" as const, bg: colors.successLight, text: colors.success };
+        return { bg: colors.m3.successContainer, text: colors.m3.onSuccessContainer };
       case "warning":
-        return { action: "warning" as const, bg: colors.warningLight, text: colors.warning };
+        return { bg: colors.m3.warningContainer, text: colors.m3.onWarningContainer };
       case "error":
-        return { action: "error" as const, bg: colors.errorLight, text: colors.error };
+        return { bg: colors.m3.errorContainer, text: colors.m3.onErrorContainer };
       case "info":
-        return { action: "info" as const, bg: colors.primaryLight, text: colors.primary };
+        return { bg: colors.m3.primaryContainer, text: colors.m3.onPrimaryContainer };
+      case "neutral":
       default:
-        return { action: "muted" as const, bg: colors.neutralFill, text: colors.textSecondary };
+        return { bg: colors.m3.surfaceContainer, text: colors.textSecondary };
     }
   };
 
-  const { action, bg, text } = getBadgeConfig();
+  const { bg, text } = getBadgeConfig();
 
   return (
-    <GBadge
-      action={action}
-      variant="solid"
-      size="sm"
-      borderRadius={20}
-      px="$3"
-      py="$1"
-      bg={bg}
-      borderWidth={0}
-      alignSelf="flex-start"
-      style={style}
-    >
-      <GBadgeText color={text} fontWeight="$semibold" fontSize="$xs">
+    <View style={[styles.badge, { backgroundColor: bg }, style]}>
+      {icon && <View style={styles.iconWrapper}>{icon}</View>}
+      <Text style={[styles.text, { color: text }, textStyle]}>
         {label}
-      </GBadgeText>
-    </GBadge>
+      </Text>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  badge: {
+    borderRadius: m3Shapes.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 0,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconWrapper: {
+    marginRight: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  text: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+});

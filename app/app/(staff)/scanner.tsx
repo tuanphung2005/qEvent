@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
+  Text,
+  Pressable,
   StyleSheet,
   TouchableOpacity,
   Platform,
@@ -10,14 +12,6 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from "react-native";
-import {
-  Box,
-  VStack,
-  HStack,
-  Heading,
-  Text,
-  Pressable,
-} from "@gluestack-ui/themed";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
@@ -29,7 +23,7 @@ import { soundService } from "../../src/services/sound";
 import { Card } from "../../src/components/Card";
 import { Button } from "../../src/components/Button";
 import { Input } from "../../src/components/Input";
-import { colors, shadows } from "../../src/constants/theme";
+import { colors, shadows, m3Shapes, m3Ripples } from "../../src/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 
 type ScanFeedback = "IDLE" | "VALID" | "DUPLICATE" | "INVALID";
@@ -153,7 +147,6 @@ export default function ScannerScreen() {
         }
       } else {
         // Offline-first verification
-        // Parse token if needed to get ticketId
         let ticketId = qrToken;
         try {
           const [dataB64] = qrToken.split(".");
@@ -215,11 +208,11 @@ export default function ScannerScreen() {
   const getOverlayBackgroundColor = () => {
     switch (feedback) {
       case "VALID":
-        return colors.success; // Emerald green
+        return colors.success;
       case "DUPLICATE":
-        return colors.warning; // Amber
+        return colors.warning;
       case "INVALID":
-        return colors.error; // Red
+        return colors.error;
       default:
         return "transparent";
     }
@@ -228,53 +221,36 @@ export default function ScannerScreen() {
   return (
     <View style={styles.container}>
       {/* Top Staff Navigation & Info Bar */}
-      <HStack
-        bg={colors.surface}
-        px="$4"
-        pb="$3"
-        pt={Math.max(insets.top, 14)}
-        justifyContent="space-between"
-        alignItems="center"
-        style={shadows.floating}
+      <View
+        style={[
+          styles.topNav,
+          shadows.floating,
+          { paddingTop: Math.max(insets.top, 14) },
+        ]}
       >
-        <VStack>
-          <Heading size="md" color={colors.textPrimary}>
-            qCheck Scanner
-          </Heading>
-          <HStack space="xs" alignItems="center" mt="$1">
-            <Box
-              w={8}
-              h={8}
-              borderRadius={4}
-              bg={isOnline ? colors.success : colors.warning}
+        <View style={styles.titleCol}>
+          <Text style={styles.navTitle}>qCheck Scanner</Text>
+          <View style={styles.statusRow}>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: isOnline ? colors.success : colors.warning },
+              ]}
             />
-            <Text color={colors.textSecondary} fontSize="$xs">
+            <Text style={styles.statusText}>
               {isOnline ? "Online Server" : "Chế độ Ngoại Tuyến (Offline)"}
             </Text>
-          </HStack>
-        </VStack>
+          </View>
+        </View>
 
-        <HStack space="sm" alignItems="center">
+        <View style={styles.actionsRow}>
           {/* Torch toggle button - Standalone icon: no background, pure black icon */}
           <Pressable
             onPress={() => setTorch(!torch)}
-            p="$2"
-            borderRadius={12}
             accessibilityRole="button"
             accessibilityLabel={torch ? "Tắt đèn pin" : "Bật đèn pin"}
-            sx={{
-              minWidth: 48,
-              minHeight: 48,
-              alignItems: "center",
-              justifyContent: "center",
-              ":active": { opacity: 0.7 },
-            }}
-            style={{
-              minWidth: 48,
-              minHeight: 48,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+            android_ripple={m3Ripples.borderlessDark}
+            style={styles.standaloneIconBtn}
           >
             <Ionicons
               name={torch ? "flashlight" : "flashlight-outline"}
@@ -284,85 +260,50 @@ export default function ScannerScreen() {
           </Pressable>
 
           {/* Sync Queue Badge Button - Paired icon + text with primaryLight badge fill */}
-          <Pressable
-            onPress={() => router.push("/(staff)/sync-status")}
-            bg={colors.primaryLight}
-            px="$3"
-            py="$2"
-            borderRadius={12}
-            accessibilityRole="button"
-            accessibilityLabel={`Hàng đợi đồng bộ: ${pendingCount} vé đang chờ`}
-            sx={{
-              minHeight: 48,
-              alignItems: "center",
-              justifyContent: "center",
-              ":active": { opacity: 0.8 },
-            }}
-            style={{
-              minHeight: 48,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <HStack space="xs" alignItems="center">
+          <View style={styles.syncBadgeWrapper}>
+            <Pressable
+              onPress={() => router.push("/(staff)/sync-status")}
+              accessibilityRole="button"
+              accessibilityLabel={`Hàng đợi đồng bộ: ${pendingCount} vé đang chờ`}
+              android_ripple={m3Ripples.light}
+              style={styles.syncBadgePressable}
+            >
               <Ionicons name="cloud-upload" size={16} color={colors.primary} />
-              <Text color={colors.primary} fontSize="$xs" fontWeight="$bold">
+              <Text style={styles.syncBadgeText}>
                 {pendingCount} chờ sync
               </Text>
-            </HStack>
-          </Pressable>
+            </Pressable>
+          </View>
 
           {/* Logout with Confirmation Dialog - Standalone icon: no background, pure black icon */}
           <Pressable
             onPress={handleLogout}
-            p="$2"
-            borderRadius={12}
             accessibilityRole="button"
             accessibilityLabel="Đăng xuất tài khoản"
-            sx={{
-              minWidth: 48,
-              minHeight: 48,
-              alignItems: "center",
-              justifyContent: "center",
-              ":active": { opacity: 0.7 },
-            }}
-            style={{
-              minWidth: 48,
-              minHeight: 48,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+            android_ripple={m3Ripples.borderlessDark}
+            style={styles.standaloneIconBtn}
           >
             <Ionicons name="log-out-outline" size={22} color={colors.black} />
           </Pressable>
-        </HStack>
-      </HStack>
+        </View>
+      </View>
 
       {/* Live Check-in Attendance Progress Bar - Clean borderless */}
       {stats && (
-        <HStack
-          bg={colors.background}
-          px="$4"
-          py="$2.5"
-          justifyContent="space-around"
-        >
-          <HStack space="xs" alignItems="center">
-            <Text color={colors.textSecondary} fontSize="$2xs" fontWeight="$bold">
-              ĐÃ QUÉT:
-            </Text>
-            <Text color={colors.success} fontSize="$xs" fontWeight="$bold">
+        <View style={styles.statsBar}>
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>ĐÃ QUÉT:</Text>
+            <Text style={[styles.statValue, { color: colors.success }]}>
               {stats.checkedIn} / {stats.total}
             </Text>
-          </HStack>
-          <HStack space="xs" alignItems="center">
-            <Text color={colors.textSecondary} fontSize="$2xs" fontWeight="$bold">
-              CHƯA VÀO:
-            </Text>
-            <Text color={colors.primary} fontSize="$xs" fontWeight="$bold">
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>CHƯA VÀO:</Text>
+            <Text style={[styles.statValue, { color: colors.primary }]}>
               {stats.remaining} vé
             </Text>
-          </HStack>
-        </HStack>
+          </View>
+        </View>
       )}
 
       {/* Camera View Area */}
@@ -412,6 +353,7 @@ export default function ScannerScreen() {
             accessibilityLabel={`Kết quả quét: ${feedbackMessage}`}
             style={[
               styles.feedbackOverlay,
+              StyleSheet.absoluteFill,
               { backgroundColor: getOverlayBackgroundColor() },
             ]}
           >
@@ -475,12 +417,7 @@ export default function ScannerScreen() {
                     onPress={() => setTestModalVisible(false)}
                     accessibilityRole="button"
                     accessibilityLabel="Đóng cửa sổ"
-                    style={{
-                      minWidth: 48,
-                      minHeight: 48,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
+                    style={styles.standaloneIconBtn}
                   >
                     <Ionicons name="close" size={24} color={colors.black} />
                   </TouchableOpacity>
@@ -536,6 +473,91 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  topNav: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderWidth: 0,
+  },
+  titleCol: {
+    flex: 1,
+  },
+  navTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  actionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  standaloneIconBtn: {
+    minWidth: 48,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: m3Shapes.full,
+    borderWidth: 0,
+  },
+  syncBadgeWrapper: {
+    backgroundColor: colors.primaryLight,
+    borderRadius: m3Shapes.sm,
+    borderWidth: 0,
+    overflow: "hidden",
+  },
+  syncBadgePressable: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    minHeight: 48,
+  },
+  syncBadgeText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  statsBar: {
+    backgroundColor: colors.background,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    borderWidth: 0,
+  },
+  statItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  statLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.textSecondary,
+  },
+  statValue: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   cameraContainer: {
     flex: 1,
@@ -613,7 +635,6 @@ const styles = StyleSheet.create({
     textShadowRadius: 3,
   },
   feedbackOverlay: {
-    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
     padding: 30,

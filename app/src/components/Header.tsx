@@ -1,6 +1,6 @@
 import React from "react";
-import { HStack, VStack, Text, Pressable, Box } from "@gluestack-ui/themed";
-import { colors, shadows } from "../constants/theme";
+import { View, Text, Pressable, StyleSheet, Platform } from "react-native";
+import { colors, shadows, m3Ripples } from "../constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 
 interface HeaderProps {
@@ -17,58 +17,75 @@ export const Header: React.FC<HeaderProps> = ({
   rightAction,
 }) => {
   return (
-    <HStack
-      bg={colors.surface}
-      px="$5"
-      py="$3"
-      alignItems="center"
-      justifyContent="space-between"
-      style={shadows.subtle}
-    >
-      <HStack alignItems="center" flex={1}>
+    <View style={[styles.header, shadows.subtle]}>
+      <View style={styles.leftContainer}>
         {onBack && (
           <Pressable
             onPress={onBack}
-            mr="$2"
-            borderRadius={12}
             accessibilityRole="button"
             accessibilityLabel="Quay lại"
-            sx={{
-              minWidth: 48,
-              minHeight: 48,
-              alignItems: "center",
-              justifyContent: "center",
-              ":active": {
-                opacity: 0.7,
-              },
-            }}
-            style={{
-              minWidth: 48,
-              minHeight: 48,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+            android_ripple={m3Ripples.borderless}
+            style={({ pressed }) => [
+              styles.backButton,
+              { opacity: Platform.OS === "ios" && pressed ? 0.7 : 1 },
+            ]}
           >
             <Ionicons name="arrow-back" size={24} color={colors.black} />
           </Pressable>
         )}
-        <VStack flex={1}>
-          <Text
-            color={colors.textPrimary}
-            fontSize="$lg"
-            fontWeight="$bold"
-            numberOfLines={1}
-          >
+        <View style={styles.textContainer}>
+          <Text style={styles.title} numberOfLines={1}>
             {title}
           </Text>
-          {subtitle && (
-            <Text color={colors.textSecondary} fontSize="$xs" mt="$0.5">
+          {subtitle ? (
+            <Text style={styles.subtitle} numberOfLines={1}>
               {subtitle}
             </Text>
-          )}
-        </VStack>
-      </HStack>
-      {rightAction && <Box ml="$3">{rightAction}</Box>}
-    </HStack>
+          ) : null}
+        </View>
+      </View>
+      {rightAction ? <View style={styles.rightAction}>{rightAction}</View> : null}
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  header: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 0,
+  },
+  leftContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  backButton: {
+    minWidth: 48,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+    borderRadius: 24,
+  },
+  textContainer: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  subtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  rightAction: {
+    marginLeft: 12,
+  },
+});
