@@ -17,9 +17,9 @@ import {
   ButtonIcon,
 } from "@gluestack-ui/themed";
 import { useRouter } from "expo-router";
-import { useAuth } from "../../src/context/AuthContext";
-import { api } from "../../src/api/client";
-import { colors, shadows } from "../../src/constants/theme";
+import { useAuth } from "../../../src/context/AuthContext";
+import { api } from "../../../src/api/client";
+import { colors, shadows } from "../../../src/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function TicketsListScreen() {

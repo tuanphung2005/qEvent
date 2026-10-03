@@ -25,9 +25,9 @@ import {
   Center,
   Spinner,
 } from "@gluestack-ui/themed";
-import { useAuth } from "../../src/context/AuthContext";
-import { api } from "../../src/api/client";
-import { colors, shadows } from "../../src/constants/theme";
+import { useAuth } from "../../../src/context/AuthContext";
+import { api } from "../../../src/api/client";
+import { colors, shadows } from "../../../src/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 
 interface Session {
