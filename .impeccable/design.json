@@ -273,8 +273,8 @@
         "section": "elevation"
       },
       {
-        "name": "The Pure Black Icon Rule",
-        "body": "Standalone and interactive icons must never have a background container. All icons must be rendered in pure black (#000000).",
+        "name": "The Standalone Icon Rule",
+        "body": "Standalone icon-only buttons/elements (such as the back button, logout button, torch button, or modal close button) must never have a background container and must be rendered in pure black (#000000). Icons paired with text retain their contextual colors.",
         "section": "icons"
       }
     ],
@@ -284,7 +284,7 @@
       "Do ensure all interactive buttons and icons have at least 48x48dp touchable bounding boxes.",
       "Do preserve the anti-screenshot screen capture protection on the ticket detail screen.",
       "Do display dynamic 30-second countdown rings or progress indicators on QR codes.",
-      "Do render all icons in pure black without background containers."
+      "Do render standalone icon-only buttons in pure black without background containers."
     ],
     "donts": [
       "Don't add outline borders, border-bottom lines, or hairlines anywhere in the application.",
@@ -292,7 +292,7 @@
       "Don't use expo-blur, BlurView, or frosted glass backgrounds.",
       "Don't place critical gate validation controls in the hard-to-reach top quarter of the screen.",
       "Don't allow QR tokens to be cached without cryptographic expiration metadata.",
-      "Do not place colored or grey background boxes behind standalone icons."
+      "Do not place colored or grey background boxes behind standalone icon-only buttons."
     ]
   }
 }

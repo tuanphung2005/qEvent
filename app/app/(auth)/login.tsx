@@ -90,7 +90,7 @@ export default function LoginScreen() {
           }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Logo & Branding - Pure black icon with no background box */}
+          {/* Logo & Branding - Standalone QR code logo: no background box, pure black */}
           <VStack alignItems="center" mb="$6">
             <Center mb="$3">
               <Ionicons name="qr-code" size={44} color={colors.black} />
@@ -249,7 +249,7 @@ export default function LoginScreen() {
             {/* API Connection Indicator - Clean borderless */}
             <VStack mt="$4" pt="$2" alignItems="center">
               <HStack space="xs" alignItems="center">
-                <Ionicons name="server-outline" size={13} color={colors.black} />
+                <Ionicons name="server-outline" size={13} color={colors.textSecondary} />
                 <Text color={colors.textSecondary} fontSize="$2xs">
                   API: {currentUrl}
                 </Text>

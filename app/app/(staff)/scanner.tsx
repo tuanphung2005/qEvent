@@ -227,7 +227,7 @@ export default function ScannerScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Top Staff Navigation & Info Bar - No background on action icons, pure black icons */}
+      {/* Top Staff Navigation & Info Bar */}
       <HStack
         bg={colors.surface}
         px="$4"
@@ -255,7 +255,7 @@ export default function ScannerScreen() {
         </VStack>
 
         <HStack space="sm" alignItems="center">
-          {/* Torch toggle button - No background, pure black icon */}
+          {/* Torch toggle button - Standalone icon: no background, pure black icon */}
           <Pressable
             onPress={() => setTorch(!torch)}
             p="$2"
@@ -283,10 +283,11 @@ export default function ScannerScreen() {
             />
           </Pressable>
 
-          {/* Sync Queue Badge Button - No background, pure black icon and text */}
+          {/* Sync Queue Badge Button - Paired icon + text with primaryLight badge fill */}
           <Pressable
             onPress={() => router.push("/(staff)/sync-status")}
-            px="$2"
+            bg={colors.primaryLight}
+            px="$3"
             py="$2"
             borderRadius={12}
             accessibilityRole="button"
@@ -304,14 +305,14 @@ export default function ScannerScreen() {
             }}
           >
             <HStack space="xs" alignItems="center">
-              <Ionicons name="cloud-upload" size={18} color={colors.black} />
-              <Text color={colors.black} fontSize="$xs" fontWeight="$bold">
+              <Ionicons name="cloud-upload" size={16} color={colors.primary} />
+              <Text color={colors.primary} fontSize="$xs" fontWeight="$bold">
                 {pendingCount} chờ sync
               </Text>
             </HStack>
           </Pressable>
 
-          {/* Logout with Confirmation Dialog - No background, pure black icon */}
+          {/* Logout with Confirmation Dialog - Standalone icon: no background, pure black icon */}
           <Pressable
             onPress={handleLogout}
             p="$2"
@@ -376,7 +377,7 @@ export default function ScannerScreen() {
           />
         ) : (
           <View style={styles.permissionBox}>
-            <Ionicons name="camera-outline" size={54} color={colors.black} />
+            <Ionicons name="camera-outline" size={54} color={colors.textSecondary} />
             <Text style={styles.permissionTitle}>Cần quyền truy cập Camera</Text>
             <Text style={styles.permissionSubtitle}>
               Để quét mã Dynamic QR soát vé sự kiện
@@ -440,7 +441,7 @@ export default function ScannerScreen() {
           title="Nhập / Thử test mã"
           variant="secondary"
           onPress={() => setTestModalVisible(true)}
-          icon={<Ionicons name="create-outline" size={18} color={colors.black} />}
+          icon={<Ionicons name="create-outline" size={18} color={colors.textPrimary} />}
           style={{ flex: 1, minHeight: 48 }}
         />
         <Button
@@ -448,7 +449,7 @@ export default function ScannerScreen() {
           variant="primary"
           loading={isSyncing}
           onPress={handleSyncNow}
-          icon={<Ionicons name="sync" size={18} color={colors.black} />}
+          icon={<Ionicons name="sync" size={18} color={colors.white} />}
           style={{ flex: 1, minHeight: 48 }}
         />
       </View>
@@ -469,6 +470,7 @@ export default function ScannerScreen() {
               <Card variant="floating" style={styles.modalCard}>
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>Thử nghiệm Quét mã</Text>
+                  {/* Standalone close button: no background, black icon */}
                   <TouchableOpacity
                     onPress={() => setTestModalVisible(false)}
                     accessibilityRole="button"
