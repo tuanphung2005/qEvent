@@ -11,22 +11,83 @@ export const authModule = new Elysia({ prefix: "/api/auth" })
     })
   )
   .post(
+    "/register",
+    async ({ body, jwtAuth, set }) => {
+      const { email, password, fullName, role } = body;
+      const normalizedEmail = email.trim().toLowerCase();
+
+      const existingUser = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+
+      if (existingUser) {
+        set.status = 400;
+        return { error: "Email already registered", message: "Email này đã được sử dụng" };
+      }
+
+      const salt = bcrypt.genSaltSync(10);
+      const passwordHash = bcrypt.hashSync(password, salt);
+
+      const assignedRole = (role === "STAFF" || role === "ORGANIZER" || role === "SPEAKER")
+        ? role
+        : "ATTENDEE";
+
+      const user = await prisma.user.create({
+        data: {
+          email: normalizedEmail,
+          passwordHash,
+          fullName: fullName.trim(),
+          role: assignedRole,
+        },
+      });
+
+      const token = await jwtAuth.sign({
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+      });
+
+      set.status = 201;
+      return {
+        message: "Registration successful",
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          role: user.role,
+        },
+      };
+    },
+    {
+      body: t.Object({
+        email: t.String(),
+        password: t.String(),
+        fullName: t.String(),
+        role: t.Optional(t.String()),
+      }),
+    }
+  )
+  .post(
     "/login",
     async ({ body, jwtAuth, set }) => {
       const { email, password } = body;
+      const normalizedEmail = email.trim().toLowerCase();
+
       const user = await prisma.user.findUnique({
-        where: { email },
+        where: { email: normalizedEmail },
       });
 
       if (!user) {
         set.status = 401;
-        return { error: "Invalid credentials" };
+        return { error: "Invalid credentials", message: "Email hoặc mật khẩu không chính xác" };
       }
 
       const isValid = bcrypt.compareSync(password, user.passwordHash);
       if (!isValid) {
         set.status = 401;
-        return { error: "Invalid credentials" };
+        return { error: "Invalid credentials", message: "Email hoặc mật khẩu không chính xác" };
       }
 
       const token = await jwtAuth.sign({

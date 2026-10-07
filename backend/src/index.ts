@@ -4,6 +4,7 @@ import { authModule } from "./modules/auth";
 import { ticketsModule } from "./modules/tickets";
 import { checkinModule } from "./modules/checkin";
 import { realtimeModule } from "./modules/realtime";
+import { gameModule } from "./modules/game";
 
 const port = Number(process.env.PORT) || 3000;
 
@@ -23,6 +24,7 @@ export const app = new Elysia()
   .use(ticketsModule)
   .use(checkinModule)
   .use(realtimeModule)
+  .use(gameModule)
   .listen({ port, hostname: process.env.HOST || "0.0.0.0" });
 
 console.log(`🚀 qCheck Backend server is running at http://${app.server?.hostname}:${app.server?.port}`);

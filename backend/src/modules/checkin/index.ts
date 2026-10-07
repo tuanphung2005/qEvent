@@ -28,6 +28,67 @@ export const checkinModule = new Elysia({ prefix: "/api/checkin" })
       },
     };
   })
+  // Check attendance status for the current attendee in an event
+  .get("/status/:eventId", async ({ params, currentUser, set }) => {
+    if (!currentUser) {
+      set.status = 401;
+      return { error: "Unauthorized" };
+    }
+
+    const { eventId } = params;
+    const ticket = await prisma.ticket.findFirst({
+      where: {
+        eventId,
+        userId: currentUser.id,
+      },
+      include: {
+        event: {
+          select: {
+            id: true,
+            name: true,
+            startTime: true,
+            endTime: true,
+            isLive: true,
+          },
+        },
+        ticketType: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!ticket) {
+      return {
+        eventId,
+        userId: currentUser.id,
+        isRegistered: false,
+        isCheckedIn: false,
+        status: null,
+        checkedInAt: null,
+        ticket: null,
+      };
+    }
+
+    return {
+      eventId,
+      userId: currentUser.id,
+      isRegistered: true,
+      isCheckedIn: ticket.status === "CHECKED_IN",
+      status: ticket.status,
+      checkedInAt: ticket.checkedInAt ? ticket.checkedInAt.toISOString() : null,
+      ticket: {
+        id: ticket.id,
+        status: ticket.status,
+        ticketType: ticket.ticketType.name,
+        eventName: ticket.event.name,
+        checkedInAt: ticket.checkedInAt,
+      },
+    };
+  })
+  // Get offline SQLite cache data
   .get("/cache/:eventId", async ({ params, currentUser, set }) => {
     if (!currentUser) {
       set.status = 401;
@@ -96,7 +157,8 @@ export const checkinModule = new Elysia({ prefix: "/api/checkin" })
       timestamp: new Date().toISOString(),
     };
   })
-  .get("/stats/:eventId", async ({ params, currentUser, set }) => {
+  // Check-in stats
+  .get("/stats/:eventId", async ({ params }) => {
     const { eventId } = params;
     const total = await prisma.ticket.count({ where: { eventId } });
     const checkedIn = await prisma.ticket.count({
@@ -109,6 +171,7 @@ export const checkinModule = new Elysia({ prefix: "/api/checkin" })
       remaining: Math.max(0, total - checkedIn),
     };
   })
+  // Online Dynamic QR Verification
   .post(
     "/verify",
     async ({ body, currentUser, set }) => {
@@ -117,7 +180,7 @@ export const checkinModule = new Elysia({ prefix: "/api/checkin" })
         return { error: "Unauthorized: Staff login required" };
       }
 
-      const { qrToken, deviceId } = body;
+      const { qrToken, deviceId, gate } = body as any;
       const verification = verifyDynamicQRToken(qrToken);
 
       if (!verification.valid || !verification.payload) {
@@ -149,7 +212,7 @@ export const checkinModule = new Elysia({ prefix: "/api/checkin" })
         };
       }
 
-      // Check TOTP validity
+      // Check TOTP validity (30s window + tolerance)
       const isTotpValid = verifyTOTP(ticket.totpSecret, code);
       if (!isTotpValid) {
         set.status = 400;
@@ -160,7 +223,7 @@ export const checkinModule = new Elysia({ prefix: "/api/checkin" })
         };
       }
 
-      // Check if already checked in (Duplicate check-in)
+      // Check if already checked in (Duplicate check-in - Screen AMBER)
       if (ticket.status === "CHECKED_IN") {
         set.status = 409;
         return {
@@ -195,13 +258,13 @@ export const checkinModule = new Elysia({ prefix: "/api/checkin" })
         },
       });
 
-      // Log checkin
+      // Log check-in
       const log = await prisma.checkinLog.create({
         data: {
           ticketId: ticket.id,
           staffId: currentUser.id,
           scannedAt: now,
-          deviceId: deviceId || "unknown_device",
+          deviceId: deviceId || gate || "gate_scanner",
           isOffline: false,
           syncStatus: "SYNCED",
         },
@@ -225,119 +288,133 @@ export const checkinModule = new Elysia({ prefix: "/api/checkin" })
     {
       body: t.Object({
         qrToken: t.String(),
-        deviceId: t.String(),
+        deviceId: t.Optional(t.String()),
+        gate: t.Optional(t.String()),
       }),
     }
   )
+  // Offline Sync & Conflict Resolution (supports both /sync and /sync-offline)
   .post(
     "/sync",
     async ({ body, currentUser, set }) => {
-      if (!currentUser) {
-        set.status = 401;
-        return { error: "Unauthorized: Staff login required" };
-      }
-
-      const { logs } = body;
-      if (!logs || !Array.isArray(logs) || logs.length === 0) {
-        return { processed: 0, synced: 0, conflicts: 0, results: [] };
-      }
-
-      // Sort logs chronologically by scannedAt asc
-      const sortedLogs = [...logs].sort(
-        (a, b) => new Date(a.scannedAt).getTime() - new Date(b.scannedAt).getTime()
-      );
-
-      const results = [];
-      let syncedCount = 0;
-      let conflictCount = 0;
-
-      for (const item of sortedLogs) {
-        const ticket = await prisma.ticket.findUnique({
-          where: { id: item.ticketId },
-          include: { user: true, ticketType: true },
-        });
-
-        if (!ticket) {
-          results.push({
-            ticketId: item.ticketId,
-            status: "ERROR",
-            reason: "Ticket not found",
-          });
-          continue;
-        }
-
-        const scanDate = new Date(item.scannedAt);
-
-        // Check if ticket is already checked in before this scan
-        if (ticket.status === "CHECKED_IN") {
-          // Conflict detected!
-          const log = await prisma.checkinLog.create({
-            data: {
-              ticketId: ticket.id,
-              staffId: currentUser.id,
-              scannedAt: scanDate,
-              deviceId: item.deviceId,
-              isOffline: true,
-              syncStatus: "CONFLICT",
-            },
-          });
-
-          conflictCount++;
-          results.push({
-            ticketId: ticket.id,
-            status: "CONFLICT",
-            syncStatus: "CONFLICT",
-            message: "Vé đã được check-in trước thời điểm quét này",
-            logId: log.id,
-          });
-        } else {
-          // Valid first check-in
-          await prisma.ticket.update({
-            where: { id: ticket.id },
-            data: {
-              status: "CHECKED_IN",
-              checkedInAt: scanDate,
-            },
-          });
-
-          const log = await prisma.checkinLog.create({
-            data: {
-              ticketId: ticket.id,
-              staffId: currentUser.id,
-              scannedAt: scanDate,
-              deviceId: item.deviceId,
-              isOffline: true,
-              syncStatus: "SYNCED",
-            },
-          });
-
-          syncedCount++;
-          results.push({
-            ticketId: ticket.id,
-            status: "SYNCED",
-            syncStatus: "SYNCED",
-            attendeeName: ticket.user.fullName,
-            logId: log.id,
-          });
-        }
-      }
-
-      return {
-        processed: sortedLogs.length,
-        synced: syncedCount,
-        conflicts: conflictCount,
-        results,
-      };
+      return handleSync(body, currentUser, set);
     },
     {
-      body: t.Object({
-        logs: t.Array(
-          t.Object({
-            ticketId: t.String(),
-            scannedAt: t.String(),
-            deviceId: t.String(),
-          })
-        ),
-      }),
+      body: t.Any(),
+    }
+  )
+  .post(
+    "/sync-offline",
+    async ({ body, currentUser, set }) => {
+      return handleSync(body, currentUser, set);
+    },
+    {
+      body: t.Any(),
     }
   );
+
+async function handleSync(body: any, currentUser: any, set: any) {
+  if (!currentUser) {
+    set.status = 401;
+    return { error: "Unauthorized: Staff login required" };
+  }
+
+  // Accept logs array either as `body.logs` or `body.scans`
+  const rawList = body?.logs || body?.scans || [];
+  if (!Array.isArray(rawList) || rawList.length === 0) {
+    return { processed: 0, synced: 0, conflicts: 0, results: [] };
+  }
+
+  // Normalize structure: ticketId, scannedAt, deviceId
+  const normalizedLogs = rawList.map((item: any) => ({
+    ticketId: item.ticketId || item.id,
+    scannedAt: item.scannedAt || (item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString()),
+    deviceId: item.deviceId || item.gate || "offline_device",
+  }));
+
+  // Sort chronologically ascending
+  const sortedLogs = [...normalizedLogs].sort(
+    (a, b) => new Date(a.scannedAt).getTime() - new Date(b.scannedAt).getTime()
+  );
+
+  const results = [];
+  let syncedCount = 0;
+  let conflictCount = 0;
+
+  for (const item of sortedLogs) {
+    const ticket = await prisma.ticket.findUnique({
+      where: { id: item.ticketId },
+      include: { user: true, ticketType: true },
+    });
+
+    if (!ticket) {
+      results.push({
+        ticketId: item.ticketId,
+        status: "ERROR",
+        reason: "Ticket not found",
+      });
+      continue;
+    }
+
+    const scanDate = new Date(item.scannedAt);
+
+    // Conflict detection: if ticket already CHECKED_IN
+    if (ticket.status === "CHECKED_IN") {
+      const log = await prisma.checkinLog.create({
+        data: {
+          ticketId: ticket.id,
+          staffId: currentUser.id,
+          scannedAt: scanDate,
+          deviceId: item.deviceId,
+          isOffline: true,
+          syncStatus: "CONFLICT",
+        },
+      });
+
+      conflictCount++;
+      results.push({
+        ticketId: ticket.id,
+        status: "CONFLICT",
+        syncStatus: "CONFLICT",
+        message: "Vé đã được check-in trước thời điểm quét này",
+        logId: log.id,
+      });
+    } else {
+      // First valid check-in
+      await prisma.ticket.update({
+        where: { id: ticket.id },
+        data: {
+          status: "CHECKED_IN",
+          checkedInAt: scanDate,
+        },
+      });
+
+      const log = await prisma.checkinLog.create({
+        data: {
+          ticketId: ticket.id,
+          staffId: currentUser.id,
+          scannedAt: scanDate,
+          deviceId: item.deviceId,
+          isOffline: true,
+          syncStatus: "SYNCED",
+        },
+      });
+
+      syncedCount++;
+      results.push({
+        ticketId: ticket.id,
+        status: "SYNCED",
+        syncStatus: "SYNCED",
+        attendeeName: ticket.user.fullName,
+        logId: log.id,
+      });
+    }
+  }
+
+  return {
+    processed: sortedLogs.length,
+    synced: syncedCount,
+    conflicts: conflictCount,
+    results,
+  };
+}

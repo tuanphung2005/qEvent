@@ -1,0 +1,16 @@
+{
+  "name": "qcheck-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:restart": "docker compose restart",
+    "dev:docker": "docker compose up --build",
+    "dev:app": "bun --cwd app start",
+    "test": "bun --cwd backend test",
+    "db:push": "bun --cwd backend db:push",
+    "db:seed": "bun --cwd backend db:seed"
+  }
+}

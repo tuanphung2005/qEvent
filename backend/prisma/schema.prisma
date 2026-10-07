@@ -4,7 +4,8 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
 }
 
 enum Role {
@@ -27,17 +28,34 @@ enum SyncStatus {
   CONFLICT
 }
 
+enum QuizGameStatus {
+  WAITING
+  ACTIVE
+  QUESTION_ACTIVE
+  ROUND_REVEALED
+  FINISHED
+}
+
+enum QuizOptionColor {
+  RED
+  BLUE
+  YELLOW
+  GREEN
+}
+
 model User {
-  id           String       @id @default(uuid())
-  email        String       @unique
+  id           String           @id @default(uuid())
+  email        String           @unique
   passwordHash String
   fullName     String
-  role         Role         @default(ATTENDEE)
+  role         Role             @default(ATTENDEE)
   tickets      Ticket[]
-  logsScanned  CheckinLog[] @relation("StaffLogs")
+  logsScanned  CheckinLog[]     @relation("StaffLogs")
   questions    QAQuestion[]
   qaVotes      QAQuestionVote[]
-  createdAt    DateTime     @default(now())
+  pollVotes    PollVote[]
+  quizAnswers  QuizAnswer[]
+  createdAt    DateTime         @default(now())
 
   @@index([email])
 }
@@ -49,6 +67,7 @@ model Event {
   startTime   DateTime
   endTime     DateTime
   maxCapacity Int
+  isLive      Boolean      @default(false)
   rooms       Room[]
   sessions    Session[]
   ticketTypes TicketType[]
@@ -73,9 +92,12 @@ model Session {
   title     String
   startTime DateTime
   endTime   DateTime
+  isLive    Boolean      @default(false)
   event     Event        @relation(fields: [eventId], references: [id])
   room      Room         @relation(fields: [roomId], references: [id])
   questions QAQuestion[]
+  polls     Poll[]
+  quizGames QuizGame[]
 }
 
 model TicketType {
@@ -142,4 +164,100 @@ model QAQuestionVote {
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([questionId, userId])
+}
+
+model Poll {
+  id        String       @id @default(uuid())
+  sessionId String
+  question  String
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  session   Session      @relation(fields: [sessionId], references: [id])
+  options   PollOption[]
+  votes     PollVote[]
+}
+
+model PollOption {
+  id        String     @id @default(uuid())
+  pollId    String
+  text      String
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes     PollVote[]
+}
+
+model PollVote {
+  id        String     @id @default(uuid())
+  pollId    String
+  optionId  String
+  userId    String
+  createdAt DateTime   @default(now())
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, userId])
+}
+
+// ----------------------------------------------------
+// KAHOOT-LIKE INTERACTIVE QUIZ GAME MODELS
+// ----------------------------------------------------
+
+model QuizGame {
+  id                   String         @id @default(uuid())
+  sessionId            String
+  title                String
+  description          String?
+  status               QuizGameStatus @default(WAITING)
+  currentQuestionIndex Int            @default(-1)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  session              Session        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  questions            QuizQuestion[]
+  answers              QuizAnswer[]
+
+  @@index([sessionId])
+}
+
+model QuizQuestion {
+  id                String       @id @default(uuid())
+  gameId            String
+  orderNum          Int          @default(0)
+  question          String
+  timeLimitSec      Int          @default(20)
+  points            Int          @default(1000)
+  questionStartedAt DateTime?
+  game              QuizGame     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  options           QuizOption[]
+  answers           QuizAnswer[]
+
+  @@index([gameId])
+}
+
+model QuizOption {
+  id         String          @id @default(uuid())
+  questionId String
+  text       String
+  color      QuizOptionColor @default(RED)
+  isCorrect  Boolean         @default(false)
+  question   QuizQuestion    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers    QuizAnswer[]
+}
+
+model QuizAnswer {
+  id             String       @id @default(uuid())
+  gameId         String
+  questionId     String
+  optionId       String
+  userId         String
+  isCorrect      Boolean      @default(false)
+  responseTimeMs Int          @default(0)
+  scoreAwarded   Int          @default(0)
+  createdAt      DateTime     @default(now())
+  game           QuizGame     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  question       QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  option         QuizOption   @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, userId])
+  @@index([gameId, userId])
 }
