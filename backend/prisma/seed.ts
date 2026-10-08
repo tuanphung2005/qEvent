@@ -5,13 +5,13 @@ import crypto from "node:crypto";
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Starting qCheck database seeding...");
+  console.log("🌱 Starting qEvent database seeding...");
 
   const existingUsers = await prisma.user.count();
   const forceSeed = process.env.FORCE_SEED === "true" || true; // Force seed to populate new models and live events
 
   if (forceSeed) {
-    console.log("⚠️ Cleaning and re-seeding qCheck tables...");
+    console.log("⚠️ Cleaning and re-seeding qEvent tables...");
     await prisma.quizAnswer.deleteMany();
     await prisma.quizOption.deleteMany();
     await prisma.quizQuestion.deleteMany();
@@ -37,7 +37,7 @@ async function main() {
   // 1. Create Users
   const organizer = await prisma.user.create({
     data: {
-      email: "organizer@qcheck.com",
+      email: "organizer@qevent.com",
       passwordHash,
       fullName: "Alex Nguyen (Organizer)",
       role: "ORGANIZER",
@@ -46,7 +46,7 @@ async function main() {
 
   const staff1 = await prisma.user.create({
     data: {
-      email: "staff1@qcheck.com",
+      email: "staff1@qevent.com",
       passwordHash,
       fullName: "Staff Mike (Gate A)",
       role: "STAFF",
@@ -55,7 +55,7 @@ async function main() {
 
   const staff2 = await prisma.user.create({
     data: {
-      email: "staff2@qcheck.com",
+      email: "staff2@qevent.com",
       passwordHash,
       fullName: "Staff Sarah (Gate B)",
       role: "STAFF",
@@ -64,7 +64,7 @@ async function main() {
 
   const attendee = await prisma.user.create({
     data: {
-      email: "attendee@qcheck.com",
+      email: "attendee@qevent.com",
       passwordHash,
       fullName: "John Doe (Attendee)",
       role: "ATTENDEE",
@@ -73,7 +73,7 @@ async function main() {
 
   const attendee2 = await prisma.user.create({
     data: {
-      email: "attendee2@qcheck.com",
+      email: "attendee2@qevent.com",
       passwordHash,
       fullName: "Lan Tran (Attendee)",
       role: "ATTENDEE",
@@ -100,7 +100,7 @@ async function main() {
   const invitation1 = await prisma.eventInvitation.create({
     data: {
       eventId: liveEvent.id,
-      email: "attendee@qcheck.com",
+      email: "attendee@qevent.com",
       code: "VIP-SUMMIT-2026",
       role: "ATTENDEE",
       isClaimed: false,
@@ -265,7 +265,7 @@ async function main() {
   const quizGame = await prisma.quizGame.create({
     data: {
       sessionId: liveSession.id,
-      title: "qCheck Tech Trivia: Thử thách Kiến trúc Offline & TOTP",
+      title: "qEvent Tech Trivia: Thử thách Kiến trúc Offline & TOTP",
       description: "Mini-game tương tác trắc nghiệm tốc độ cao dành cho khán giả tại hội trường",
       status: "WAITING",
       currentQuestionIndex: -1,
@@ -273,7 +273,7 @@ async function main() {
         create: [
           {
             orderNum: 0,
-            question: "Chu kỳ làm mới Dynamic QR trên qCheck là bao nhiêu giây?",
+            question: "Chu kỳ làm mới Dynamic QR trên qEvent là bao nhiêu giây?",
             timeLimitSec: 20,
             points: 1000,
             options: {
@@ -287,7 +287,7 @@ async function main() {
           },
           {
             orderNum: 1,
-            question: "Thuật toán nào được qCheck dùng để ký số Dynamic QR chống làm giả?",
+            question: "Thuật toán nào được qEvent dùng để ký số Dynamic QR chống làm giả?",
             timeLimitSec: 20,
             points: 1000,
             options: {

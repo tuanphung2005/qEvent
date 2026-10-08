@@ -1,6 +1,6 @@
-# ĐẶC TẢ KỸ THUẬT HỆ THỐNG qCheck (QUICKCHECK) - MVP
+# ĐẶC TẢ KỸ THUẬT HỆ THỐNG qEvent (QUICKEVENT) - MVP
 
-Tài liệu đặc tả kiến trúc kỹ thuật và cẩm nang triển khai MVP (Technical Implementation Guide) cho ứng dụng **qCheck (QUICKCHECK)** – Hệ thống Quản trị & Soát vé Sự kiện Tức thời.
+Tài liệu đặc tả kiến trúc kỹ thuật và cẩm nang triển khai MVP (Technical Implementation Guide) cho ứng dụng **qEvent (QUICKEVENT)** – Hệ thống Quản trị & Soát vé Sự kiện Tức thời.
 Tài liệu được thiết kế riêng cho **Coding Agent (Gemini 3.8 Flash)** với techstack:
 - **Backend**: PostgreSQL + Prisma ORM + ElysiaJS (Bun).
 - **Mobile**: React Native + Expo (Expo Router, Expo SDK) + Hệ thống UI Light Theme chuyên biệt (Borderless, Bottom Drop Shadow, No Blur).
@@ -9,7 +9,7 @@ Tài liệu được thiết kế riêng cho **Coding Agent (Gemini 3.8 Flash)**
 
 ## 1. Nguyên Tắc Thiết Kế Giao Diện (UI/UX Guidelines - Bắt Buộc)
 
-Mọi màn hình và component trên mobile app **qCheck** phải tuân thủ nghiêm ngặt 4 nguyên tắc cốt lõi:
+Mọi màn hình và component trên mobile app **qEvent** phải tuân thủ nghiêm ngặt 4 nguyên tắc cốt lõi:
 
 1. **Light Theme Only (Giao diện sáng toàn phần)**:
    - Nền chính (Background): `#F8FAFC` (Slate-50) hoặc `#FFFFFF`.
@@ -25,7 +25,7 @@ Mọi màn hình và component trên mobile app **qCheck** phải tuân thủ ng
 3. **Bottom Drop Shadow (Đổ bóng đáy phân tầng)**:
    - Không đổ bóng đều 4 cạnh; chỉ sử dụng drop shadow hướng xuống dưới để tạo cảm giác nổi tự nhiên (elevation) cho Card, Nút bấm nổi và Bottom Bar:
    ```ts
-   // Chuẩn Shadow Tokens cho qCheck
+   // Chuẩn Shadow Tokens cho qEvent
    export const shadows = {
      card: {
        shadowColor: '#000000',
@@ -55,7 +55,7 @@ Mọi màn hình và component trên mobile app **qCheck** phải tuân thủ ng
 Ưu tiên 100% các giải pháp từ hệ sinh thái Expo (`expo-*`) để giải quyết vấn đề, sử dụng **Expo Router** cho cơ chế điều hướng File-based routing.
 
 ```text
-qcheck/
+qevent/
 ├── backend/                      # ElysiaJS + Prisma + PostgreSQL (Bun Runtime)
 │   ├── prisma/
 │   │   ├── schema.prisma         # Data models & Enums
@@ -71,7 +71,7 @@ qcheck/
 │   │   └── index.ts              # Server entrypoint
 │   ├── package.json
 │   └── tsconfig.json
-├── mobile/                       # Expo SDK (React Native) - qCheck Client
+├── mobile/                       # Expo SDK (React Native) - qEvent Client
 │   ├── app/                      # File-based Routing (expo-router)
 │   │   ├── _layout.tsx           # Root Provider Layout (Fonts, AuthProvider)
 │   │   ├── index.tsx             # Redirect / Splash router
@@ -126,7 +126,7 @@ Thay vì cài đặt các thư viện bên ngoài không tối ưu hoặc tự v
 
 ## 4. Mô Hình Cơ Sở Dữ Liệu (Prisma Schema - PostgreSQL)
 
-File `backend/prisma/schema.prisma` phục vụ đầy đủ các thực thể cốt lõi cho **qCheck**:
+File `backend/prisma/schema.prisma` phục vụ đầy đủ các thực thể cốt lõi cho **qEvent**:
 
 ```prisma
 datasource db {
@@ -301,7 +301,7 @@ model QAQuestion {
 
 ---
 
-## 6. Đặc Tả Giao Diện Mobile qCheck (Expo Router + React Native)
+## 6. Đặc Tả Giao Diện Mobile qEvent (Expo Router + React Native)
 
 ### 6.1. Màn hình Khách tham dự: Dynamic QR Ticket (`app/(attendee)/ticket/[id].tsx`)
 * **Phong cách UI**:
@@ -335,7 +335,7 @@ model QAQuestion {
 > **Agent Prompt 1:**
 > ```text
 > Vai trò: Tech Lead Backend (ElysiaJS + Prisma + PostgreSQL).
-> Dự án: qCheck (QUICKCHECK) Backend.
+> Dự án: qEvent (QUICKEVENT) Backend.
 > Nhiệm vụ: Xây dựng thư mục /backend:
 > 1. Thiết lập dự án Bun với ElysiaJS, @elysiajs/cors, @elysiajs/jwt, @prisma/client, prisma.
 > 2. Khởi tạo schema.prisma đầy đủ cho PostgreSQL gồm các bảng: User, Event, Room, Session, TicketType, Ticket, CheckinLog, QAQuestion.
@@ -353,7 +353,7 @@ model QAQuestion {
 ### Phase 2: Engine Soát vé Hybrid (RSA Dynamic QR, Check-in Online & Offline Sync)
 > **Agent Prompt 2:**
 > ```text
-> Tiếp tục backend qCheck. Xây dựng module Soát vé thông minh tại src/modules/checkin/:
+> Tiếp tục backend qEvent. Xây dựng module Soát vé thông minh tại src/modules/checkin/:
 > 1. Helper Dynamic QR: Ký mã JWT (RS256) chứa ticketId + TOTP 30s. Kèm hàm xác thực tính hợp lệ bằng Public Key.
 > 2. Route GET /api/checkin/cache/:eventId: Trả về danh sách vé hợp lệ cho thiết bị staff lưu ngoại tuyến.
 > 3. Route POST /api/checkin/verify: Xác thực trực tuyến. Xử lý chính xác:
@@ -366,11 +366,11 @@ model QAQuestion {
 
 ---
 
-### Phase 3: Xây dựng Ứng dụng Di động qCheck (Expo SDK + Expo Router)
+### Phase 3: Xây dựng Ứng dụng Di động qEvent (Expo SDK + Expo Router)
 > **Agent Prompt 3:**
 > ```text
 > Vai trò: Senior Mobile Developer (React Native + Expo Ecosystem).
-> Dự án: qCheck (QUICKCHECK) Mobile App.
+> Dự án: qEvent (QUICKEVENT) Mobile App.
 > Nhiệm vụ: Khởi tạo thư mục /mobile với Expo SDK và expo-router.
 > BẮT BUỘC TUÂN THỦ NGUYÊN TẮC UI:
 > - Light Theme thuần túy: Nền sáng (#F8FAFC / #FFFFFF), chữ Slate tương phản cao.
@@ -394,7 +394,7 @@ model QAQuestion {
 ### Phase 4: Elysia WebSocket Realtime Q&A & Tích hợp hoàn chỉnh
 > **Agent Prompt 4:**
 > ```text
-> Hoàn thiện tính năng tương tác thời gian thực cho qCheck:
+> Hoàn thiện tính năng tương tác thời gian thực cho qEvent:
 > 1. Backend (Elysia WebSocket):
 >    - WebSocket tại src/modules/realtime/index.ts quản lý room theo sessionId.
 >    - Xử lý POST_QUESTION và UPVOTE, broadcast số vote thời gian thực.
@@ -411,4 +411,4 @@ model QAQuestion {
 1. **Dynamic QR Bảo mật**: Mã QR thay đổi chu kỳ 30s. Mã cũ quét sau 60s phải bị từ chối với màn hình Đỏ.
 2. **Kiểm soát Trùng lặp tức thì**: Quét lần 1 ra màn hình Xanh; quét lại lần 2 lập tức ra màn hình Vàng trong thời gian $< 1$ giây.
 3. **Vận hành Ngoại tuyến (Offline-First)**: Khi tắt mạng, `expo-camera` và `expo-sqlite` vẫn quét và nhận diện vé chính xác, lưu vào queue ngoại tuyến. Khi có mạng trở lại, nhấn đồng bộ ghi nhận log và gắn cờ `CONFLICT` chính xác.
-4. **Chuẩn UI/UX qCheck**: Đảm bảo toàn bộ ứng dụng ở chế độ Light Theme, không có viền mềm/cứng (`borderWidth: 0`), phân cấp bằng đổ bóng đáy (`bottom drop shadow`), và không chứa bất kỳ hiệu ứng blur nào.
+4. **Chuẩn UI/UX qEvent**: Đảm bảo toàn bộ ứng dụng ở chế độ Light Theme, không có viền mềm/cứng (`borderWidth: 0`), phân cấp bằng đổ bóng đáy (`bottom drop shadow`), và không chứa bất kỳ hiệu ứng blur nào.

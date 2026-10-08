@@ -12,7 +12,7 @@ export const app = new Elysia()
   .use(cors())
   .get("/", () => ({
     status: "ok",
-    app: "qCheck Backend API",
+    app: "qEvent Backend API",
     version: "1.0.0",
     docs: "/swagger",
   }))
@@ -27,4 +27,4 @@ export const app = new Elysia()
   .use(gameModule)
   .listen({ port, hostname: process.env.HOST || "0.0.0.0" });
 
-console.log(`🚀 qCheck Backend server is running at http://${app.server?.hostname}:${app.server?.port}`);
+console.log(`🚀 qEvent Backend server is running at http://${app.server?.hostname}:${app.server?.port}`);

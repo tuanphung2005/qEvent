@@ -1,5 +1,5 @@
 {
-  "name": "qcheck-backend",
+  "name": "qevent-backend",
   "version": "1.0.50",
   "scripts": {
     "dev": "bun --watch src/index.ts",

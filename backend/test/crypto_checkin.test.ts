@@ -6,7 +6,7 @@ import {
   verifyDynamicQRToken,
 } from "../src/config/keys";
 
-describe("qCheck Cryptographic Dynamic QR & Check-in Verification", () => {
+describe("qEvent Cryptographic Dynamic QR & Check-in Verification", () => {
   const mockSecret = "mock-totp-secret-uuid-12345";
   const ticketId = "ticket-uuid-abc-123";
   const eventId = "event-uuid-xyz-789";

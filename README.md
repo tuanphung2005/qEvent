@@ -1,4 +1,4 @@
-# qCheck (QUICKCHECK) - Hệ Thống Quản Trị & Soát Vé Sự Kiện Tức Thời
+# qEvent (QUICKEVENT) - Hệ Thống Quản Trị & Soát Vé Sự Kiện Tức Thời
 
 Hệ thống MVP giải quyết bài toán nghẽn soát vé, gian lận chụp màn hình và mất kết nối internet tại cổng sự kiện với cơ chế Dynamic QR (RSA-256 + TOTP 30s) và kiến trúc Hybrid Check-in (Online/Offline-First).
 
@@ -7,7 +7,7 @@ Hệ thống MVP giải quyết bài toán nghẽn soát vé, gian lận chụp 
 ## 🏗️ Cấu Trúc Dự Án
 
 ```text
-qCheck/
+qEvent/
 ├── backend/                      # ElysiaJS + Prisma + PostgreSQL (Bun Runtime)
 │   ├── prisma/
 │   │   ├── schema.prisma         # Schema PostgreSQL với các thực thể cốt lõi
@@ -55,7 +55,7 @@ qCheck/
 docker compose up -d
 
 # Hoặc sử dụng PostgreSQL có sẵn, cấu hình file backend/.env
-# DATABASE_URL="postgresql://postgres:password123@localhost:5432/qcheck?schema=public"
+# DATABASE_URL="postgresql://postgres:password123@localhost:5432/qevent?schema=public"
 
 # Di chuyển vào backend
 cd backend
@@ -100,9 +100,9 @@ Hệ thống đã tích hợp sẵn các nút chọn tài khoản nhanh trên m�
 
 | Vai trò | Email | Mật khẩu | Chức năng chính |
 | :--- | :--- | :--- | :--- |
-| **Khách tham dự (Attendee)** | `attendee@qcheck.com` | `password123` | Xem vé, hiển thị Dynamic QR 30s, gửi câu hỏi Live Q&A |
-| **Nhân viên soát vé (Staff)** | `staff1@qcheck.com` | `password123` | Quét vé Camera, nhận diện Online/Offline, đồng bộ vé |
-| **Ban tổ chức (Organizer)** | `organizer@qcheck.com` | `password123` | Quản trị và giám sát soát vé |
+| **Khách tham dự (Attendee)** | `attendee@qevent.com` | `password123` | Xem vé, hiển thị Dynamic QR 30s, gửi câu hỏi Live Q&A |
+| **Nhân viên soát vé (Staff)** | `staff1@qevent.com` | `password123` | Quét vé Camera, nhận diện Online/Offline, đồng bộ vé |
+| **Ban tổ chức (Organizer)** | `organizer@qevent.com` | `password123` | Quản trị và giám sát soát vé |
 
 ---
 

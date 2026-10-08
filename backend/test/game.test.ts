@@ -3,7 +3,7 @@ import { app } from "../src/index";
 import { prisma } from "../src/plugins/prisma";
 import { calculateQuizScore } from "../src/modules/game";
 
-describe("qCheck Kahoot-like Live Quiz Game Engine", () => {
+describe("qEvent Kahoot-like Live Quiz Game Engine", () => {
   let attendeeToken: string;
   let attendeeId: string;
   let unCheckedInToken: string;
@@ -19,7 +19,7 @@ describe("qCheck Kahoot-like Live Quiz Game Engine", () => {
       new Request("http://localhost:3000/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "attendee2@qcheck.com", password: "password123" }),
+        body: JSON.stringify({ email: "attendee2@qevent.com", password: "password123" }),
       })
     );
     const loginData = await loginRes.json();
@@ -31,7 +31,7 @@ describe("qCheck Kahoot-like Live Quiz Game Engine", () => {
       new Request("http://localhost:3000/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "attendee@qcheck.com", password: "password123" }),
+        body: JSON.stringify({ email: "attendee@qevent.com", password: "password123" }),
       })
     );
     const guestData = await guestLogin.json();
@@ -50,6 +50,7 @@ describe("qCheck Kahoot-like Live Quiz Game Engine", () => {
     if (!game) throw new Error("Seeded quiz game not found");
     gameId = game.id;
     sessionId = game.sessionId;
+    await prisma.quizAnswer.deleteMany({ where: { gameId: game.id } });
 
     const q0 = game.questions[0];
     question0Id = q0.id;

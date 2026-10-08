@@ -1,5 +1,5 @@
 ---
-name: qCheck
+name: qEvent
 description: Instant Event Ticketing & Anti-Fraud Gate Check-In Design System
 colors:
   primary: "#2563EB"
@@ -86,13 +86,13 @@ components:
     padding: "4px 10px"
 ---
 
-# Design System: qCheck
+# Design System: qEvent
 
 ## Overview
 
 **Creative North Star: "The High-Throughput Beacon"**
 
-qCheck is an operational mobile tool built for intense, high-stakes physical environments: noisy venue entrance gates, dim auditoriums, and crowded queue lines under bright outdoor glare. The visual architecture rejects decorative fluff, blurred materials, and multi-layered visual noise in favor of immediate, unambiguous clarity. Every interface element exists to accelerate a physical interaction—scanning a QR code in under 500ms, glancing at synchronization queues, or voting on live session queries.
+qEvent is an operational mobile tool built for intense, high-stakes physical environments: noisy venue entrance gates, dim auditoriums, and crowded queue lines under bright outdoor glare. The visual architecture rejects decorative fluff, blurred materials, and multi-layered visual noise in favor of immediate, unambiguous clarity. Every interface element exists to accelerate a physical interaction—scanning a QR code in under 500ms, glancing at synchronization queues, or voting on live session queries.
 
 The aesthetic posture is clean, modern, and rigorously utilitarian. Visual grouping is achieved strictly through spatial contrast, flat tonal surfaces, and downward directional elevation. The experience communicates reliability, cryptographic certainty, and effortless velocity.
 
@@ -105,7 +105,7 @@ The aesthetic posture is clean, modern, and rigorously utilitarian. Visual group
 
 ## Colors
 
-The qCheck color system employs a high-contrast functional palette rooted in clean Slate neutrals and distinct chromatic signals.
+The qEvent color system employs a high-contrast functional palette rooted in clean Slate neutrals and distinct chromatic signals.
 
 ### Primary
 - **Electric Blue** (`#2563EB`): The primary interaction and action color. Guides attendees toward primary tickets and staff toward scan confirmation.
@@ -163,7 +163,7 @@ The mobile layout adheres to strict single-handed thumb zone ergonomics:
 
 ## Elevation & Depth
 
-qCheck utilizes natural, downward-directed elevation rather than multi-directional drop shadows or heavy strokes.
+qEvent utilizes natural, downward-directed elevation rather than multi-directional drop shadows or heavy strokes.
 
 ### Shadow Vocabulary
 - **Subtle Elevation** (`elevation: 2`, `offset: {0, 2}`, `opacity: 0.05`, `radius: 6`): Top navigation bars and subtle list items.

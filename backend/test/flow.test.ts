@@ -3,12 +3,12 @@ import { app } from "../src/index";
 import { generateTOTP, signDynamicQRPayload } from "../src/config/keys";
 import { prisma } from "../src/plugins/prisma";
 
-describe("qCheck End-to-End Flow: Register -> Check-in -> Live Event Q&A & Polls", () => {
+describe("qEvent End-to-End Flow: Register -> Check-in -> Live Event Q&A & Polls", () => {
   let organizerToken: string;
   let staffToken: string;
   let attendeeToken: string;
   let attendeeId: string;
-  let attendeeEmail = `attendee_flow_${Date.now()}@qcheck.com`;
+  let attendeeEmail = `attendee_flow_${Date.now()}@qevent.com`;
 
   let eventId: string;
   let ticketTypeId: string;
@@ -26,7 +26,7 @@ describe("qCheck End-to-End Flow: Register -> Check-in -> Live Event Q&A & Polls
       new Request("http://localhost:3000/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "staff1@qcheck.com", password: "password123" }),
+        body: JSON.stringify({ email: "staff1@qevent.com", password: "password123" }),
       })
     );
     const staffData = await staffLoginRes.json();
@@ -300,7 +300,7 @@ describe("qCheck End-to-End Flow: Register -> Check-in -> Live Event Q&A & Polls
   // STEP 4: GATING ENFORCEMENT (REJECTIONS WHEN NOT LIVE OR NOT CHECKED-IN)
   it("Step 4.1: Unchecked-in attendee CANNOT post question or vote", async () => {
     // Create an un-checked-in user
-    const guestEmail = `guest_${Date.now()}@qcheck.com`;
+    const guestEmail = `guest_${Date.now()}@qevent.com`;
     const regRes = await app.handle(
       new Request("http://localhost:3000/api/auth/register", {
         method: "POST",

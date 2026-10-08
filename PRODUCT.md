@@ -12,10 +12,10 @@ android
 - **Organizers (Ban tổ chức)**: Manage event access parameters and test purchase flows (Sandbox mode).
 
 ## Product Purpose
-qCheck (QUICKCHECK) is an instant event ticketing and entry management system engineered to eliminate entrance bottlenecks, screenshot ticket fraud, and gate downtime caused by unstable internet connections. Success means sub-second check-in times per attendee, zero unauthorized duplicate entries, and frictionless attendee access.
+qEvent (QUICKEVENT) is an instant event ticketing and entry management system engineered to eliminate entrance bottlenecks, screenshot ticket fraud, and gate downtime caused by unstable internet connections. Success means sub-second check-in times per attendee, zero unauthorized duplicate entries, and frictionless attendee access.
 
 ## Positioning
-Hybrid Check-in architecture combining RSA-256 + 30-second TOTP Dynamic QR codes with offline-first SQLite verification. Unlike standard static ticketing apps that fail when venue networks drop or allow fraudulent screenshot sharing, qCheck enforces cryptographic freshness while guaranteeing offline gate continuity with automatic background conflict resolution.
+Hybrid Check-in architecture combining RSA-256 + 30-second TOTP Dynamic QR codes with offline-first SQLite verification. Unlike standard static ticketing apps that fail when venue networks drop or allow fraudulent screenshot sharing, qEvent enforces cryptographic freshness while guaranteeing offline gate continuity with automatic background conflict resolution.
 
 ## Operating Context
 - **Venue Entry Gates**: Crowded, noisy, fast-paced environments with high glare or dim lighting; staff scanning attendees' screens sequentially with handheld phones.
@@ -34,14 +34,14 @@ Hybrid Check-in architecture combining RSA-256 + 30-second TOTP Dynamic QR codes
   - **No Blur / No Glassmorphism**: Prohibited use of `BlurView` or blur filters. Flat translucent overlays only (`rgba(15, 23, 42, 0.45)`).
 
 ## Brand Commitments
-- **Name**: qCheck (QUICKCHECK)
+- **Name**: qEvent (QUICKEVENT)
 - **Voice**: Clean, instantaneous, reliable, professional, authoritative without being intimidating.
 - **Identity Palette**: Primary Blue/Indigo (`#2563EB`), Success Emerald (`#10B981`), Warning Amber (`#F59E0B`), Error Red (`#EF4444`).
 
 ## Evidence on Hand
-- Full MVP technical specification in [MVP.md](file:///D:/outsourced/qCheck/MVP.md)
-- Complete functional mobile codebase in [app/](file:///D:/outsourced/qCheck/app) with Expo Router routes: `(auth)/login.tsx`, `(attendee)/tickets.tsx`, `(attendee)/ticket/[id].tsx`, `(attendee)/qa.tsx`, `(staff)/scanner.tsx`, `(staff)/sync-status.tsx`.
-- Backend server in [backend/](file:///D:/outsourced/qCheck/backend) with ElysiaJS + Prisma + PostgreSQL.
+- Full MVP technical specification in [MVP.md](file:///D:/outsourced/qEvent/MVP.md)
+- Complete functional mobile codebase in [app/](file:///D:/outsourced/qEvent/app) with Expo Router routes: `(auth)/login.tsx`, `(attendee)/tickets.tsx`, `(attendee)/ticket/[id].tsx`, `(attendee)/qa.tsx`, `(staff)/scanner.tsx`, `(staff)/sync-status.tsx`.
+- Backend server in [backend/](file:///D:/outsourced/qEvent/backend) with ElysiaJS + Prisma + PostgreSQL.
 
 ## Product Principles
 1. **Gate Speed is Non-Negotiable**: Every millisecond saved at check-in reduces attendee queuing frustration; feedback must be immediate and multi-sensory.

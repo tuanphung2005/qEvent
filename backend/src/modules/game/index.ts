@@ -80,7 +80,7 @@ export const gameModule = new Elysia({ prefix: "/api/game" })
   .use(
     jwt({
       name: "jwtAuth",
-      secret: process.env.JWT_SECRET || "qcheck_super_secret_jwt_key_2026_production_grade",
+      secret: process.env.JWT_SECRET || "qevent_super_secret_jwt_key_2026_production_grade",
     })
   )
   .derive(async ({ headers, jwtAuth }) => {
