@@ -61,18 +61,36 @@ model User {
 }
 
 model Event {
-  id          String       @id @default(uuid())
+  id          String            @id @default(uuid())
   name        String
   venue       String
+  inviteCode  String?           @unique
   startTime   DateTime
   endTime     DateTime
   maxCapacity Int
-  isLive      Boolean      @default(false)
+  isLive      Boolean           @default(false)
   rooms       Room[]
   sessions    Session[]
   ticketTypes TicketType[]
   tickets     Ticket[]
-  createdAt   DateTime     @default(now())
+  invitations EventInvitation[]
+  createdAt   DateTime          @default(now())
+}
+
+model EventInvitation {
+  id        String    @id @default(uuid())
+  eventId   String
+  email     String
+  code      String    @unique
+  role      Role      @default(ATTENDEE)
+  isClaimed Boolean   @default(false)
+  claimedAt DateTime?
+  claimedBy String?
+  createdAt DateTime  @default(now())
+  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([email, eventId])
+  @@index([code])
 }
 
 model Room {
@@ -85,19 +103,21 @@ model Room {
 }
 
 model Session {
-  id        String       @id @default(uuid())
-  eventId   String
-  roomId    String
-  speakerId String?
-  title     String
-  startTime DateTime
-  endTime   DateTime
-  isLive    Boolean      @default(false)
-  event     Event        @relation(fields: [eventId], references: [id])
-  room      Room         @relation(fields: [roomId], references: [id])
-  questions QAQuestion[]
-  polls     Poll[]
-  quizGames QuizGame[]
+  id          String       @id @default(uuid())
+  eventId     String
+  roomId      String
+  speakerId   String?
+  speakerName String?
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  isLive      Boolean      @default(false)
+  event       Event        @relation(fields: [eventId], references: [id])
+  room        Room         @relation(fields: [roomId], references: [id])
+  questions   QAQuestion[]
+  polls       Poll[]
+  quizGames   QuizGame[]
 }
 
 model TicketType {
@@ -147,6 +167,8 @@ model QAQuestion {
   sessionId  String
   userId     String
   content    String
+  answerText String?
+  isPinned   Boolean          @default(false)
   upvotes    Int              @default(0)
   isAnswered Boolean          @default(false)
   createdAt  DateTime         @default(now())

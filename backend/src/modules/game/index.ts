@@ -276,7 +276,8 @@ export const gameModule = new Elysia({ prefix: "/api/game" })
         ? sanitizedQuestions[game.currentQuestionIndex]
         : null;
 
-    const leaderboard = await getGameLeaderboard(game.id, 5);
+    const leaderboard = await getGameLeaderboard(game.id, 10);
+    const podium = leaderboard.slice(0, 3);
 
     return {
       id: game.id,
@@ -296,11 +297,12 @@ export const gameModule = new Elysia({ prefix: "/api/game" })
       userAnswer: userAnswer
         ? {
             optionId: userAnswer.optionId,
-            isCorrect: game.status === "ROUND_REVEALED" ? userAnswer.isCorrect : undefined,
-            scoreAwarded: game.status === "ROUND_REVEALED" ? userAnswer.scoreAwarded : undefined,
+            isCorrect: game.status === "ROUND_REVEALED" || game.status === "FINISHED" ? userAnswer.isCorrect : undefined,
+            scoreAwarded: game.status === "ROUND_REVEALED" || game.status === "FINISHED" ? userAnswer.scoreAwarded : undefined,
           }
         : null,
       leaderboard,
+      podium,
     };
   })
   // Host: Start the game (starts question 0)
@@ -483,7 +485,7 @@ export const gameModule = new Elysia({ prefix: "/api/game" })
       data: { status: "FINISHED" },
     });
 
-    const finalLeaderboard = await getGameLeaderboard(params.gameId, 10);
+    const finalLeaderboard = await getGameLeaderboard(params.gameId, 50);
 
     const broadcastPayload = {
       type: "GAME_FINISHED",
@@ -609,7 +611,6 @@ export const gameModule = new Elysia({ prefix: "/api/game" })
         message: "Câu trả lời đã được ghi nhận",
         answerId: answer.id,
         responseTimeMs,
-        // When question is active, don't reveal if correct until reveal
         submitted: true,
       };
     },
@@ -624,8 +625,81 @@ export const gameModule = new Elysia({ prefix: "/api/game" })
   )
   // Get Leaderboard
   .get("/:gameId/leaderboard", async ({ params }) => {
-    const leaderboard = await getGameLeaderboard(params.gameId, 20);
+    const leaderboard = await getGameLeaderboard(params.gameId, 50);
     return { leaderboard };
+  })
+  // Endscreen: Complete Leaderboard & Podium Data when game finishes
+  .get("/:gameId/endscreen", async ({ params, currentUser, set }) => {
+    const game = await prisma.quizGame.findUnique({
+      where: { id: params.gameId },
+      include: {
+        session: true,
+        questions: {
+          include: {
+            options: true,
+          },
+        },
+      },
+    });
+
+    if (!game) {
+      set.status = 404;
+      return { error: "Game not found" };
+    }
+
+    const fullLeaderboard = await getGameLeaderboard(game.id, 50);
+    const podium = fullLeaderboard.slice(0, 3);
+
+    let userResult = null;
+    if (currentUser?.id) {
+      const userRankIndex = fullLeaderboard.findIndex((p) => p.userId === currentUser.id);
+      const userAnswers = await prisma.quizAnswer.findMany({
+        where: { gameId: game.id, userId: currentUser.id },
+      });
+
+      const totalUserScore = userAnswers.reduce((sum, a) => sum + a.scoreAwarded, 0);
+      const correctCount = userAnswers.filter((a) => a.isCorrect).length;
+      const avgResponseTimeMs =
+        userAnswers.length > 0
+          ? Math.round(userAnswers.reduce((sum, a) => sum + a.responseTimeMs, 0) / userAnswers.length)
+          : 0;
+
+      userResult = {
+        userId: currentUser.id,
+        userEmail: currentUser.email,
+        rank: userRankIndex >= 0 ? userRankIndex + 1 : null,
+        totalScore: totalUserScore,
+        correctCount,
+        totalQuestions: game.questions.length,
+        accuracyPercentage:
+          game.questions.length > 0 ? Math.round((correctCount / game.questions.length) * 100) : 0,
+        avgResponseTimeMs,
+      };
+    }
+
+    const totalParticipants = fullLeaderboard.length;
+    const avgScore =
+      totalParticipants > 0
+        ? Math.round(fullLeaderboard.reduce((sum, p) => sum + p.totalScore, 0) / totalParticipants)
+        : 0;
+    const highestScore = fullLeaderboard.length > 0 ? fullLeaderboard[0].totalScore : 0;
+
+    return {
+      gameId: game.id,
+      title: game.title,
+      description: game.description,
+      status: game.status,
+      isFinished: game.status === "FINISHED",
+      totalQuestions: game.questions.length,
+      podium,
+      leaderboard: fullLeaderboard,
+      userResult,
+      stats: {
+        totalParticipants,
+        averageScore: avgScore,
+        highestScore,
+      },
+    };
   })
   // WebSocket Route for Realtime Game Sync
   .ws("/ws/game", {

@@ -26,6 +26,7 @@ async function main() {
     await prisma.ticketType.deleteMany();
     await prisma.session.deleteMany();
     await prisma.room.deleteMany();
+    await prisma.eventInvitation.deleteMany();
     await prisma.event.deleteMany();
     await prisma.user.deleteMany();
   }
@@ -87,10 +88,22 @@ async function main() {
     data: {
       name: "Tech Summit Vietnam 2026",
       venue: "Grand Convention Center, Saigon",
+      inviteCode: "TECHSUMMIT2026",
       startTime: new Date(now.getTime() - 3600000 * 2), // Started 2 hours ago
       endTime: new Date(now.getTime() + 3600000 * 6),   // Ends in 6 hours
       maxCapacity: 1000,
       isLive: true,
+    },
+  });
+
+  // Seed Event Invitations
+  const invitation1 = await prisma.eventInvitation.create({
+    data: {
+      eventId: liveEvent.id,
+      email: "attendee@qcheck.com",
+      code: "VIP-SUMMIT-2026",
+      role: "ATTENDEE",
+      isClaimed: false,
     },
   });
 
@@ -117,6 +130,8 @@ async function main() {
       eventId: liveEvent.id,
       roomId: mainHall.id,
       title: "Keynote: The Future of Agentic AI & Bun Runtime",
+      description: "Khám phá kiến trúc Backend hiệu năng cao và Agentic AI năm 2026",
+      speakerName: "Alex Nguyen (Lead Architect)",
       startTime: new Date(now.getTime() - 3600000), // Started 1 hour ago
       endTime: new Date(now.getTime() + 3600000 * 2), // Ends in 2 hours
       isLive: true,
@@ -128,6 +143,8 @@ async function main() {
       eventId: liveEvent.id,
       roomId: workshopRoom.id,
       title: "Deep Dive: Offline-First Check-in Architecture",
+      description: "Thực chiến lưu trữ SQLite local và giải quyết xung đột khi rớt mạng",
+      speakerName: "Staff Sarah (Senior Engineer)",
       startTime: new Date(now.getTime() + 86400000),
       endTime: new Date(now.getTime() + 86400000 + 7200000),
       isLive: false,
@@ -290,6 +307,8 @@ async function main() {
   console.log("✅ Seeding completed successfully!");
   console.log({
     event: liveEvent.name,
+    inviteCode: liveEvent.inviteCode,
+    invitationCode: invitation1.code,
     isEventLive: liveEvent.isLive,
     liveSessionId: liveSession.id,
     attendeePaidTicket: { email: attendee.email, ticketId: ticket1.id, status: ticket1.status },

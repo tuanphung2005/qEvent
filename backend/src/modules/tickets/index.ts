@@ -19,6 +19,18 @@ export function checkIsSessionLive(
   return now >= new Date(session.startTime) && now <= new Date(session.endTime);
 }
 
+export function getSessionStatus(
+  session: { isLive: boolean; startTime: Date; endTime: Date }
+): "UPCOMING" | "LIVE" | "ENDED" {
+  if (session.isLive) return "LIVE";
+  const now = new Date();
+  const start = new Date(session.startTime);
+  const end = new Date(session.endTime);
+  if (now < start) return "UPCOMING";
+  if (now > end) return "ENDED";
+  return "LIVE";
+}
+
 export const ticketsModule = new Elysia({ prefix: "/api/tickets" })
   .use(
     jwt({
@@ -46,13 +58,19 @@ export const ticketsModule = new Elysia({ prefix: "/api/tickets" })
   })
   // Get all active events with sessions, ticket types, and user attendance status
   .get("/events", async ({ currentUser }) => {
-    const now = new Date();
     const events = await prisma.event.findMany({
       include: {
         ticketTypes: true,
         sessions: {
           include: {
             room: true,
+            _count: {
+              select: {
+                questions: true,
+                polls: true,
+                quizGames: true,
+              },
+            },
           },
           orderBy: { startTime: "asc" },
         },
@@ -74,6 +92,7 @@ export const ticketsModule = new Elysia({ prefix: "/api/tickets" })
       const enrichedSessions = event.sessions.map((s) => ({
         ...s,
         isCurrentlyLive: checkIsSessionLive(s, event),
+        status: getSessionStatus(s),
       }));
 
       return {
@@ -101,6 +120,13 @@ export const ticketsModule = new Elysia({ prefix: "/api/tickets" })
         sessions: {
           include: {
             room: true,
+            _count: {
+              select: {
+                questions: true,
+                polls: true,
+                quizGames: true,
+              },
+            },
           },
           orderBy: { startTime: "asc" },
         },
@@ -124,6 +150,7 @@ export const ticketsModule = new Elysia({ prefix: "/api/tickets" })
     const enrichedSessions = event.sessions.map((s) => ({
       ...s,
       isCurrentlyLive: checkIsSessionLive(s, event),
+      status: getSessionStatus(s),
     }));
 
     return {
@@ -141,6 +168,301 @@ export const ticketsModule = new Elysia({ prefix: "/api/tickets" })
       },
     };
   })
+  // Get Event Schedule / Timeline / Agenda
+  .get("/events/:id/schedule", async ({ params, set }) => {
+    const event = await prisma.event.findUnique({
+      where: { id: params.id },
+      include: {
+        sessions: {
+          include: {
+            room: true,
+            _count: {
+              select: {
+                questions: true,
+                polls: true,
+                quizGames: true,
+              },
+            },
+          },
+          orderBy: { startTime: "asc" },
+        },
+      },
+    });
+
+    if (!event) {
+      set.status = 404;
+      return { error: "Event not found" };
+    }
+
+    const isEventLive = checkIsEventLive(event);
+    const schedule = event.sessions.map((s) => {
+      const isCurrentlyLive = checkIsSessionLive(s, event);
+      const status = getSessionStatus(s);
+      return {
+        id: s.id,
+        title: s.title,
+        description: s.description || null,
+        speakerName: s.speakerName || null,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        room: {
+          id: s.room.id,
+          name: s.room.name,
+          capacity: s.room.capacity,
+        },
+        status,
+        isCurrentlyLive,
+        interactions: {
+          questionsCount: s._count.questions,
+          pollsCount: s._count.polls,
+          quizGamesCount: s._count.quizGames,
+        },
+      };
+    });
+
+    return {
+      eventId: event.id,
+      eventName: event.name,
+      venue: event.venue,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      isLive: isEventLive,
+      schedule,
+    };
+  })
+  // Create Event Invitation(s) (Organizer / Staff)
+  .post(
+    "/events/:id/invitations",
+    async ({ params, body, currentUser, set }) => {
+      if (!currentUser || (currentUser.role !== "ORGANIZER" && currentUser.role !== "STAFF")) {
+        set.status = 403;
+        return { error: "Chỉ ban tổ chức hoặc nhân viên mới có quyền tạo lời mời" };
+      }
+
+      const event = await prisma.event.findUnique({
+        where: { id: params.id },
+      });
+
+      if (!event) {
+        set.status = 404;
+        return { error: "Event not found" };
+      }
+
+      const { email, role, code: customCode } = body;
+      const normalizedEmail = email.trim().toLowerCase();
+      const inviteCode =
+        customCode?.trim().toUpperCase() ||
+        `INV-${event.name.slice(0, 3).toUpperCase()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
+
+      // Check if invitation with this code exists
+      const existing = await prisma.eventInvitation.findUnique({
+        where: { code: inviteCode },
+      });
+
+      if (existing) {
+        set.status = 400;
+        return { error: "Mã mời này đã tồn tại, vui lòng chọn mã khác" };
+      }
+
+      const invitation = await prisma.eventInvitation.create({
+        data: {
+          eventId: event.id,
+          email: normalizedEmail,
+          code: inviteCode,
+          role: role === "SPEAKER" || role === "STAFF" ? role : "ATTENDEE",
+        },
+      });
+
+      set.status = 201;
+      return {
+        message: "Đã tạo lời mời thành công",
+        invitation: {
+          id: invitation.id,
+          eventId: invitation.eventId,
+          email: invitation.email,
+          code: invitation.code,
+          role: invitation.role,
+          isClaimed: invitation.isClaimed,
+          createdAt: invitation.createdAt,
+        },
+      };
+    },
+    {
+      body: t.Object({
+        email: t.String(),
+        role: t.Optional(t.String()),
+        code: t.Optional(t.String()),
+      }),
+    }
+  )
+  // List Event Invitations (Organizer / Staff)
+  .get("/events/:id/invitations", async ({ params, currentUser, set }) => {
+    if (!currentUser || (currentUser.role !== "ORGANIZER" && currentUser.role !== "STAFF")) {
+      set.status = 403;
+      return { error: "Chỉ ban tổ chức hoặc nhân viên mới có quyền xem danh sách lời mời" };
+    }
+
+    const invitations = await prisma.eventInvitation.findMany({
+      where: { eventId: params.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return { invitations };
+  })
+  // Claim Ticket via Invite Code (Attendee)
+  .post(
+    "/claim-invite",
+    async ({ body, currentUser, set }) => {
+      if (!currentUser) {
+        set.status = 401;
+        return { error: "Vui lòng đăng nhập để nhận vé qua mã mời" };
+      }
+
+      const rawCode = (body.code || "").trim().toUpperCase();
+      if (!rawCode) {
+        set.status = 400;
+        return { error: "Vui lòng nhập mã mời (invite code)" };
+      }
+
+      // Check 1: Match specific EventInvitation
+      let targetEventId: string | null = null;
+      let invitationRecord = await prisma.eventInvitation.findUnique({
+        where: { code: rawCode },
+        include: { event: { include: { ticketTypes: true } } },
+      });
+
+      if (invitationRecord) {
+        if (invitationRecord.isClaimed) {
+          set.status = 400;
+          return { error: "Mã mời này đã được sử dụng" };
+        }
+        targetEventId = invitationRecord.eventId;
+      } else {
+        // Check 2: Match general Event.inviteCode
+        const eventByCode = await prisma.event.findFirst({
+          where: { inviteCode: rawCode },
+          include: { ticketTypes: true },
+        });
+
+        if (!eventByCode) {
+          set.status = 404;
+          return { error: "Mã mời không hợp lệ hoặc không tồn tại" };
+        }
+        targetEventId = eventByCode.id;
+      }
+
+      const event = await prisma.event.findUnique({
+        where: { id: targetEventId },
+        include: { ticketTypes: true },
+      });
+
+      if (!event) {
+        set.status = 404;
+        return { error: "Không tìm thấy sự kiện tương ứng với mã mời" };
+      }
+
+      // Check if user already has ticket for this event
+      const existingTicket = await prisma.ticket.findFirst({
+        where: { eventId: event.id, userId: currentUser.id },
+        include: { event: true, ticketType: true },
+      });
+
+      const nowSec = Math.floor(Date.now() / 1000);
+      const expiresIn = 30 - (nowSec % 30);
+
+      if (existingTicket) {
+        const code = generateTOTP(existingTicket.totpSecret);
+        const qrToken = signDynamicQRPayload({
+          tid: existingTicket.id,
+          eid: existingTicket.eventId,
+          code,
+          iat: nowSec,
+        });
+
+        return {
+          message: "Bạn đã có vé tham dự sự kiện này",
+          isNew: false,
+          ticket: {
+            ...existingTicket,
+            qrToken,
+            expiresIn,
+          },
+        };
+      }
+
+      // Find or assign ticket type
+      let ticketTypeId = event.ticketTypes[0]?.id;
+      if (!ticketTypeId) {
+        // Create a default VIP/Invite Pass if no ticket type exists
+        const defaultType = await prisma.ticketType.create({
+          data: {
+            eventId: event.id,
+            name: "Mã mời / Khách mời VIP",
+            price: 0,
+            totalQuantity: 1000,
+            soldQuantity: 1,
+          },
+        });
+        ticketTypeId = defaultType.id;
+      } else {
+        await prisma.ticketType.update({
+          where: { id: ticketTypeId },
+          data: { soldQuantity: { increment: 1 } },
+        });
+      }
+
+      const secret = crypto.randomUUID();
+      const ticket = await prisma.ticket.create({
+        data: {
+          eventId: event.id,
+          userId: currentUser.id,
+          ticketTypeId,
+          status: "PAID",
+          totpSecret: secret,
+        },
+        include: {
+          event: true,
+          ticketType: true,
+        },
+      });
+
+      // Mark invitation as claimed if from EventInvitation
+      if (invitationRecord) {
+        await prisma.eventInvitation.update({
+          where: { id: invitationRecord.id },
+          data: {
+            isClaimed: true,
+            claimedAt: new Date(),
+            claimedBy: currentUser.id,
+          },
+        });
+      }
+
+      const code = generateTOTP(ticket.totpSecret);
+      const qrToken = signDynamicQRPayload({
+        tid: ticket.id,
+        eid: ticket.eventId,
+        code,
+        iat: nowSec,
+      });
+
+      set.status = 201;
+      return {
+        message: "Kích hoạt vé sự kiện qua mã mời thành công! Chào mừng bạn tham gia sự kiện.",
+        isNew: true,
+        ticket: {
+          ...ticket,
+          qrToken,
+          expiresIn,
+        },
+      };
+    },
+    {
+      body: t.Object({
+        code: t.String(),
+      }),
+    }
+  )
   // Toggle live status for an event (for testing or organizer controls)
   .post("/events/:id/toggle-live", async ({ params, body, set }) => {
     const event = await prisma.event.findUnique({ where: { id: params.id } });
@@ -193,7 +515,7 @@ export const ticketsModule = new Elysia({ prefix: "/api/tickets" })
       include: {
         event: {
           include: {
-            sessions: true,
+            sessions: { orderBy: { startTime: "asc" } },
           },
         },
         ticketType: true,
@@ -233,7 +555,7 @@ export const ticketsModule = new Elysia({ prefix: "/api/tickets" })
       include: {
         event: {
           include: {
-            sessions: true,
+            sessions: { orderBy: { startTime: "asc" } },
           },
         },
         ticketType: true,
@@ -273,7 +595,7 @@ export const ticketsModule = new Elysia({ prefix: "/api/tickets" })
       where: { id: params.id },
       include: {
         event: {
-          include: { sessions: true },
+          include: { sessions: { orderBy: { startTime: "asc" } } },
         },
         ticketType: true,
         checkinLogs: {

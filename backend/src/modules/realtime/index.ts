@@ -201,7 +201,7 @@ export const realtimeModule = new Elysia()
           user: { select: { id: true, fullName: true } },
           votes: { select: { userId: true } },
         },
-        orderBy: { upvotes: "desc" },
+        orderBy: [{ isPinned: "desc" }, { upvotes: "desc" }],
       });
 
       const polls = await prisma.poll.findMany({
@@ -381,6 +381,77 @@ export const realtimeModule = new Elysia()
       }),
     }
   )
+  // REST: Presenter / Speaker Answers Q&A question
+  .post(
+    "/api/qa/question/:questionId/answer",
+    async ({ params, body, currentUser, set }) => {
+      const question = await prisma.qAQuestion.findUnique({
+        where: { id: params.questionId },
+      });
+
+      if (!question) {
+        set.status = 404;
+        return { error: "Question not found" };
+      }
+
+      const { answerText } = body as any;
+      const updated = await prisma.qAQuestion.update({
+        where: { id: params.questionId },
+        data: {
+          isAnswered: true,
+          answerText: answerText ? String(answerText).trim() : question.answerText,
+        },
+        include: {
+          user: { select: { id: true, fullName: true } },
+          votes: { select: { userId: true } },
+        },
+      });
+
+      broadcastToSession(question.sessionId, {
+        type: "QUESTION_ANSWERED",
+        question: updated,
+      });
+
+      return {
+        message: "Đã cập nhật câu trả lời của presenter",
+        question: updated,
+      };
+    },
+    {
+      body: t.Object({
+        answerText: t.Optional(t.String()),
+      }),
+    }
+  )
+  // REST: Presenter / Speaker Pins Q&A question on screen
+  .post("/api/qa/question/:questionId/pin", async ({ params, set }) => {
+    const question = await prisma.qAQuestion.findUnique({
+      where: { id: params.questionId },
+    });
+
+    if (!question) {
+      set.status = 404;
+      return { error: "Question not found" };
+    }
+
+    const updated = await prisma.qAQuestion.update({
+      where: { id: params.questionId },
+      data: { isPinned: !question.isPinned },
+      include: {
+        user: { select: { id: true, fullName: true } },
+        votes: { select: { userId: true } },
+      },
+    });
+
+    broadcastToSession(question.sessionId, {
+      type: "QUESTION_PINNED",
+      questionId: updated.id,
+      isPinned: updated.isPinned,
+      question: updated,
+    });
+
+    return { question: updated, isPinned: updated.isPinned };
+  })
   // REST: Get Polls (Interactive Questions) for Session
   .get("/api/qa/session/:sessionId/polls", async ({ params, query, currentUser }) => {
     const effectiveUserId = currentUser?.id || query.userId;
@@ -628,7 +699,7 @@ export const realtimeModule = new Elysia()
                 user: { select: { id: true, fullName: true } },
                 votes: { select: { userId: true } },
               },
-              orderBy: { upvotes: "desc" },
+              orderBy: [{ isPinned: "desc" }, { upvotes: "desc" }],
             });
 
             const polls = await prisma.poll.findMany({
