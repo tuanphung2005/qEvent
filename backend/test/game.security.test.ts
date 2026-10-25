@@ -564,4 +564,80 @@ describe("Game module security & state machine", () => {
     expect(message.type).toBe("GAME_NOT_FOUND");
     expect(message.gameId).toBe("does-not-exist");
   });
+
+  it("31. GET game: host thấy questions + isCorrect, player không thấy cả hai", async () => {
+    const game = await createGame({ questions: 1 });
+
+    const hostRes = await app.handle(
+      new Request(`${BASE}/api/game/${game.id}`, { headers: auth(organizerToken) })
+    );
+    const host = await hostRes.json();
+    expect(host.questions).toHaveLength(1);
+    expect(host.questions[0].options.every((o: any) => typeof o.isCorrect === "boolean")).toBe(true);
+
+    const playerRes = await app.handle(
+      new Request(`${BASE}/api/game/${game.id}`, { headers: auth(attendeeToken) })
+    );
+    const player = await playerRes.json();
+    expect(player.questions).toBeUndefined();
+
+    await app.handle(
+      new Request(`${BASE}/api/game/${game.id}/start`, { method: "POST", headers: auth(organizerToken) })
+    );
+    const activeRes = await app.handle(
+      new Request(`${BASE}/api/game/${game.id}`, { headers: auth(attendeeToken) })
+    );
+    const active = await activeRes.json();
+    expect(active.currentQuestion).not.toBeNull();
+    expect(
+      active.currentQuestion.options.every((o: any) => o.isCorrect === undefined)
+    ).toBe(true);
+  });
+
+  it("32. PATCH trước start áp nội dung mới; PATCH sau start → 409", async () => {
+    const game = await createGame({ questions: 1 });
+    const q = game.questions[0]!;
+    const edited = {
+      question: "Câu hỏi đã được host sửa",
+      timeLimitSec: 30,
+      points: 1200,
+      options: [
+        { text: "Đáp án đúng", isCorrect: true },
+        { text: "Đáp án sai 1", isCorrect: false },
+        { text: "Đáp án sai 2", isCorrect: false },
+        { text: "Đáp án sai 3", isCorrect: false },
+      ],
+    };
+
+    const patched = await app.handle(
+      new Request(`${BASE}/api/game/${game.id}/question/${q.id}`, {
+        method: "PATCH",
+        headers: jsonHeaders(organizerToken),
+        body: JSON.stringify(edited),
+      })
+    );
+    expect(patched.status).toBe(200);
+    expect((await patched.json()).question.question).toBe(edited.question);
+
+    await app.handle(
+      new Request(`${BASE}/api/game/${game.id}/start`, { method: "POST", headers: auth(organizerToken) })
+    );
+
+    const afterStart = await app.handle(
+      new Request(`${BASE}/api/game/${game.id}/question/${q.id}`, {
+        method: "PATCH",
+        headers: jsonHeaders(organizerToken),
+        body: JSON.stringify(edited),
+      })
+    );
+    expect(afterStart.status).toBe(409);
+    expect((await afterStart.json()).error).toBe("INVALID_GAME_STATE");
+
+    const activeRes = await app.handle(
+      new Request(`${BASE}/api/game/${game.id}`, { headers: auth(organizerToken) })
+    );
+    const active = await activeRes.json();
+    expect(active.currentQuestion.question).toBe(edited.question);
+    expect(active.currentQuestion.options.find((o: any) => o.isCorrect).text).toBe("Đáp án đúng");
+  });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterAll } from "bun:test";
 import { prisma } from "../src/plugins/prisma";
 import { clusterSessionQuestions } from "../src/modules/realtime/services/qa-cluster.service";
-import type { JsonGenerator } from "../src/services/ai.service";
+import { AiInvalidOutputError, type JsonGenerator } from "../src/services/ai.service";
 
 // Tạo session tạm riêng → không đụng dữ liệu seed. Không gọi mạng → tất định, không tốn quota.
 describe("clusterSessionQuestions (fake generator)", () => {
@@ -62,6 +62,12 @@ describe("clusterSessionQuestions (fake generator)", () => {
   });
 
   it("lần gom thứ 2 thay thế hoàn toàn kết quả cũ (không còn nhóm 'ma')", async () => {
+    // Reset clusteredAt để bypass cooldown trong test
+    await prisma.qAQuestion.updateMany({
+      where: { id: { in: ids } },
+      data: { clusteredAt: null },
+    });
+
     const fake: JsonGenerator = async () => ({
       clusters: [{ label: "Một nhóm", questionIds: ids, representativeId: ids[0] }],
     });
@@ -72,5 +78,55 @@ describe("clusterSessionQuestions (fake generator)", () => {
     const clusterIds = new Set(rows.map((r) => r.clusterId));
     expect(clusterIds.size).toBe(1);
     expect(clusterIds.has(result.clusters[0]!.id)).toBe(true);
+  });
+
+  it("gom lại trong 5s → CLUSTER_COOLDOWN, không gọi model và không đổi DB", async () => {
+    const select = { clusterId: true, clusterLabel: true, clusteredAt: true } as const;
+    const before = await prisma.qAQuestion.findMany({
+      where: { id: { in: ids } },
+      orderBy: { id: "asc" },
+      select,
+    });
+
+    const fake: JsonGenerator = async () => {
+      throw new Error("không được gọi model khi còn cooldown");
+    };
+    await expect(clusterSessionQuestions(sessionId, { generate: fake })).rejects.toThrow(
+      "CLUSTER_COOLDOWN"
+    );
+
+    const after = await prisma.qAQuestion.findMany({
+      where: { id: { in: ids } },
+      orderBy: { id: "asc" },
+      select,
+    });
+    expect(after).toEqual(before);
+  });
+
+  it("output LLM rỗng → AiInvalidOutputError, DB không đổi", async () => {
+    // clusteredAt cũ để cooldown không chặn; test này bắt lỗi mọi ghi DB trước khi validate.
+    await prisma.qAQuestion.updateMany({
+      where: { id: { in: ids } },
+      data: { clusteredAt: new Date(Date.now() - 60_000) },
+    });
+
+    const select = { clusterId: true, clusterLabel: true, clusteredAt: true } as const;
+    const before = await prisma.qAQuestion.findMany({
+      where: { id: { in: ids } },
+      orderBy: { id: "asc" },
+      select,
+    });
+
+    const fake: JsonGenerator = async () => ({ clusters: [] });
+    await expect(clusterSessionQuestions(sessionId, { generate: fake })).rejects.toThrow(
+      AiInvalidOutputError
+    );
+
+    const after = await prisma.qAQuestion.findMany({
+      where: { id: { in: ids } },
+      orderBy: { id: "asc" },
+      select,
+    });
+    expect(after).toEqual(before);
   });
 });
