@@ -15,34 +15,23 @@ qEvent/
 │   ├── src/
 │   │   ├── config/keys.ts        # Thuật toán sinh khóa RSA & RFC 6238 TOTP
 │   │   ├── plugins/prisma.ts     # Prisma client plugin
+│   │   ├── services/ai.service.ts# Gemini client lazy + validate + single-flight
 │   │   ├── modules/
 │   │   │   ├── auth/             # POST /api/auth/login, GET /api/auth/me
 │   │   │   ├── tickets/          # My tickets, Dynamic QR token, Sandbox purchase
 │   │   │   ├── checkin/          # Cache route, Online verify, Offline sync
-│   │   │   └── realtime/         # WebSocket /ws/qa (Live Q&A & Upvotes)
+│   │   │   ├── realtime/         # WebSocket /ws/qa, Q&A, polls, AI clustering
+│   │   │   ├── game/             # Quiz game engine (state machine, scoring)
+│   │   │   └── ai/               # POST /api/ai/generate-quiz (Gemini draft)
 │   │   └── index.ts              # Entrypoint máy chủ ElysiaJS
-│   └── test/
-│       └── crypto_checkin.test.ts # Bộ kiểm thử Bun test (100% Pass)
-├── app/                          # Mobile Frontend (React Native + Expo SDK 52 + Expo Router)
-│   ├── app/                      # File-based Routing
-│   │   ├── _layout.tsx           # Root Provider (Auth, OfflineSync, Light StatusBar)
-│   │   ├── index.tsx             # Định tuyến phân quyền theo Role
-│   │   ├── (auth)/login.tsx      # Đăng nhập kèm nút chuyển tài khoản nhanh
-│   │   ├── (attendee)/           # Khách tham dự Stack/Tabs
-│   │   │   ├── tickets.tsx       # Danh sách vé & mua Sandbox
-│   │   │   ├── ticket/[id].tsx   # Dynamic QR 30s (Anti-screenshot NFR-05)
-│   │   │   └── qa.tsx            # Live Q&A thời gian thực (WebSocket)
-│   │   └── (staff)/              # Nhân viên soát vé
-│   │       ├── scanner.tsx       # Quét vé Camera đa giác quan (Green/Amber/Red)
-│   │       └── sync-status.tsx   # Quản lý hàng đợi ngoại tuyến SQLite
-│   └── src/
-│       ├── components/           # Card, Button, Input, Badge, Header (No Border, Bottom Shadow)
-│       ├── context/              # AuthContext, OfflineSyncContext
-│       ├── services/             # db (SQLite), haptics, sound (av), security (screen-capture)
-│       └── constants/theme.ts    # Bảng màu Light Theme & Shadow Tokens
+│   └── test/                     # Bun test: crypto, flow, game, AI
+├── plans/                        # AI Integration Plan v2.2 (thiết kế + sprint)
 ├── docker-compose.yml            # Khởi chạy PostgreSQL 16
 └── MVP.md                        # Tài liệu đặc tả kỹ thuật MVP
 ```
+
+> Frontend mobile (`app/`) đã bị xoá ở commit `0270a5d`; frontend hiện nằm ở repo riêng
+> (xem `plans/ai-integration/07-rollout.md`, Sprint 4).
 
 ---
 
@@ -76,27 +65,16 @@ bun run dev
 bun test
 ```
 
-### 2. Frontend Mobile (Expo Router)
+### 2. Frontend Mobile (repo riêng)
 
-```bash
-# Di chuyển vào thư mục frontend app
-cd app
-
-# Cài đặt thư viện
-bun install
-
-# Khởi chạy Metro Bundler
-bun start
-
-# Hoặc khởi chạy giao diện Web preview tức thì
-bun run web
-```
+Thư mục `app/` đã bị xoá khỏi repo này ở commit `0270a5d`. Frontend Expo/React Native được phát triển
+ở repo riêng; xem Sprint 4 trong `plans/ai-integration/07-rollout.md` để biết phạm vi còn lại.
 
 ---
 
 ## 🔑 Tài Khoản Thử Nghiệm Mẫu
 
-Hệ thống đã tích hợp sẵn các nút chọn tài khoản nhanh trên màn hình đăng nhập:
+Tài khoản seed dùng cho API và test (mật khẩu chung `password123`):
 
 | Vai trò | Email | Mật khẩu | Chức năng chính |
 | :--- | :--- | :--- | :--- |
