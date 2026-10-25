@@ -183,7 +183,7 @@ export const gameLifecycleRoutes = new Elysia()
       include: {
         questions: {
           orderBy: { orderNum: "asc" },
-          include: { options: true, answers: true },
+          include: { options: true },
         },
       },
     });
@@ -205,9 +205,15 @@ export const gameLifecycleRoutes = new Elysia()
 
     const updatedGame = await prisma.quizGame.findUniqueOrThrow({ where: { id: game.id } });
 
+    // Đọc answer SAU khi CAS: tránh đếm thiếu người vừa trả lời trong lúc reveal.
+    const answers = await prisma.quizAnswer.findMany({
+      where: { questionId: currentQ.id },
+      select: { optionId: true },
+    });
+
     const answerCounts: Record<string, number> = {};
     for (const opt of currentQ.options) answerCounts[opt.id] = 0;
-    for (const ans of currentQ.answers) {
+    for (const ans of answers) {
       if (answerCounts[ans.optionId] !== undefined) answerCounts[ans.optionId]!++;
     }
 

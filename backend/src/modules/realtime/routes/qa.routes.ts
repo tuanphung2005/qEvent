@@ -317,17 +317,6 @@ export const qaRoutes = new Elysia()
       return { error: "AI_NOT_CONFIGURED", message: "Server chưa cấu hình GEMINI_API_KEY" };
     }
 
-    // Cooldown bền vững (đọc từ DB → sống sót qua restart / nhiều instance)
-    const latest = await prisma.qAQuestion.findFirst({
-      where: { sessionId: params.sessionId, clusteredAt: { not: null } },
-      orderBy: { clusteredAt: "desc" },
-      select: { clusteredAt: true },
-    });
-    if (latest?.clusteredAt && Date.now() - latest.clusteredAt.getTime() < CLUSTER_COOLDOWN_MS) {
-      set.status = 429;
-      return { error: "CLUSTER_COOLDOWN", message: "Vui lòng đợi vài giây rồi thử lại" };
-    }
-
     try {
       const limit = Number(query.limit) || 200;
       const result = await clusterSessionQuestions(params.sessionId, { limit });
@@ -356,7 +345,12 @@ export const qaRoutes = new Elysia()
         clusters: result.clusters,
       };
     } catch (err) {
+      const msg = (err as Error).message;
+      if (msg === "CLUSTER_COOLDOWN") {
+        set.status = 429;
+        return { error: "CLUSTER_COOLDOWN", message: "Vui lòng đợi vài giây rồi thử lại" };
+      }
       set.status = aiErrorStatus(err);
-      return { error: aiErrorCode(err), message: (err as Error).message };
+      return { error: aiErrorCode(err), message: msg };
     }
   });

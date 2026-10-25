@@ -121,8 +121,8 @@ export function aiErrorStatus(err: unknown): number {
 export function aiErrorCode(err: unknown): string {
   if (err instanceof AiNotConfiguredError) return "AI_NOT_CONFIGURED";
   if (err instanceof AiInvalidOutputError) return "AI_INVALID_OUTPUT";
-  const e = err as { status?: number };
+  const e = err as { status?: number; name?: string };
   if (e?.status === 429) return "AI_RATE_LIMITED";
-  if (e?.status === 504) return "AI_TIMEOUT";
+  if (e?.status === 504 || e?.name === "AbortError" || e?.name === "TimeoutError") return "AI_TIMEOUT";
   return "AI_FAILED";
 }

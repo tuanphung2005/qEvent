@@ -5,6 +5,6 @@ export const generateQuizBody = t.Object({
   gameId: t.String({ minLength: 1 }),
   topic: t.String({ minLength: 3, maxLength: 200 }),
   contextText: t.String({ minLength: 50, maxLength: 8000 }),
-  questionCount: t.Optional(t.Number({ minimum: 3, maximum: 10 })),
+  questionCount: t.Optional(t.Integer({ minimum: 3, maximum: 10 })),
   language: t.Optional(t.Union([t.Literal("vi"), t.Literal("en")])),
 });

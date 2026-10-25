@@ -111,33 +111,46 @@ export const gameCrudRoutes = new Elysia()
         return { error: "INVALID_OPTIONS", message: "4 đáp án phải khác nhau" };
       }
 
-      // max + 1, không dùng count (count sai ngay khi có câu bị xoá)
-      const agg = await prisma.quizQuestion.aggregate({
-        where: { gameId: guard.game.id },
-        _max: { orderNum: true },
-      });
-      const orderNum = (agg._max.orderNum ?? -1) + 1;
-
       const colors = ["RED", "BLUE", "YELLOW", "GREEN"] as const;
 
       try {
-        const createdQuestion = await prisma.quizQuestion.create({
-          data: {
-            gameId: guard.game.id,
-            orderNum,
-            question: question.trim(),
-            timeLimitSec: timeLimitSec ?? 20,
-            points: points ?? 1000,
-            options: {
-              create: options.map((opt, idx) => ({
-                text: opt.text.trim(),
-                color: colors[idx % 4],
-                isCorrect: opt.isCorrect,
-              })),
+        const createdQuestion = await prisma.$transaction(async (tx) => {
+          // Khoá hàng game + CAS: nếu /start vừa commit thì không ghi câu vào ván đã chạy.
+          const claim = await tx.quizGame.updateMany({
+            where: { id: guard.game.id, status: "WAITING" },
+            data: { status: "WAITING" },
+          });
+          if (claim.count !== 1) return null;
+
+          // max + 1, không dùng count (count sai ngay khi có câu bị xoá)
+          const agg = await tx.quizQuestion.aggregate({
+            where: { gameId: guard.game.id },
+            _max: { orderNum: true },
+          });
+
+          return tx.quizQuestion.create({
+            data: {
+              gameId: guard.game.id,
+              orderNum: (agg._max.orderNum ?? -1) + 1,
+              question: question.trim(),
+              timeLimitSec: timeLimitSec ?? 20,
+              points: points ?? 1000,
+              options: {
+                create: options.map((opt, idx) => ({
+                  text: opt.text.trim(),
+                  color: colors[idx % 4],
+                  isCorrect: opt.isCorrect,
+                })),
+              },
             },
-          },
-          include: { options: true },
+            include: { options: true },
+          });
         });
+
+        if (!createdQuestion) {
+          set.status = 409;
+          return { error: "GAME_STATE_CHANGED", message: "Game vừa bắt đầu — không thêm câu hỏi" };
+        }
 
         set.status = 201;
         return { question: createdQuestion };
@@ -188,8 +201,19 @@ export const gameCrudRoutes = new Elysia()
       const colors = ["RED", "BLUE", "YELLOW", "GREEN"] as const;
 
       const updated = await prisma.$transaction(async (tx) => {
+        // Khoá hàng game + CAS: không sửa câu khi ván đã bắt đầu.
+        const claim = await tx.quizGame.updateMany({
+          where: { id: guard.game.id, status: "WAITING" },
+          data: { status: "WAITING" },
+        });
+        if (claim.count !== 1) return { refused: "GAME_STATE_CHANGED" as const };
+
+        // Xoá option sẽ cascade xoá QuizAnswer → chặn nếu đã có câu trả lời.
+        const answers = await tx.quizAnswer.count({ where: { questionId: params.questionId } });
+        if (answers > 0) return { refused: "QUESTION_HAS_ANSWERS" as const };
+
         await tx.quizOption.deleteMany({ where: { questionId: params.questionId } });
-        return tx.quizQuestion.update({
+        const question = await tx.quizQuestion.update({
           where: { id: params.questionId },
           data: {
             question: body.question.trim(),
@@ -205,9 +229,21 @@ export const gameCrudRoutes = new Elysia()
           },
           include: { options: true },
         });
+        return { question };
       });
 
-      return { question: updated };
+      if ("refused" in updated) {
+        set.status = 409;
+        return {
+          error: updated.refused,
+          message:
+            updated.refused === "QUESTION_HAS_ANSWERS"
+              ? "Câu hỏi đã có người trả lời — không sửa được"
+              : "Game vừa bắt đầu — không sửa được câu hỏi",
+        };
+      }
+
+      return { question: updated.question };
     },
     { body: addQuestionBody }
   )

@@ -93,6 +93,7 @@ export function validateQuizDraft(raw: unknown, count: number): QuizDraftQuestio
 
   for (const item of rawQuestions) {
     if (out.length >= count) break;
+    if (typeof item !== "object" || item === null) continue;
 
     const q = item as { question?: unknown; difficulty?: unknown; options?: unknown };
     const text = typeof q.question === "string" ? q.question.trim() : "";

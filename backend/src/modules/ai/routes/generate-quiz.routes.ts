@@ -91,44 +91,64 @@ export const generateQuizRoutes = new Elysia()
             language,
           });
 
-          // Host có thể bấm Start trong lúc chờ AI → kiểm tra lại ngay trước khi ghi.
-          const fresh = await prisma.quizGame.findUnique({
-            where: { id: game.id },
-            select: { status: true },
-          });
-          if (fresh?.status !== "WAITING") return { ok: false as const };
+          // 1 transaction + CAS: nếu /start vừa commit thì không ghi câu vào ván đã chạy.
+          const created = await prisma.$transaction(async (tx) => {
+            const claim = await tx.quizGame.updateMany({
+              where: { id: game.id, status: "WAITING" },
+              data: { status: "WAITING" },
+            });
+            if (claim.count !== 1) return null;
 
-          // orderNum dựa trên max hiện có (count sẽ sai nếu có câu bị xoá)
-          const agg = await prisma.quizQuestion.aggregate({
-            where: { gameId: game.id },
-            _max: { orderNum: true },
-          });
-          const baseOrderNum = (agg._max.orderNum ?? -1) + 1;
+            // Lấy vân tay câu hỏi đã có để tránh trùng lặp (fingerprint = lowercase + collapse whitespace)
+            const existing = await tx.quizQuestion.findMany({
+              where: { gameId: game.id },
+              select: { question: true },
+            });
+            const existingFps = new Set(
+              existing.map((q) => q.question.toLowerCase().replace(/\s+/g, " "))
+            );
 
-          // 1 transaction → all-or-nothing
-          const created = await prisma.$transaction(
-            draft.map((q, i) =>
-              prisma.quizQuestion.create({
-                data: {
-                  gameId: game.id,
-                  orderNum: baseOrderNum + i,
-                  question: q.question,
-                  timeLimitSec: q.timeLimitSec,
-                  points: q.points,
-                  options: {
-                    create: q.options.map((opt, idx) => ({
-                      text: opt.text,
-                      color: COLORS[idx % 4],
-                      isCorrect: opt.isCorrect,
-                    })),
+            // Lọc draft: bỏ câu trùng fingerprint
+            const filtered = draft.filter((q) => {
+              const fp = q.question.toLowerCase().replace(/\s+/g, " ");
+              if (existingFps.has(fp)) return false;
+              existingFps.add(fp);
+              return true;
+            });
+
+            if (filtered.length === 0) return [];
+
+            // orderNum dựa trên max hiện có (count sẽ sai nếu có câu bị xoá)
+            const agg = await tx.quizQuestion.aggregate({
+              where: { gameId: game.id },
+              _max: { orderNum: true },
+            });
+            const baseOrderNum = (agg._max.orderNum ?? -1) + 1;
+
+            return Promise.all(
+              filtered.map((q, i) =>
+                tx.quizQuestion.create({
+                  data: {
+                    gameId: game.id,
+                    orderNum: baseOrderNum + i,
+                    question: q.question,
+                    timeLimitSec: q.timeLimitSec,
+                    points: q.points,
+                    options: {
+                      create: q.options.map((opt, idx) => ({
+                        text: opt.text,
+                        color: COLORS[idx % 4],
+                        isCorrect: opt.isCorrect,
+                      })),
+                    },
                   },
-                },
-                include: { options: true },
-              })
-            )
-          );
+                  include: { options: true },
+                })
+              )
+            );
+          });
 
-          return { ok: true as const, created };
+          return created ? { ok: true as const, created } : { ok: false as const };
         });
 
         if (!outcome.ok) {

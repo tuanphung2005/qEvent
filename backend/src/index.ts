@@ -7,8 +7,15 @@ import { realtimeModule } from "./modules/realtime";
 import { gameModule } from "./modules/game";
 import { aiModule } from "./modules/ai";
 
-if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
-  throw new Error("JWT_SECRET bắt buộc ở production (fallback hard-code chỉ dành cho dev/test)");
+const FALLBACK_JWT_SECRET = "qevent_super_secret_jwt_key_2026_production_grade";
+
+if (
+  process.env.NODE_ENV === "production" &&
+  (!process.env.JWT_SECRET || process.env.JWT_SECRET === FALLBACK_JWT_SECRET)
+) {
+  throw new Error(
+    "JWT_SECRET bắt buộc ở production và không được trùng fallback công khai"
+  );
 }
 
 const port = Number(process.env.PORT) || 3000;

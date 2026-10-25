@@ -119,35 +119,32 @@ export const answerRoutes = new Elysia()
         currentQ.points
       );
 
+      // CAS: chỉ ghi nếu ván vẫn QUESTION_ACTIVE và đúng index câu hỏi.
+      let written: any;
       try {
-        const answer = await prisma.quizAnswer.create({
-          data: {
-            gameId: game.id,
-            questionId: currentQ.id,
-            optionId,
-            userId: currentUser.id, // luôn từ JWT
-            isCorrect,
-            responseTimeMs,
-            scoreAwarded,
-          },
-        });
+        written = await prisma.$transaction(async (tx) => {
+          const res = await tx.quizGame.updateMany({
+            where: {
+              id: game.id,
+              status: "QUESTION_ACTIVE",
+              currentQuestionIndex: game.currentQuestionIndex,
+            },
+            data: { updatedAt: new Date() },
+          });
+          if (res.count !== 1) return null;
 
-        const totalAnswersCount = await prisma.quizAnswer.count({
-          where: { questionId: currentQ.id },
+          return tx.quizAnswer.create({
+            data: {
+              gameId: game.id,
+              questionId: currentQ.id,
+              optionId,
+              userId: currentUser.id,
+              isCorrect,
+              responseTimeMs,
+              scoreAwarded,
+            },
+          });
         });
-        broadcastToGame(game.id, {
-          type: "ANSWER_COUNT_UPDATED",
-          gameId: game.id,
-          questionId: currentQ.id,
-          totalAnswersCount,
-        });
-
-        return {
-          message: "Câu trả lời đã được ghi nhận",
-          answerId: answer.id,
-          responseTimeMs,
-          submitted: true,
-        };
       } catch (err) {
         if (isUniqueViolation(err)) {
           set.status = 409;
@@ -155,6 +152,28 @@ export const answerRoutes = new Elysia()
         }
         throw err;
       }
+
+      if (!written) {
+        set.status = 400;
+        return { error: "ANSWER_WINDOW_CLOSED", message: "Ván vừa đổi trạng thái — không ghi được câu trả lời" };
+      }
+
+      const totalAnswersCount = await prisma.quizAnswer.count({
+        where: { questionId: currentQ.id },
+      });
+      broadcastToGame(game.id, {
+        type: "ANSWER_COUNT_UPDATED",
+        gameId: game.id,
+        questionId: currentQ.id,
+        totalAnswersCount,
+      });
+
+      return {
+        message: "Câu trả lời đã được ghi nhận",
+        answerId: written.id,
+        responseTimeMs,
+        submitted: true,
+      };
     },
     {
       body: submitAnswerBody,

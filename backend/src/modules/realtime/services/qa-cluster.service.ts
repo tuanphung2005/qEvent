@@ -65,6 +65,7 @@ export function validateClusters(raw: unknown, questions: readonly QuestionRow[]
   const out: ValidatedCluster[] = [];
 
   for (const item of rawClusters) {
+    if (typeof item !== "object" || item === null) continue;
     const c = item as { label?: unknown; questionIds?: unknown; representativeId?: unknown };
 
     const label = typeof c.label === "string" ? c.label.trim().slice(0, 80) : "";
@@ -106,7 +107,9 @@ export function validateClusters(raw: unknown, questions: readonly QuestionRow[]
 function buildPrompt(questions: readonly QuestionRow[]): string {
   const payload = JSON.stringify(
     questions.map((q) => ({ id: q.id, content: q.content.slice(0, 500), upvotes: q.upvotes }))
-  );
+  )
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e");
 
   return `Bạn là trợ lý gom nhóm câu hỏi cho một sự kiện.
 
@@ -135,8 +138,9 @@ export function clusterSessionQuestions(
   sessionId: string,
   options: { limit?: number; generate?: JsonGenerator } = {}
 ): Promise<ClusterResult> {
-  // double-click → dùng chung 1 lần gọi. Key gồm limit để 2 limit khác nhau không lẫn kết quả.
-  return singleFlight(`cluster:${sessionId}:${options.limit ?? 200}`, () =>
+  const safeLimit = Math.min(Math.max(options.limit ?? 200, 1), 300);
+  // single-flight trên safeLimit để 2 request cùng session không gọi Gemini 2 lần
+  return singleFlight(`cluster:${sessionId}:${safeLimit}`, () =>
     runCluster(sessionId, options)
   );
 }
@@ -145,6 +149,16 @@ async function runCluster(
   sessionId: string,
   { limit = 200, generate = generateJson }: { limit?: number; generate?: JsonGenerator }
 ): Promise<ClusterResult> {
+  // Cooldown đọc từ DB → sống qua restart. single-flight lo request song song.
+  const latest = await prisma.qAQuestion.findFirst({
+    where: { sessionId, clusteredAt: { not: null } },
+    orderBy: { clusteredAt: "desc" },
+    select: { clusteredAt: true },
+  });
+  if (latest?.clusteredAt && Date.now() - latest.clusteredAt.getTime() < CLUSTER_COOLDOWN_MS) {
+    throw new Error("CLUSTER_COOLDOWN");
+  }
+
   const total = await prisma.qAQuestion.count({ where: { sessionId } });
   if (total === 0) return { clusters: [], considered: 0, truncated: false };
 
