@@ -1,9 +1,10 @@
 import { Elysia } from "elysia";
 import { jwt } from "@elysiajs/jwt";
 import { prisma } from "../../../plugins/prisma";
-import { getSessionLiveStatus, checkUserSessionAccess } from "../../realtime";
+import { getSessionLiveStatus, checkUserSessionAccess, HOST_ROLES } from "../../realtime";
 import { getGameLeaderboard } from "../services/scoring.service";
 import { createGameBody, addQuestionBody } from "../schemas";
+import { requireHost, requireSessionHost, isUniqueViolation } from "../services/access.service";
 
 export const gameCrudRoutes = new Elysia()
   .use(
@@ -62,10 +63,16 @@ export const gameCrudRoutes = new Elysia()
   .post(
     "/session/:sessionId",
     async ({ params, body, currentUser, set }) => {
+      const guard = await requireSessionHost(params.sessionId, currentUser?.id);
+      if (!guard.ok) {
+        set.status = guard.status;
+        return { error: guard.error, message: guard.message };
+      }
+
       const { title, description } = body;
       const game = await prisma.quizGame.create({
         data: {
-          sessionId: params.sessionId,
+          sessionId: guard.sessionId,
           title: title.trim(),
           description: description?.trim(),
           status: "WAITING",
@@ -75,57 +82,134 @@ export const gameCrudRoutes = new Elysia()
       set.status = 201;
       return { game };
     },
-    {
-      body: createGameBody,
-    }
+    { body: createGameBody }
   )
   // Add a Question to a Quiz Game
   .post(
     "/:gameId/question",
-    async ({ params, body, set }) => {
+    async ({ params, body, currentUser, set }) => {
+      const guard = await requireHost(params.gameId, currentUser?.id, { statuses: ["WAITING"] });
+      if (!guard.ok) {
+        set.status = guard.status;
+        return { error: guard.error, message: guard.message };
+      }
+
       const { question, timeLimitSec, points, options } = body;
 
-      if (!options || options.length !== 4) {
+      // Schema đã ép 4 phần tử; đây là chốt thứ hai cho client cũ/gọi trực tiếp.
+      if (options.length !== 4) {
         set.status = 400;
-        return { error: "Mỗi câu hỏi cần đúng 4 phương án lựa chọn (Đỏ, Xanh dương, Vàng, Xanh lá)" };
+        return { error: "INVALID_OPTIONS", message: "Cần đúng 4 phương án" };
+      }
+      if (options.filter((o) => o.isCorrect).length !== 1) {
+        set.status = 400;
+        return { error: "INVALID_OPTIONS", message: "Phải có đúng 1 đáp án đúng" };
+      }
+      const texts = options.map((o) => o.text.trim().toLowerCase());
+      if (new Set(texts).size !== 4) {
+        set.status = 400;
+        return { error: "INVALID_OPTIONS", message: "4 đáp án phải khác nhau" };
       }
 
-      const hasCorrect = options.some((o: any) => o.isCorrect);
-      if (!hasCorrect) {
-        set.status = 400;
-        return { error: "Phải có ít nhất 1 đáp án đúng" };
-      }
-
-      const existingCount = await prisma.quizQuestion.count({
-        where: { gameId: params.gameId },
+      // max + 1, không dùng count (count sai ngay khi có câu bị xoá)
+      const agg = await prisma.quizQuestion.aggregate({
+        where: { gameId: guard.game.id },
+        _max: { orderNum: true },
       });
+      const orderNum = (agg._max.orderNum ?? -1) + 1;
 
       const colors = ["RED", "BLUE", "YELLOW", "GREEN"] as const;
 
-      const createdQuestion = await prisma.quizQuestion.create({
-        data: {
-          gameId: params.gameId,
-          orderNum: existingCount,
-          question: question.trim(),
-          timeLimitSec: timeLimitSec || 20,
-          points: points || 1000,
-          options: {
-            create: options.map((opt: any, idx: number) => ({
-              text: opt.text.trim(),
-              color: colors[idx % 4],
-              isCorrect: Boolean(opt.isCorrect),
-            })),
+      try {
+        const createdQuestion = await prisma.quizQuestion.create({
+          data: {
+            gameId: guard.game.id,
+            orderNum,
+            question: question.trim(),
+            timeLimitSec: timeLimitSec ?? 20,
+            points: points ?? 1000,
+            options: {
+              create: options.map((opt, idx) => ({
+                text: opt.text.trim(),
+                color: colors[idx % 4],
+                isCorrect: opt.isCorrect,
+              })),
+            },
           },
-        },
-        include: { options: true },
+          include: { options: true },
+        });
+
+        set.status = 201;
+        return { question: createdQuestion };
+      } catch (err) {
+        // 2 request đồng thời lấy cùng orderNum → unique (gameId, orderNum) chặn
+        if (isUniqueViolation(err)) {
+          set.status = 409;
+          return { error: "ORDER_CONFLICT", message: "Câu hỏi vừa được thêm, thử lại" };
+        }
+        throw err;
+      }
+    },
+    { body: addQuestionBody }
+  )
+  // Host: edit a question before the game starts
+  .patch(
+    "/:gameId/question/:questionId",
+    async ({ params, body, currentUser, set }) => {
+      const guard = await requireHost(params.gameId, currentUser?.id, { statuses: ["WAITING"] });
+      if (!guard.ok) {
+        set.status = guard.status;
+        return { error: guard.error, message: guard.message };
+      }
+
+      const existing = await prisma.quizQuestion.findFirst({
+        where: { id: params.questionId, gameId: guard.game.id },
+        select: { id: true },
+      });
+      if (!existing) {
+        set.status = 404;
+        return { error: "QUESTION_NOT_FOUND" };
+      }
+
+      if (body.options.length !== 4) {
+        set.status = 400;
+        return { error: "INVALID_OPTIONS", message: "Mỗi câu hỏi cần đúng 4 phương án" };
+      }
+      if (body.options.filter((o) => o.isCorrect).length !== 1) {
+        set.status = 400;
+        return { error: "INVALID_OPTIONS", message: "Phải có đúng 1 đáp án đúng" };
+      }
+      const texts = body.options.map((o) => o.text.trim().toLowerCase());
+      if (new Set(texts).size !== 4) {
+        set.status = 400;
+        return { error: "INVALID_OPTIONS", message: "4 đáp án phải khác nhau" };
+      }
+
+      const colors = ["RED", "BLUE", "YELLOW", "GREEN"] as const;
+
+      const updated = await prisma.$transaction(async (tx) => {
+        await tx.quizOption.deleteMany({ where: { questionId: params.questionId } });
+        return tx.quizQuestion.update({
+          where: { id: params.questionId },
+          data: {
+            question: body.question.trim(),
+            ...(body.timeLimitSec !== undefined && { timeLimitSec: body.timeLimitSec }),
+            ...(body.points !== undefined && { points: body.points }),
+            options: {
+              create: body.options.map((opt, idx) => ({
+                text: opt.text.trim(),
+                color: colors[idx % 4],
+                isCorrect: opt.isCorrect,
+              })),
+            },
+          },
+          include: { options: true },
+        });
       });
 
-      set.status = 201;
-      return { question: createdQuestion };
+      return { question: updated };
     },
-    {
-      body: addQuestionBody,
-    }
+    { body: addQuestionBody }
   )
   // Get game details & current active question state
   .get("/:gameId", async ({ params, currentUser, set }) => {
@@ -149,10 +233,10 @@ export const gameCrudRoutes = new Elysia()
 
     const { isLive } = await getSessionLiveStatus(game.sessionId);
     const access = await checkUserSessionAccess(game.sessionId, currentUser?.id);
+    const isHost = HOST_ROLES.includes(access.role); // ORGANIZER | SPEAKER (STAFF không có)
 
-    // Sanitization: If status is not ROUND_REVEALED or FINISHED, hide `isCorrect` from options to prevent client inspection
     const sanitizedQuestions = game.questions.map((q, idx) => {
-      const isPastOrRevealed =
+      const revealedForPlayer =
         game.status === "FINISHED" ||
         (game.status === "ROUND_REVEALED" && idx === game.currentQuestionIndex) ||
         idx < game.currentQuestionIndex;
@@ -168,7 +252,8 @@ export const gameCrudRoutes = new Elysia()
           id: opt.id,
           text: opt.text,
           color: opt.color,
-          isCorrect: isPastOrRevealed ? opt.isCorrect : undefined,
+          // host luôn thấy; người chơi chỉ thấy khi đã tới lúc reveal
+          isCorrect: isHost || revealedForPlayer ? opt.isCorrect : undefined,
         })),
       };
     });
@@ -204,6 +289,8 @@ export const gameCrudRoutes = new Elysia()
       currentQuestionIndex: game.currentQuestionIndex,
       totalQuestions: game.questions.length,
       currentQuestion,
+      // Chỉ host cần danh sách đầy đủ để preview/sửa; player giữ nguyên response cũ.
+      ...(isHost ? { questions: sanitizedQuestions } : {}),
       isLive,
       userAccess: {
         isCheckedIn: access.isCheckedIn,

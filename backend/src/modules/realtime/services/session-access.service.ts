@@ -1,5 +1,10 @@
 import { prisma } from "../../../plugins/prisma";
 
+/** Người điều phối Q&A: gom nhóm, ghim, trả lời câu hỏi. */
+export const MODERATOR_ROLES: readonly string[] = ["ORGANIZER", "SPEAKER", "STAFF"];
+/** Host/speaker: tạo quiz và xem đáp án đúng khi preview. STAFF không thuộc nhóm này. */
+export const HOST_ROLES: readonly string[] = ["ORGANIZER", "SPEAKER"];
+
 /**
  * Determine if a session is currently within its live event window
  */

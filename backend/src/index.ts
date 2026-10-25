@@ -5,6 +5,11 @@ import { ticketsModule } from "./modules/tickets";
 import { checkinModule } from "./modules/checkin";
 import { realtimeModule } from "./modules/realtime";
 import { gameModule } from "./modules/game";
+import { aiModule } from "./modules/ai";
+
+if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET bắt buộc ở production (fallback hard-code chỉ dành cho dev/test)");
+}
 
 const port = Number(process.env.PORT) || 3000;
 
@@ -25,6 +30,7 @@ export const app = new Elysia()
   .use(checkinModule)
   .use(realtimeModule)
   .use(gameModule)
+  .use(aiModule)
   .listen({ port, hostname: process.env.HOST || "0.0.0.0" });
 
 console.log(`🚀 qEvent Backend server is running at http://${app.server?.hostname}:${app.server?.port}`);

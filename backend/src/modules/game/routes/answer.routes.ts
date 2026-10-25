@@ -4,7 +4,10 @@ import { prisma } from "../../../plugins/prisma";
 import { getSessionLiveStatus, checkUserSessionAccess } from "../../realtime";
 import { broadcastToGame } from "../services/broadcast.service";
 import { calculateQuizScore, getGameLeaderboard } from "../services/scoring.service";
+import { isUniqueViolation } from "../services/access.service";
 import { submitAnswerBody } from "../schemas";
+
+const ANSWER_GRACE_MS = 2_000; // dung sai mạng; client không điều khiển được
 
 export const answerRoutes = new Elysia()
   .use(
@@ -35,25 +38,22 @@ export const answerRoutes = new Elysia()
   .post(
     "/:gameId/answer",
     async ({ params, body, currentUser, set }) => {
-      const { questionId, optionId, responseTimeMs } = body;
-      const effectiveUserId = currentUser?.id || (body as any).userId;
-
-      if (!effectiveUserId) {
+      if (!currentUser) {
         set.status = 401;
-        return { error: "Vui lòng đăng nhập để tham gia trò chơi" };
+        return { error: "UNAUTHORIZED", message: "Vui lòng đăng nhập để tham gia trò chơi" };
       }
+
+      const { questionId, optionId } = body;
 
       const game = await prisma.quizGame.findUnique({
         where: { id: params.gameId },
         include: { session: true },
       });
-
       if (!game) {
         set.status = 404;
-        return { error: "Game not found" };
+        return { error: "GAME_NOT_FOUND" };
       }
 
-      // Check live status
       const { isLive } = await getSessionLiveStatus(game.sessionId);
       if (!isLive) {
         set.status = 403;
@@ -63,8 +63,7 @@ export const answerRoutes = new Elysia()
         };
       }
 
-      // Check attendance
-      const access = await checkUserSessionAccess(game.sessionId, effectiveUserId);
+      const access = await checkUserSessionAccess(game.sessionId, currentUser.id);
       if (!access.isCheckedIn) {
         set.status = 403;
         return {
@@ -73,80 +72,89 @@ export const answerRoutes = new Elysia()
         };
       }
 
-      // Check question and game state
       if (game.status !== "QUESTION_ACTIVE") {
         set.status = 400;
-        return { error: "Câu hỏi hiện tại đã hết thời gian trả lời" };
+        return { error: "ANSWER_WINDOW_CLOSED", message: "Câu hỏi hiện tại đã hết thời gian trả lời" };
       }
 
-      const question = await prisma.quizQuestion.findUnique({
-        where: { id: questionId },
+      // Câu đang active = phần tử thứ currentQuestionIndex trong thứ tự orderNum
+      const [currentQ] = await prisma.quizQuestion.findMany({
+        where: { gameId: game.id },
+        orderBy: { orderNum: "asc" },
+        skip: Math.max(game.currentQuestionIndex, 0),
+        take: 1,
         include: { options: true },
       });
 
-      if (!question || question.gameId !== game.id) {
+      if (!currentQ || currentQ.id !== questionId) {
         set.status = 400;
-        return { error: "Câu hỏi không hợp lệ" };
+        return { error: "NOT_CURRENT_QUESTION", message: "Chỉ trả lời được câu đang hiển thị" };
+      }
+      if (!currentQ.questionStartedAt) {
+        set.status = 409;
+        return { error: "QUESTION_NOT_STARTED" };
       }
 
-      const selectedOption = question.options.find((o) => o.id === optionId);
+      const limitMs = currentQ.timeLimitSec * 1000;
+      const elapsedMs = Date.now() - currentQ.questionStartedAt.getTime();
+      if (elapsedMs > limitMs + ANSWER_GRACE_MS) {
+        set.status = 400;
+        return { error: "ANSWER_TOO_LATE", message: "Đã quá thời gian trả lời" };
+      }
+
+      // Server quyết định thời gian; client không gửi được số này nữa
+      const responseTimeMs = Math.min(Math.max(elapsedMs, 0), limitMs);
+
+      const selectedOption = currentQ.options.find((o) => o.id === optionId);
       if (!selectedOption) {
         set.status = 400;
-        return { error: "Lựa chọn không hợp lệ" };
-      }
-
-      // Prevent duplicate answers
-      const existingAnswer = await prisma.quizAnswer.findUnique({
-        where: {
-          questionId_userId: {
-            questionId,
-            userId: effectiveUserId,
-          },
-        },
-      });
-
-      if (existingAnswer) {
-        set.status = 409;
-        return { error: "Bạn đã gửi câu trả lời cho câu hỏi này rồi" };
+        return { error: "INVALID_OPTION" };
       }
 
       const isCorrect = selectedOption.isCorrect;
       const scoreAwarded = calculateQuizScore(
         isCorrect,
         responseTimeMs,
-        question.timeLimitSec,
-        question.points
+        currentQ.timeLimitSec,
+        currentQ.points
       );
 
-      const answer = await prisma.quizAnswer.create({
-        data: {
+      try {
+        const answer = await prisma.quizAnswer.create({
+          data: {
+            gameId: game.id,
+            questionId: currentQ.id,
+            optionId,
+            userId: currentUser.id, // luôn từ JWT
+            isCorrect,
+            responseTimeMs,
+            scoreAwarded,
+          },
+        });
+
+        const totalAnswersCount = await prisma.quizAnswer.count({
+          where: { questionId: currentQ.id },
+        });
+        broadcastToGame(game.id, {
+          type: "ANSWER_COUNT_UPDATED",
           gameId: game.id,
-          questionId,
-          optionId,
-          userId: effectiveUserId,
-          isCorrect,
+          questionId: currentQ.id,
+          totalAnswersCount,
+        });
+
+        return {
+          message: "Câu trả lời đã được ghi nhận",
+          answerId: answer.id,
           responseTimeMs,
-          scoreAwarded,
-        },
-      });
-
-      const totalAnswersCount = await prisma.quizAnswer.count({
-        where: { questionId },
-      });
-
-      broadcastToGame(game.id, {
-        type: "ANSWER_COUNT_UPDATED",
-        gameId: game.id,
-        questionId,
-        totalAnswersCount,
-      });
-
-      return {
-        message: "Câu trả lời đã được ghi nhận",
-        answerId: answer.id,
-        responseTimeMs,
-        submitted: true,
-      };
+          submitted: true,
+        };
+      } catch (err) {
+        if (isUniqueViolation(err)) {
+          set.status = 409;
+          return { error: "ALREADY_ANSWERED", message: "Bạn đã gửi câu trả lời cho câu hỏi này rồi" };
+        }
+        throw err;
+      }
     },
     {
       body: submitAnswerBody,

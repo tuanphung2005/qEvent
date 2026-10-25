@@ -163,18 +163,23 @@ model CheckinLog {
 }
 
 model QAQuestion {
-  id         String           @id @default(uuid())
-  sessionId  String
-  userId     String
-  content    String
-  answerText String?
-  isPinned   Boolean          @default(false)
-  upvotes    Int              @default(0)
-  isAnswered Boolean          @default(false)
-  createdAt  DateTime         @default(now())
-  session    Session          @relation(fields: [sessionId], references: [id])
-  user       User             @relation(fields: [userId], references: [id])
-  votes      QAQuestionVote[]
+  id           String           @id @default(uuid())
+  sessionId    String
+  userId       String
+  content      String
+  answerText   String?
+  isPinned     Boolean          @default(false)
+  upvotes      Int              @default(0)
+  isAnswered   Boolean          @default(false)
+  clusterId    String?
+  clusterLabel String?
+  clusteredAt  DateTime?
+  createdAt    DateTime         @default(now())
+  session      Session          @relation(fields: [sessionId], references: [id])
+  user         User             @relation(fields: [userId], references: [id])
+  votes        QAQuestionVote[]
+
+  @@index([sessionId, clusteredAt])
 }
 
 model QAQuestionVote {
@@ -252,7 +257,7 @@ model QuizQuestion {
   options           QuizOption[]
   answers           QuizAnswer[]
 
-  @@index([gameId])
+  @@unique([gameId, orderNum])
 }
 
 model QuizOption {

@@ -1,9 +1,8 @@
 import { Elysia, t } from "elysia";
 import { jwt } from "@elysiajs/jwt";
 import { prisma } from "../../../plugins/prisma";
-import { checkUserSessionAccess } from "../../realtime";
-import { gameSubscribers, broadcastToGame } from "../services/broadcast.service";
-import { calculateQuizScore, getGameLeaderboard } from "../services/scoring.service";
+import { gameSubscribers } from "../services/broadcast.service";
+import { getGameLeaderboard } from "../services/scoring.service";
 
 export const gameWs = new Elysia()
   .use(
@@ -43,16 +42,7 @@ export const gameWs = new Elysia()
 
         switch (data.type) {
           case "JOIN_GAME": {
-            const { gameId, userId } = data;
-            if ((ws.data as any).currentGameId) {
-              gameSubscribers.get((ws.data as any).currentGameId)?.delete(ws);
-            }
-            (ws.data as any).currentGameId = gameId;
-
-            if (!gameSubscribers.has(gameId)) {
-              gameSubscribers.set(gameId, new Set());
-            }
-            gameSubscribers.get(gameId)!.add(ws);
+            const { gameId } = data;
 
             const game = await prisma.quizGame.findUnique({
               where: { id: gameId },
@@ -64,7 +54,17 @@ export const gameWs = new Elysia()
               },
             });
 
-            if (!game) break;
+            if (!game) {
+              ws.send(JSON.stringify({ type: "GAME_NOT_FOUND", gameId }));
+              break;
+            }
+
+            if ((ws.data as any).currentGameId) {
+              gameSubscribers.get((ws.data as any).currentGameId)?.delete(ws);
+            }
+            (ws.data as any).currentGameId = gameId;
+            if (!gameSubscribers.has(gameId)) gameSubscribers.set(gameId, new Set());
+            gameSubscribers.get(gameId)!.add(ws);
 
             const currentQ =
               game.currentQuestionIndex >= 0 && game.questions[game.currentQuestionIndex]
@@ -96,61 +96,6 @@ export const gameWs = new Elysia()
                 leaderboard: await getGameLeaderboard(gameId, 5),
               })
             );
-            break;
-          }
-
-          case "SUBMIT_ANSWER": {
-            const { gameId, questionId, optionId, userId, responseTimeMs } = data;
-            if (!gameId || !questionId || !optionId || !userId) break;
-
-            const game = await prisma.quizGame.findUnique({
-              where: { id: gameId },
-            });
-            if (!game || game.status !== "QUESTION_ACTIVE") break;
-
-            const access = await checkUserSessionAccess(game.sessionId, userId);
-            if (!access.isCheckedIn) break;
-
-            const q = await prisma.quizQuestion.findUnique({
-              where: { id: questionId },
-              include: { options: true },
-            });
-            if (!q) break;
-
-            const chosen = q.options.find((o) => o.id === optionId);
-            if (!chosen) break;
-
-            const isCorrect = chosen.isCorrect;
-            const score = calculateQuizScore(
-              isCorrect,
-              responseTimeMs || 5000,
-              q.timeLimitSec,
-              q.points
-            );
-
-            try {
-              await prisma.quizAnswer.create({
-                data: {
-                  gameId,
-                  questionId,
-                  optionId,
-                  userId,
-                  isCorrect,
-                  responseTimeMs: responseTimeMs || 5000,
-                  scoreAwarded: score,
-                },
-              });
-
-              const total = await prisma.quizAnswer.count({ where: { questionId } });
-              broadcastToGame(gameId, {
-                type: "ANSWER_COUNT_UPDATED",
-                gameId,
-                questionId,
-                totalAnswersCount: total,
-              });
-            } catch {
-              // Ignore duplicate answer attempt
-            }
             break;
           }
         }

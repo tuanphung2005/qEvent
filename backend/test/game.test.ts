@@ -7,6 +7,7 @@ describe("qEvent Kahoot-like Live Quiz Game Engine", () => {
   let attendeeToken: string;
   let attendeeId: string;
   let unCheckedInToken: string;
+  let organizerToken: string;
   let sessionId: string;
   let gameId: string;
   let question0Id: string;
@@ -37,7 +38,17 @@ describe("qEvent Kahoot-like Live Quiz Game Engine", () => {
     const guestData = await guestLogin.json();
     unCheckedInToken = guestData.token;
 
-    // 3. Find seeded game
+    // 3. Login organizer (host routes require a host token)
+    const organizerLogin = await app.handle(
+      new Request("http://localhost:3000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "organizer@qevent.com", password: "password123" }),
+      })
+    );
+    organizerToken = (await organizerLogin.json()).token;
+
+    // 4. Find seeded game
     const game = await prisma.quizGame.findFirst({
       include: {
         questions: {
@@ -51,6 +62,15 @@ describe("qEvent Kahoot-like Live Quiz Game Engine", () => {
     gameId = game.id;
     sessionId = game.sessionId;
     await prisma.quizAnswer.deleteMany({ where: { gameId: game.id } });
+    // Suite có thể chạy lại trên cùng DB: đưa game seed về WAITING để test tất định
+    await prisma.quizGame.update({
+      where: { id: game.id },
+      data: { status: "WAITING", currentQuestionIndex: -1 },
+    });
+    await prisma.quizQuestion.updateMany({
+      where: { gameId: game.id },
+      data: { questionStartedAt: null },
+    });
 
     const q0 = game.questions[0];
     question0Id = q0.id;
@@ -98,6 +118,7 @@ describe("qEvent Kahoot-like Live Quiz Game Engine", () => {
     const startRes = await app.handle(
       new Request(`http://localhost:3000/api/game/${gameId}/start`, {
         method: "POST",
+        headers: { Authorization: `Bearer ${organizerToken}` },
       })
     );
 
@@ -187,6 +208,7 @@ describe("qEvent Kahoot-like Live Quiz Game Engine", () => {
     const revealRes = await app.handle(
       new Request(`http://localhost:3000/api/game/${gameId}/reveal`, {
         method: "POST",
+        headers: { Authorization: `Bearer ${organizerToken}` },
       })
     );
 
@@ -206,6 +228,7 @@ describe("qEvent Kahoot-like Live Quiz Game Engine", () => {
     const endRes = await app.handle(
       new Request(`http://localhost:3000/api/game/${gameId}/end`, {
         method: "POST",
+        headers: { Authorization: `Bearer ${organizerToken}` },
       })
     );
 

@@ -3,6 +3,7 @@ import { jwt } from "@elysiajs/jwt";
 import { prisma } from "../../../plugins/prisma";
 import { broadcastToGame } from "../services/broadcast.service";
 import { getGameLeaderboard } from "../services/scoring.service";
+import { requireHost, transition } from "../services/access.service";
 
 export const gameLifecycleRoutes = new Elysia()
   .use(
@@ -30,37 +31,49 @@ export const gameLifecycleRoutes = new Elysia()
     };
   })
   // Host: Start the game (starts question 0)
-  .post("/:gameId/start", async ({ params, set }) => {
+  .post("/:gameId/start", async ({ params, currentUser, set }) => {
+    const guard = await requireHost(params.gameId, currentUser?.id, { statuses: ["WAITING"] });
+    if (!guard.ok) {
+      set.status = guard.status;
+      return { error: guard.error, message: guard.message };
+    }
+
     const game = await prisma.quizGame.findUnique({
-      where: { id: params.gameId },
+      where: { id: guard.game.id },
       include: {
-        questions: {
-          orderBy: { orderNum: "asc" },
-          include: { options: true },
-        },
+        questions: { orderBy: { orderNum: "asc" }, include: { options: true } },
       },
     });
-
     if (!game || game.questions.length === 0) {
-      set.status = 400;
-      return { error: "Trò chơi chưa có câu hỏi nào để bắt đầu" };
+      set.status = 422;
+      return { error: "NO_QUESTIONS", message: "Trò chơi chưa có câu hỏi nào để bắt đầu" };
     }
 
     const now = new Date();
-    await prisma.quizQuestion.update({
-      where: { id: game.questions[0].id },
-      data: { questionStartedAt: now },
+    const firstQ = game.questions[0]!;
+
+    // 1 transaction: đổi trạng thái (CAS) + đóng dấu giờ câu 0. Không có cửa sổ nửa vời.
+    const started = await prisma.$transaction(async (tx) => {
+      const res = await tx.quizGame.updateMany({
+        where: { id: game.id, status: "WAITING" },
+        data: { status: "QUESTION_ACTIVE", currentQuestionIndex: 0 },
+      });
+      if (res.count !== 1) return false;
+
+      await tx.quizQuestion.update({
+        where: { id: firstQ.id },
+        data: { questionStartedAt: now },
+      });
+      return true;
     });
 
-    const updatedGame = await prisma.quizGame.update({
-      where: { id: params.gameId },
-      data: {
-        status: "QUESTION_ACTIVE",
-        currentQuestionIndex: 0,
-      },
-    });
+    if (!started) {
+      set.status = 409;
+      return { error: "GAME_STATE_CHANGED", message: "Game vừa được start bởi request khác" };
+    }
 
-    const firstQ = game.questions[0];
+    const updatedGame = await prisma.quizGame.findUniqueOrThrow({ where: { id: game.id } });
+
     const broadcastPayload = {
       type: "QUESTION_ACTIVE",
       gameId: game.id,
@@ -72,11 +85,7 @@ export const gameLifecycleRoutes = new Elysia()
         timeLimitSec: firstQ.timeLimitSec,
         points: firstQ.points,
         questionStartedAt: now.toISOString(),
-        options: firstQ.options.map((o) => ({
-          id: o.id,
-          text: o.text,
-          color: o.color,
-        })),
+        options: firstQ.options.map((o) => ({ id: o.id, text: o.text, color: o.color })),
       },
     };
 
@@ -84,42 +93,62 @@ export const gameLifecycleRoutes = new Elysia()
     return { game: updatedGame, currentQuestion: broadcastPayload.question };
   })
   // Host: Next question
-  .post("/:gameId/next", async ({ params, set }) => {
+  .post("/:gameId/next", async ({ params, currentUser, set }) => {
+    const guard = await requireHost(params.gameId, currentUser?.id, {
+      statuses: ["ROUND_REVEALED"],
+    });
+    if (!guard.ok) {
+      set.status = guard.status;
+      return { error: guard.error, message: guard.message };
+    }
+
     const game = await prisma.quizGame.findUnique({
-      where: { id: params.gameId },
+      where: { id: guard.game.id },
       include: {
-        questions: {
-          orderBy: { orderNum: "asc" },
-          include: { options: true },
-        },
+        questions: { orderBy: { orderNum: "asc" }, include: { options: true } },
       },
     });
-
     if (!game) {
       set.status = 404;
-      return { error: "Game not found" };
+      return { error: "GAME_NOT_FOUND" };
     }
 
     const nextIndex = game.currentQuestionIndex + 1;
     if (nextIndex >= game.questions.length) {
-      set.status = 400;
-      return { error: "Đã hết câu hỏi. Vui lòng kết thúc trò chơi." };
+      set.status = 409;
+      return {
+        error: "NO_MORE_QUESTIONS",
+        message: "Đã hết câu hỏi. Gọi /end để kết thúc.",
+      };
     }
 
     const now = new Date();
-    const nextQ = game.questions[nextIndex];
-    await prisma.quizQuestion.update({
-      where: { id: nextQ.id },
-      data: { questionStartedAt: now },
+    const nextQ = game.questions[nextIndex]!;
+
+    const moved = await prisma.$transaction(async (tx) => {
+      const res = await tx.quizGame.updateMany({
+        where: {
+          id: game.id,
+          status: "ROUND_REVEALED",
+          currentQuestionIndex: game.currentQuestionIndex, // CAS cả index
+        },
+        data: { status: "QUESTION_ACTIVE", currentQuestionIndex: nextIndex },
+      });
+      if (res.count !== 1) return false;
+
+      await tx.quizQuestion.update({
+        where: { id: nextQ.id },
+        data: { questionStartedAt: now },
+      });
+      return true;
     });
 
-    const updatedGame = await prisma.quizGame.update({
-      where: { id: params.gameId },
-      data: {
-        status: "QUESTION_ACTIVE",
-        currentQuestionIndex: nextIndex,
-      },
-    });
+    if (!moved) {
+      set.status = 409;
+      return { error: "GAME_STATE_CHANGED", message: "Game vừa đổi trạng thái bởi request khác" };
+    }
+
+    const updatedGame = await prisma.quizGame.findUniqueOrThrow({ where: { id: game.id } });
 
     const broadcastPayload = {
       type: "QUESTION_ACTIVE",
@@ -132,11 +161,7 @@ export const gameLifecycleRoutes = new Elysia()
         timeLimitSec: nextQ.timeLimitSec,
         points: nextQ.points,
         questionStartedAt: now.toISOString(),
-        options: nextQ.options.map((o) => ({
-          id: o.id,
-          text: o.text,
-          color: o.color,
-        })),
+        options: nextQ.options.map((o) => ({ id: o.id, text: o.text, color: o.color })),
       },
     };
 
@@ -144,40 +169,46 @@ export const gameLifecycleRoutes = new Elysia()
     return { game: updatedGame, currentQuestion: broadcastPayload.question };
   })
   // Host: Reveal Round (Answer + Leaderboard)
-  .post("/:gameId/reveal", async ({ params, set }) => {
+  .post("/:gameId/reveal", async ({ params, currentUser, set }) => {
+    const guard = await requireHost(params.gameId, currentUser?.id, {
+      statuses: ["QUESTION_ACTIVE"],
+    });
+    if (!guard.ok) {
+      set.status = guard.status;
+      return { error: guard.error, message: guard.message };
+    }
+
     const game = await prisma.quizGame.findUnique({
-      where: { id: params.gameId },
+      where: { id: guard.game.id },
       include: {
         questions: {
           orderBy: { orderNum: "asc" },
-          include: {
-            options: true,
-            answers: true,
-          },
+          include: { options: true, answers: true },
         },
       },
     });
-
-    if (!game || game.currentQuestionIndex < 0) {
-      set.status = 400;
-      return { error: "Chưa có câu hỏi nào đang chạy" };
+    const currentQ = game?.questions[game.currentQuestionIndex];
+    if (!game || !currentQ) {
+      set.status = 409;
+      return { error: "NO_ACTIVE_QUESTION" };
     }
 
-    const currentQ = game.questions[game.currentQuestionIndex];
-    const updatedGame = await prisma.quizGame.update({
-      where: { id: params.gameId },
-      data: { status: "ROUND_REVEALED" },
-    });
+    const revealed = await transition(
+      game.id,
+      { status: ["QUESTION_ACTIVE"], currentQuestionIndex: game.currentQuestionIndex },
+      { status: "ROUND_REVEALED" }
+    );
+    if (!revealed) {
+      set.status = 409;
+      return { error: "GAME_STATE_CHANGED", message: "Game vừa đổi trạng thái bởi request khác" };
+    }
 
-    // Compute answer breakdown per option
+    const updatedGame = await prisma.quizGame.findUniqueOrThrow({ where: { id: game.id } });
+
     const answerCounts: Record<string, number> = {};
-    for (const opt of currentQ.options) {
-      answerCounts[opt.id] = 0;
-    }
+    for (const opt of currentQ.options) answerCounts[opt.id] = 0;
     for (const ans of currentQ.answers) {
-      if (answerCounts[ans.optionId] !== undefined) {
-        answerCounts[ans.optionId]++;
-      }
+      if (answerCounts[ans.optionId] !== undefined) answerCounts[ans.optionId]!++;
     }
 
     const correctOption = currentQ.options.find((o) => o.isCorrect);
@@ -194,7 +225,7 @@ export const gameLifecycleRoutes = new Elysia()
         text: o.text,
         color: o.color,
         isCorrect: o.isCorrect,
-        count: answerCounts[o.id] || 0,
+        count: answerCounts[o.id] ?? 0,
       })),
       leaderboard,
     };
@@ -203,21 +234,35 @@ export const gameLifecycleRoutes = new Elysia()
     return { game: updatedGame, reveal: broadcastPayload };
   })
   // Host: End Game and show final winners
-  .post("/:gameId/end", async ({ params, set }) => {
-    const updatedGame = await prisma.quizGame.update({
-      where: { id: params.gameId },
-      data: { status: "FINISHED" },
+  .post("/:gameId/end", async ({ params, currentUser, set }) => {
+    const guard = await requireHost(params.gameId, currentUser?.id, {
+      statuses: ["WAITING", "QUESTION_ACTIVE", "ROUND_REVEALED"],
     });
+    if (!guard.ok) {
+      set.status = guard.status;
+      return { error: guard.error, message: guard.message };
+    }
 
-    const finalLeaderboard = await getGameLeaderboard(params.gameId, 50);
+    const ended = await transition(
+      guard.game.id,
+      { status: ["WAITING", "QUESTION_ACTIVE", "ROUND_REVEALED"] },
+      { status: "FINISHED" }
+    );
+    if (!ended) {
+      set.status = 409;
+      return { error: "GAME_STATE_CHANGED", message: "Game đã kết thúc bởi request khác" };
+    }
+
+    const updatedGame = await prisma.quizGame.findUniqueOrThrow({ where: { id: guard.game.id } });
+    const finalLeaderboard = await getGameLeaderboard(guard.game.id, 50);
 
     const broadcastPayload = {
       type: "GAME_FINISHED",
-      gameId: params.gameId,
+      gameId: guard.game.id,
       podium: finalLeaderboard.slice(0, 3),
       leaderboard: finalLeaderboard,
     };
 
-    broadcastToGame(params.gameId, broadcastPayload);
+    broadcastToGame(guard.game.id, broadcastPayload);
     return { game: updatedGame, results: broadcastPayload };
   });

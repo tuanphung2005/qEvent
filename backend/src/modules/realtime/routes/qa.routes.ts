@@ -2,7 +2,9 @@ import { Elysia } from "elysia";
 import { jwt } from "@elysiajs/jwt";
 import { prisma } from "../../../plugins/prisma";
 import { broadcastToSession } from "../services/broadcast.service";
-import { getSessionLiveStatus, checkUserSessionAccess, handleToggleVote } from "../services/session-access.service";
+import { getSessionLiveStatus, checkUserSessionAccess, handleToggleVote, MODERATOR_ROLES } from "../services/session-access.service";
+import { clusterSessionQuestions, CLUSTER_COOLDOWN_MS } from "../services/qa-cluster.service";
+import { AI_ENABLED, aiErrorCode, aiErrorStatus } from "../../../services/ai.service";
 import { postQuestionBody, upvoteBody, answerQuestionBody } from "../schemas";
 
 export const qaRoutes = new Elysia()
@@ -285,4 +287,76 @@ export const qaRoutes = new Elysia()
     });
 
     return { question: updated, isPinned: updated.isPinned };
+  })
+  // Host: cluster questions by meaning with AI
+  .post("/api/qa/cluster/:sessionId", async ({ params, query, currentUser, set }) => {
+    if (!currentUser) {
+      set.status = 401;
+      return { error: "Unauthorized" };
+    }
+
+    // Session phải tồn tại (nếu không, count = 0 sẽ trả 422 gây hiểu nhầm)
+    const session = await prisma.session.findUnique({
+      where: { id: params.sessionId },
+      select: { id: true },
+    });
+    if (!session) {
+      set.status = 404;
+      return { error: "SESSION_NOT_FOUND" };
+    }
+
+    // Phân quyền: chỉ moderator của phiên (organizer/speaker/staff)
+    const access = await checkUserSessionAccess(params.sessionId, currentUser.id);
+    if (!MODERATOR_ROLES.includes(access.role)) {
+      set.status = 403;
+      return { error: "FORBIDDEN", message: "Chỉ người điều phối mới được gom nhóm câu hỏi" };
+    }
+
+    if (!AI_ENABLED) {
+      set.status = 503;
+      return { error: "AI_NOT_CONFIGURED", message: "Server chưa cấu hình GEMINI_API_KEY" };
+    }
+
+    // Cooldown bền vững (đọc từ DB → sống sót qua restart / nhiều instance)
+    const latest = await prisma.qAQuestion.findFirst({
+      where: { sessionId: params.sessionId, clusteredAt: { not: null } },
+      orderBy: { clusteredAt: "desc" },
+      select: { clusteredAt: true },
+    });
+    if (latest?.clusteredAt && Date.now() - latest.clusteredAt.getTime() < CLUSTER_COOLDOWN_MS) {
+      set.status = 429;
+      return { error: "CLUSTER_COOLDOWN", message: "Vui lòng đợi vài giây rồi thử lại" };
+    }
+
+    try {
+      const limit = Number(query.limit) || 200;
+      const result = await clusterSessionQuestions(params.sessionId, { limit });
+
+      if (result.clusters.length === 0) {
+        set.status = 422;
+        return { error: "NO_QUESTIONS", message: "Chưa có câu hỏi nào để gom nhóm" };
+      }
+
+      broadcastToSession(params.sessionId, {
+        type: "QUESTIONS_CLUSTERED",
+        sessionId: params.sessionId,
+        clusters: result.clusters.map(({ id, label, questionIds, representativeId, mergedUpvotes }) => ({
+          id,
+          label,
+          questionIds,
+          representativeId,
+          mergedUpvotes,
+        })),
+      });
+
+      return {
+        clustered: result.clusters.length,
+        considered: result.considered,
+        truncated: result.truncated,
+        clusters: result.clusters,
+      };
+    } catch (err) {
+      set.status = aiErrorStatus(err);
+      return { error: aiErrorCode(err), message: (err as Error).message };
+    }
   });
