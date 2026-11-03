@@ -1,15 +1,10 @@
-// Map to store connected clients per gameId
-export const gameSubscribers = new Map<string, Set<any>>();
+import { createBroadcaster } from "../../../lib/broadcast";
 
-export function broadcastToGame(gameId: string, message: any) {
-  const subscribers = gameSubscribers.get(gameId);
-  if (!subscribers) return;
-  const payload = JSON.stringify(message);
-  for (const ws of subscribers) {
-    try {
-      ws.send(payload);
-    } catch {
-      gameSubscribers.delete(ws);
-    }
-  }
-}
+/**
+ * Giữ nguyên tên export cũ (`gameSubscribers`, `broadcastToGame`) để mọi import
+ * hiện có không phải đổi. Logic nằm ở `src/lib/broadcast.ts`.
+ */
+const { subscribers, broadcast } = createBroadcaster();
+
+export const gameSubscribers = subscribers;
+export const broadcastToGame = broadcast;

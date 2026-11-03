@@ -1,36 +1,16 @@
 import { Elysia } from "elysia";
 import { jwt } from "@elysiajs/jwt";
+import { JWT_CONFIG, deriveCurrentUser } from "../../../lib/auth";
 import { prisma } from "../../../plugins/prisma";
 import { getSessionLiveStatus, checkUserSessionAccess, HOST_ROLES } from "../../realtime";
 import { getGameLeaderboard } from "../services/scoring.service";
 import { createGameBody, addQuestionBody } from "../schemas";
 import { requireHost, requireSessionHost, isUniqueViolation } from "../services/access.service";
+import { OPTION_COLORS, validateQuestionOptions } from "../services/question-options.service";
 
 export const gameCrudRoutes = new Elysia()
-  .use(
-    jwt({
-      name: "jwtAuth",
-      secret: process.env.JWT_SECRET || "qevent_super_secret_jwt_key_2026_production_grade",
-    })
-  )
-  .derive(async ({ headers, jwtAuth }) => {
-    const authHeader = headers["authorization"];
-    if (!authHeader?.startsWith("Bearer ")) {
-      return { currentUser: null };
-    }
-    const token = authHeader.slice(7);
-    const payload = await jwtAuth.verify(token);
-    if (!payload || typeof payload !== "object" || !("id" in payload)) {
-      return { currentUser: null };
-    }
-    return {
-      currentUser: {
-        id: payload.id as string,
-        email: payload.email as string,
-        role: payload.role as string,
-      },
-    };
-  })
+  .use(jwt(JWT_CONFIG))
+  .derive(deriveCurrentUser)
   // List games for a session
   .get("/session/:sessionId", async ({ params, currentUser }) => {
     const { session, isLive } = await getSessionLiveStatus(params.sessionId);
@@ -96,22 +76,11 @@ export const gameCrudRoutes = new Elysia()
 
       const { question, timeLimitSec, points, options } = body;
 
-      // Schema đã ép 4 phần tử; đây là chốt thứ hai cho client cũ/gọi trực tiếp.
-      if (options.length !== 4) {
+      const invalid = validateQuestionOptions(options);
+      if (invalid) {
         set.status = 400;
-        return { error: "INVALID_OPTIONS", message: "Cần đúng 4 phương án" };
+        return invalid;
       }
-      if (options.filter((o) => o.isCorrect).length !== 1) {
-        set.status = 400;
-        return { error: "INVALID_OPTIONS", message: "Phải có đúng 1 đáp án đúng" };
-      }
-      const texts = options.map((o) => o.text.trim().toLowerCase());
-      if (new Set(texts).size !== 4) {
-        set.status = 400;
-        return { error: "INVALID_OPTIONS", message: "4 đáp án phải khác nhau" };
-      }
-
-      const colors = ["RED", "BLUE", "YELLOW", "GREEN"] as const;
 
       try {
         const createdQuestion = await prisma.$transaction(async (tx) => {
@@ -138,7 +107,7 @@ export const gameCrudRoutes = new Elysia()
               options: {
                 create: options.map((opt, idx) => ({
                   text: opt.text.trim(),
-                  color: colors[idx % 4],
+                  color: OPTION_COLORS[idx % 4],
                   isCorrect: opt.isCorrect,
                 })),
               },
@@ -184,21 +153,11 @@ export const gameCrudRoutes = new Elysia()
         return { error: "QUESTION_NOT_FOUND" };
       }
 
-      if (body.options.length !== 4) {
+      const invalid = validateQuestionOptions(body.options, "Mỗi câu hỏi cần đúng 4 phương án");
+      if (invalid) {
         set.status = 400;
-        return { error: "INVALID_OPTIONS", message: "Mỗi câu hỏi cần đúng 4 phương án" };
+        return invalid;
       }
-      if (body.options.filter((o) => o.isCorrect).length !== 1) {
-        set.status = 400;
-        return { error: "INVALID_OPTIONS", message: "Phải có đúng 1 đáp án đúng" };
-      }
-      const texts = body.options.map((o) => o.text.trim().toLowerCase());
-      if (new Set(texts).size !== 4) {
-        set.status = 400;
-        return { error: "INVALID_OPTIONS", message: "4 đáp án phải khác nhau" };
-      }
-
-      const colors = ["RED", "BLUE", "YELLOW", "GREEN"] as const;
 
       const updated = await prisma.$transaction(async (tx) => {
         // Khoá hàng game + CAS: không sửa câu khi ván đã bắt đầu.
@@ -222,7 +181,7 @@ export const gameCrudRoutes = new Elysia()
             options: {
               create: body.options.map((opt, idx) => ({
                 text: opt.text.trim(),
-                color: colors[idx % 4],
+                color: OPTION_COLORS[idx % 4],
                 isCorrect: opt.isCorrect,
               })),
             },

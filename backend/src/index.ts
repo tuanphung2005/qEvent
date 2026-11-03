@@ -6,8 +6,7 @@ import { checkinModule } from "./modules/checkin";
 import { realtimeModule } from "./modules/realtime";
 import { gameModule } from "./modules/game";
 import { aiModule } from "./modules/ai";
-
-const FALLBACK_JWT_SECRET = "qevent_super_secret_jwt_key_2026_production_grade";
+import { FALLBACK_JWT_SECRET } from "./lib/auth";
 
 if (
   process.env.NODE_ENV === "production" &&

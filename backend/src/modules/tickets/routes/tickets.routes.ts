@@ -1,36 +1,114 @@
 import { Elysia } from "elysia";
 import { jwt } from "@elysiajs/jwt";
+import { JWT_CONFIG, deriveCurrentUser } from "../../../lib/auth";
 import crypto from "node:crypto";
 import { prisma } from "../../../plugins/prisma";
-import { generateTOTP, signDynamicQRPayload } from "../../../config/keys";
+import { buildQrToken, enrichTicketWithQr } from "../services/ticket-issue.service";
 import { checkIsEventLive, checkIsSessionLive, getSessionStatus } from "../services/event-status.service";
 import { claimInviteBody, invitationBody, ticketPurchaseBody } from "../schemas";
 
-export const ticketsRoutes = new Elysia({ prefix: "/api/tickets" })
-  .use(
-    jwt({
-      name: "jwtAuth",
-      secret: process.env.JWT_SECRET || "qevent_super_secret_jwt_key_2026_production_grade",
-    })
-  )
-  .derive(async ({ headers, jwtAuth }) => {
-    const authHeader = headers["authorization"];
-    if (!authHeader?.startsWith("Bearer ")) {
-      return { currentUser: null };
-    }
-    const token = authHeader.slice(7);
-    const payload = await jwtAuth.verify(token);
-    if (!payload || typeof payload !== "object" || !("id" in payload)) {
-      return { currentUser: null };
-    }
-    return {
-      currentUser: {
-        id: payload.id as string,
-        email: payload.email as string,
-        role: payload.role as string,
+/** Vé của user hiện tại kèm QR động. Dùng chung cho `/my` và `/my-tickets`. */
+const listMyTickets = async ({ currentUser, set }: any) => {
+  if (!currentUser) {
+    set.status = 401;
+    return { error: "Unauthorized" };
+  }
+
+  const tickets = await prisma.ticket.findMany({
+    where: { userId: currentUser.id },
+    include: {
+      event: {
+        include: {
+          sessions: { orderBy: { startTime: "asc" } },
+        },
       },
-    };
-  })
+      ticketType: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return { tickets: tickets.map(enrichTicketWithQr) };
+};
+
+type PurchaseOptions = {
+  /** `/register` trả kèm QR; 2 route sandbox trả vé thô như trước. */
+  withQr: boolean;
+  /** `/register` trả 201; sandbox trả 200 mặc định như trước. */
+  successStatus?: 200 | 201;
+  successMessage: string;
+  noEventMessage: string;
+};
+
+/** Tạo vé cho user hiện tại. Dùng chung cho `/register` và 2 route sandbox. */
+const purchaseTickets = (opts: PurchaseOptions) => async ({ body, currentUser, set }: any) => {
+  if (!currentUser) {
+    set.status = 401;
+    return { error: "Unauthorized" };
+  }
+
+  let { eventId, ticketTypeId, quantity } = body;
+  const count = quantity || 1;
+
+  if (!eventId || !ticketTypeId) {
+    const firstEvent = await prisma.event.findFirst({
+      include: { ticketTypes: true },
+    });
+    if (!firstEvent || firstEvent.ticketTypes.length === 0) {
+      set.status = 400;
+      return { error: opts.noEventMessage };
+    }
+    eventId = firstEvent.id;
+    ticketTypeId = firstEvent.ticketTypes[0].id;
+  }
+
+  const ticketType = await prisma.ticketType.findUnique({
+    where: { id: ticketTypeId },
+  });
+
+  if (!ticketType || ticketType.eventId !== eventId) {
+    set.status = 404;
+    return { error: "Ticket type not found for this event" };
+  }
+
+  const createdTickets = [];
+  for (let i = 0; i < count; i++) {
+    const ticket = await prisma.ticket.create({
+      data: {
+        eventId,
+        userId: currentUser.id,
+        ticketTypeId,
+        status: "PAID",
+        totpSecret: crypto.randomUUID(),
+      },
+      include: {
+        event: true,
+        ticketType: true,
+      },
+    });
+    createdTickets.push(ticket);
+  }
+
+  await prisma.ticketType.update({
+    where: { id: ticketTypeId },
+    data: { soldQuantity: { increment: count } },
+  });
+
+  if (opts.successStatus) set.status = opts.successStatus;
+  return {
+    message: opts.successMessage,
+    tickets: opts.withQr ? createdTickets.map(enrichTicketWithQr) : createdTickets,
+  };
+};
+
+const sandboxPurchase = purchaseTickets({
+  withQr: false,
+  successMessage: "Sandbox purchase successful",
+  noEventMessage: "Không tìm thấy sự kiện mẫu",
+});
+
+export const ticketsRoutes = new Elysia({ prefix: "/api/tickets" })
+  .use(jwt(JWT_CONFIG))
+  .derive(deriveCurrentUser)
   // Get all active events with sessions, ticket types, and user attendance status
   .get("/events", async ({ currentUser }) => {
     const events = await prisma.event.findMany({
@@ -338,26 +416,11 @@ export const ticketsRoutes = new Elysia({ prefix: "/api/tickets" })
         include: { event: true, ticketType: true },
       });
 
-      const nowSec = Math.floor(Date.now() / 1000);
-      const expiresIn = 30 - (nowSec % 30);
-
       if (existingTicket) {
-        const code = generateTOTP(existingTicket.totpSecret);
-        const qrToken = signDynamicQRPayload({
-          tid: existingTicket.id,
-          eid: existingTicket.eventId,
-          code,
-          iat: nowSec,
-        });
-
         return {
           message: "Bạn đã có vé tham dự sự kiện này",
           isNew: false,
-          ticket: {
-            ...existingTicket,
-            qrToken,
-            expiresIn,
-          },
+          ticket: enrichTicketWithQr(existingTicket),
         };
       }
 
@@ -409,23 +472,11 @@ export const ticketsRoutes = new Elysia({ prefix: "/api/tickets" })
         });
       }
 
-      const code = generateTOTP(ticket.totpSecret);
-      const qrToken = signDynamicQRPayload({
-        tid: ticket.id,
-        eid: ticket.eventId,
-        code,
-        iat: nowSec,
-      });
-
       set.status = 201;
       return {
         message: "Kích hoạt vé sự kiện qua mã mời thành công! Chào mừng bạn tham gia sự kiện.",
         isNew: true,
-        ticket: {
-          ...ticket,
-          qrToken,
-          expiresIn,
-        },
+        ticket: enrichTicketWithQr(ticket),
       };
     },
     {
@@ -472,87 +523,9 @@ export const ticketsRoutes = new Elysia({ prefix: "/api/tickets" })
       isLive: updated.isLive,
     };
   })
-  // Get current user tickets
-  .get("/my", async ({ currentUser, set }) => {
-    if (!currentUser) {
-      set.status = 401;
-      return { error: "Unauthorized" };
-    }
-
-    const tickets = await prisma.ticket.findMany({
-      where: { userId: currentUser.id },
-      include: {
-        event: {
-          include: {
-            sessions: { orderBy: { startTime: "asc" } },
-          },
-        },
-        ticketType: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    const nowSec = Math.floor(Date.now() / 1000);
-    const expiresIn = 30 - (nowSec % 30);
-
-    const enriched = tickets.map((ticket) => {
-      const code = generateTOTP(ticket.totpSecret);
-      const qrToken = signDynamicQRPayload({
-        tid: ticket.id,
-        eid: ticket.eventId,
-        code,
-        iat: nowSec,
-      });
-
-      return {
-        ...ticket,
-        qrToken,
-        expiresIn,
-      };
-    });
-
-    return { tickets: enriched };
-  })
-  .get("/my-tickets", async ({ currentUser, set }) => {
-    if (!currentUser) {
-      set.status = 401;
-      return { error: "Unauthorized" };
-    }
-
-    const tickets = await prisma.ticket.findMany({
-      where: { userId: currentUser.id },
-      include: {
-        event: {
-          include: {
-            sessions: { orderBy: { startTime: "asc" } },
-          },
-        },
-        ticketType: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    const nowSec = Math.floor(Date.now() / 1000);
-    const expiresIn = 30 - (nowSec % 30);
-
-    const enriched = tickets.map((ticket) => {
-      const code = generateTOTP(ticket.totpSecret);
-      const qrToken = signDynamicQRPayload({
-        tid: ticket.id,
-        eid: ticket.eventId,
-        code,
-        iat: nowSec,
-      });
-
-      return {
-        ...ticket,
-        qrToken,
-        expiresIn,
-      };
-    });
-
-    return { tickets: enriched };
-  })
+  // Get current user tickets (`/my` giữ làm alias cho client cũ)
+  .get("/my", listMyTickets)
+  .get("/my-tickets", listMyTickets)
   // Get dynamic QR token for a ticket
   .get("/:id/token", async ({ params, currentUser, set }) => {
     if (!currentUser) {
@@ -584,15 +557,7 @@ export const ticketsRoutes = new Elysia({ prefix: "/api/tickets" })
       return { error: "Access denied" };
     }
 
-    const nowSec = Math.floor(Date.now() / 1000);
-    const expiresIn = 30 - (nowSec % 30);
-    const code = generateTOTP(ticket.totpSecret);
-    const qrToken = signDynamicQRPayload({
-      tid: ticket.id,
-      eid: ticket.eventId,
-      code,
-      iat: nowSec,
-    });
+    const { qrToken, expiresIn } = buildQrToken(ticket);
 
     return {
       ticketId: ticket.id,
@@ -605,216 +570,17 @@ export const ticketsRoutes = new Elysia({ prefix: "/api/tickets" })
       latestLog: ticket.checkinLogs[0] || null,
     };
   })
-  // Register / Purchase ticket for an event
+  // Register / Purchase ticket for an event (kèm QR)
   .post(
     "/register",
-    async ({ body, currentUser, set }) => {
-      if (!currentUser) {
-        set.status = 401;
-        return { error: "Unauthorized" };
-      }
-
-      let { eventId, ticketTypeId, quantity } = body;
-      const count = quantity || 1;
-
-      if (!eventId || !ticketTypeId) {
-        const firstEvent = await prisma.event.findFirst({
-          include: { ticketTypes: true },
-        });
-        if (!firstEvent || firstEvent.ticketTypes.length === 0) {
-          set.status = 400;
-          return { error: "Không tìm thấy sự kiện hoặc loại vé" };
-        }
-        eventId = firstEvent.id;
-        ticketTypeId = firstEvent.ticketTypes[0].id;
-      }
-
-      const ticketType = await prisma.ticketType.findUnique({
-        where: { id: ticketTypeId },
-      });
-
-      if (!ticketType || ticketType.eventId !== eventId) {
-        set.status = 404;
-        return { error: "Ticket type not found for this event" };
-      }
-
-      const createdTickets = [];
-      for (let i = 0; i < count; i++) {
-        const secret = crypto.randomUUID();
-        const ticket = await prisma.ticket.create({
-          data: {
-            eventId,
-            userId: currentUser.id,
-            ticketTypeId,
-            status: "PAID",
-            totpSecret: secret,
-          },
-          include: {
-            event: true,
-            ticketType: true,
-          },
-        });
-        createdTickets.push(ticket);
-      }
-
-      await prisma.ticketType.update({
-        where: { id: ticketTypeId },
-        data: { soldQuantity: { increment: count } },
-      });
-
-      const nowSec = Math.floor(Date.now() / 1000);
-      const enrichedTickets = createdTickets.map((t) => {
-        const code = generateTOTP(t.totpSecret);
-        const qrToken = signDynamicQRPayload({
-          tid: t.id,
-          eid: t.eventId,
-          code,
-          iat: nowSec,
-        });
-        return {
-          ...t,
-          qrToken,
-          expiresIn: 30 - (nowSec % 30),
-        };
-      });
-
-      set.status = 201;
-      return {
-        message: "Đăng ký vé sự kiện thành công",
-        tickets: enrichedTickets,
-      };
-    },
-    {
-      body: ticketPurchaseBody,
-    }
+    purchaseTickets({
+      withQr: true,
+      successStatus: 201,
+      successMessage: "Đăng ký vé sự kiện thành công",
+      noEventMessage: "Không tìm thấy sự kiện hoặc loại vé",
+    }),
+    { body: ticketPurchaseBody }
   )
-  .post(
-    "/sandbox-purchase",
-    async ({ body, currentUser, set }) => {
-      if (!currentUser) {
-        set.status = 401;
-        return { error: "Unauthorized" };
-      }
-
-      let { eventId, ticketTypeId, quantity } = body;
-      const count = quantity || 1;
-
-      if (!eventId || !ticketTypeId) {
-        const firstEvent = await prisma.event.findFirst({
-          include: { ticketTypes: true },
-        });
-        if (!firstEvent || firstEvent.ticketTypes.length === 0) {
-          set.status = 400;
-          return { error: "Không tìm thấy sự kiện mẫu" };
-        }
-        eventId = firstEvent.id;
-        ticketTypeId = firstEvent.ticketTypes[0].id;
-      }
-
-      const ticketType = await prisma.ticketType.findUnique({
-        where: { id: ticketTypeId },
-      });
-
-      if (!ticketType || ticketType.eventId !== eventId) {
-        set.status = 404;
-        return { error: "Ticket type not found for this event" };
-      }
-
-      const createdTickets = [];
-      for (let i = 0; i < count; i++) {
-        const secret = crypto.randomUUID();
-        const ticket = await prisma.ticket.create({
-          data: {
-            eventId,
-            userId: currentUser.id,
-            ticketTypeId,
-            status: "PAID",
-            totpSecret: secret,
-          },
-          include: {
-            event: true,
-            ticketType: true,
-          },
-        });
-        createdTickets.push(ticket);
-      }
-
-      await prisma.ticketType.update({
-        where: { id: ticketTypeId },
-        data: { soldQuantity: { increment: count } },
-      });
-
-      return {
-        message: "Sandbox purchase successful",
-        tickets: createdTickets,
-      };
-    },
-    {
-      body: ticketPurchaseBody,
-    }
-  )
-  .post(
-    "/purchase-sandbox",
-    async ({ body, currentUser, set }) => {
-      if (!currentUser) {
-        set.status = 401;
-        return { error: "Unauthorized" };
-      }
-
-      let { eventId, ticketTypeId, quantity } = body;
-      const count = quantity || 1;
-
-      if (!eventId || !ticketTypeId) {
-        const firstEvent = await prisma.event.findFirst({
-          include: { ticketTypes: true },
-        });
-        if (!firstEvent || firstEvent.ticketTypes.length === 0) {
-          set.status = 400;
-          return { error: "Không tìm thấy sự kiện mẫu" };
-        }
-        eventId = firstEvent.id;
-        ticketTypeId = firstEvent.ticketTypes[0].id;
-      }
-
-      const ticketType = await prisma.ticketType.findUnique({
-        where: { id: ticketTypeId },
-      });
-
-      if (!ticketType || ticketType.eventId !== eventId) {
-        set.status = 404;
-        return { error: "Ticket type not found for this event" };
-      }
-
-      const createdTickets = [];
-      for (let i = 0; i < count; i++) {
-        const secret = crypto.randomUUID();
-        const ticket = await prisma.ticket.create({
-          data: {
-            eventId,
-            userId: currentUser.id,
-            ticketTypeId,
-            status: "PAID",
-            totpSecret: secret,
-          },
-          include: {
-            event: true,
-            ticketType: true,
-          },
-        });
-        createdTickets.push(ticket);
-      }
-
-      await prisma.ticketType.update({
-        where: { id: ticketTypeId },
-        data: { soldQuantity: { increment: count } },
-      });
-
-      return {
-        message: "Sandbox purchase successful",
-        tickets: createdTickets,
-      };
-    },
-    {
-      body: ticketPurchaseBody,
-    }
-  );
+  // Sandbox purchase (`/sandbox-purchase` giữ làm alias cho client cũ)
+  .post("/purchase-sandbox", sandboxPurchase, { body: ticketPurchaseBody })
+  .post("/sandbox-purchase", sandboxPurchase, { body: ticketPurchaseBody });

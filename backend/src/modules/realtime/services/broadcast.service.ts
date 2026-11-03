@@ -1,14 +1,10 @@
-export const sessionSubscribers = new Map<string, Set<any>>();
+import { createBroadcaster } from "../../../lib/broadcast";
 
-export function broadcastToSession(sessionId: string, message: any) {
-  const subscribers = sessionSubscribers.get(sessionId);
-  if (!subscribers) return;
-  const payload = JSON.stringify(message);
-  for (const ws of subscribers) {
-    try {
-      ws.send(payload);
-    } catch {
-      subscribers.delete(ws);
-    }
-  }
-}
+/**
+ * Giữ nguyên tên export cũ (`sessionSubscribers`, `broadcastToSession`) để mọi
+ * import hiện có không phải đổi. Logic nằm ở `src/lib/broadcast.ts`.
+ */
+const { subscribers, broadcast } = createBroadcaster();
+
+export const sessionSubscribers = subscribers;
+export const broadcastToSession = broadcast;

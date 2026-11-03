@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-10-03T15:08:15Z",
-  "title": "Design System: qCheck",
+  "title": "Design System: qEvent",
   "extensions": {
     "colorMeta": {
       "primary": {
@@ -239,7 +239,7 @@
   ],
   "narrative": {
     "northStar": "The High-Throughput Beacon",
-    "overview": "qCheck is an operational mobile tool built for intense, high-stakes physical environments: noisy venue entrance gates, dim auditoriums, and crowded queue lines under bright outdoor glare. The visual architecture rejects decorative fluff, blurred materials, and multi-layered visual noise in favor of immediate, unambiguous clarity.",
+    "overview": "qEvent is an operational mobile tool built for intense, high-stakes physical environments: noisy venue entrance gates, dim auditoriums, and crowded queue lines under bright outdoor glare. The visual architecture rejects decorative fluff, blurred materials, and multi-layered visual noise in favor of immediate, unambiguous clarity.",
     "keyCharacteristics": [
       "Zero-Border Discipline: Total elimination of outline borders, hairlines, and card strokes.",
       "High-Visibility Status Hierarchy: Immediate color-coded states paired with multi-sensory feedback.",

@@ -1,33 +1,48 @@
 import { Elysia } from "elysia";
 import { jwt } from "@elysiajs/jwt";
+import { JWT_CONFIG, deriveCurrentUser } from "../../../lib/auth";
 import { prisma } from "../../../plugins/prisma";
 import { checkIsEventLive } from "../../tickets";
 
+/** Danh sách vé để thiết bị staff cache offline. Dùng cho `/cache` và `/event-cache`. */
+const getEventCache = async ({ params, currentUser, set }: any) => {
+  if (!currentUser) {
+    set.status = 401;
+    return { error: "Unauthorized" };
+  }
+
+  const { eventId } = params;
+  const tickets = await prisma.ticket.findMany({
+    where: { eventId },
+    include: {
+      user: { select: { id: true, fullName: true, email: true } },
+      ticketType: { select: { id: true, name: true, price: true } },
+    },
+  });
+
+  const cacheData = tickets.map((t) => ({
+    id: t.id,
+    eventId: t.eventId,
+    userId: t.userId,
+    attendeeName: t.user.fullName,
+    attendeeEmail: t.user.email,
+    ticketTypeName: t.ticketType.name,
+    status: t.status,
+    totpSecret: t.totpSecret,
+    checkedInAt: t.checkedInAt ? t.checkedInAt.toISOString() : null,
+  }));
+
+  return {
+    eventId,
+    count: cacheData.length,
+    tickets: cacheData,
+    timestamp: new Date().toISOString(),
+  };
+};
+
 export const monitorRoutes = new Elysia({ prefix: "/api/checkin" })
-  .use(
-    jwt({
-      name: "jwtAuth",
-      secret: process.env.JWT_SECRET || "qevent_super_secret_jwt_key_2026_production_grade",
-    })
-  )
-  .derive(async ({ headers, jwtAuth }) => {
-    const authHeader = headers["authorization"];
-    if (!authHeader?.startsWith("Bearer ")) {
-      return { currentUser: null };
-    }
-    const token = authHeader.slice(7);
-    const payload = await jwtAuth.verify(token);
-    if (!payload || typeof payload !== "object" || !("id" in payload)) {
-      return { currentUser: null };
-    }
-    return {
-      currentUser: {
-        id: payload.id as string,
-        email: payload.email as string,
-        role: payload.role as string,
-      },
-    };
-  })
+  .use(jwt(JWT_CONFIG))
+  .derive(deriveCurrentUser)
   // Staff Monitoring Dashboard / Surveillance
   .get("/monitor/:eventId", async ({ params, currentUser, set }) => {
     if (!currentUser || (currentUser.role !== "STAFF" && currentUser.role !== "ORGANIZER")) {
@@ -184,72 +199,6 @@ export const monitorRoutes = new Elysia({ prefix: "/api/checkin" })
       remaining: Math.max(0, total - checkedIn),
     };
   })
-  // Get offline SQLite cache data
-  .get("/cache/:eventId", async ({ params, currentUser, set }) => {
-    if (!currentUser) {
-      set.status = 401;
-      return { error: "Unauthorized" };
-    }
-
-    const { eventId } = params;
-    const tickets = await prisma.ticket.findMany({
-      where: { eventId },
-      include: {
-        user: { select: { id: true, fullName: true, email: true } },
-        ticketType: { select: { id: true, name: true, price: true } },
-      },
-    });
-
-    const cacheData = tickets.map((t) => ({
-      id: t.id,
-      eventId: t.eventId,
-      userId: t.userId,
-      attendeeName: t.user.fullName,
-      attendeeEmail: t.user.email,
-      ticketTypeName: t.ticketType.name,
-      status: t.status,
-      totpSecret: t.totpSecret,
-      checkedInAt: t.checkedInAt ? t.checkedInAt.toISOString() : null,
-    }));
-
-    return {
-      eventId,
-      count: cacheData.length,
-      tickets: cacheData,
-      timestamp: new Date().toISOString(),
-    };
-  })
-  .get("/event-cache/:eventId", async ({ params, currentUser, set }) => {
-    if (!currentUser) {
-      set.status = 401;
-      return { error: "Unauthorized" };
-    }
-
-    const { eventId } = params;
-    const tickets = await prisma.ticket.findMany({
-      where: { eventId },
-      include: {
-        user: { select: { id: true, fullName: true, email: true } },
-        ticketType: { select: { id: true, name: true, price: true } },
-      },
-    });
-
-    const cacheData = tickets.map((t) => ({
-      id: t.id,
-      eventId: t.eventId,
-      userId: t.userId,
-      attendeeName: t.user.fullName,
-      attendeeEmail: t.user.email,
-      ticketTypeName: t.ticketType.name,
-      status: t.status,
-      totpSecret: t.totpSecret,
-      checkedInAt: t.checkedInAt ? t.checkedInAt.toISOString() : null,
-    }));
-
-    return {
-      eventId,
-      count: cacheData.length,
-      tickets: cacheData,
-      timestamp: new Date().toISOString(),
-    };
-  });
+  // Offline SQLite cache (`/event-cache` giữ làm alias cho client cũ)
+  .get("/cache/:eventId", getEventCache)
+  .get("/event-cache/:eventId", getEventCache);

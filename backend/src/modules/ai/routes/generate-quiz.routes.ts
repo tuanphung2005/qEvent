@@ -1,14 +1,14 @@
 import { Elysia } from "elysia";
 import { jwt } from "@elysiajs/jwt";
+import { JWT_CONFIG, deriveCurrentUser } from "../../../lib/auth";
 import { prisma } from "../../../plugins/prisma";
 import { checkUserSessionAccess, HOST_ROLES } from "../../realtime";
 import { isUniqueViolation } from "../../game/services/access.service";
 import { AI_ENABLED, aiErrorCode, aiErrorStatus, singleFlight } from "../../../services/ai.service";
 import { draftQuiz } from "../services/quiz-draft.service";
 import { generateQuizBody } from "../schemas";
-
 // Phụ thuộc một chiều: ai → game.services. `game` không import `ai` ⇒ không có vòng lặp.
-const COLORS = ["RED", "BLUE", "YELLOW", "GREEN"] as const;
+import { OPTION_COLORS } from "../../game/services/question-options.service";
 
 type GenerateQuizDeps = {
   /** Cho phép test bơm generator giả; production luôn dùng draftQuiz. */
@@ -22,25 +22,8 @@ export function createGenerateQuizRoutes(deps: GenerateQuizDeps = {}) {
   const aiEnabled = deps.aiEnabled ?? AI_ENABLED;
 
   return new Elysia()
-    .use(
-      jwt({
-        name: "jwtAuth",
-        secret: process.env.JWT_SECRET || "qevent_super_secret_jwt_key_2026_production_grade",
-      })
-    )
-    .derive(async ({ headers, jwtAuth }) => {
-      const authHeader = headers["authorization"];
-      if (!authHeader?.startsWith("Bearer ")) return { currentUser: null };
-      const payload = await jwtAuth.verify(authHeader.slice(7));
-      if (!payload || typeof payload !== "object" || !("id" in payload)) return { currentUser: null };
-      return {
-        currentUser: {
-          id: payload.id as string,
-          email: payload.email as string,
-          role: payload.role as string,
-        },
-      };
-    })
+    .use(jwt(JWT_CONFIG))
+    .derive(deriveCurrentUser)
     .post(
       "/api/ai/generate-quiz",
       async ({ body, currentUser, set }) => {
@@ -148,7 +131,7 @@ export function createGenerateQuizRoutes(deps: GenerateQuizDeps = {}) {
                       options: {
                         create: q.options.map((opt, idx) => ({
                           text: opt.text,
-                          color: COLORS[idx % 4],
+                          color: OPTION_COLORS[idx % 4],
                           isCorrect: opt.isCorrect,
                         })),
                       },

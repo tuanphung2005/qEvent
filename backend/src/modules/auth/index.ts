@@ -1,15 +1,11 @@
 import { Elysia, t } from "elysia";
 import { jwt } from "@elysiajs/jwt";
+import { JWT_CONFIG } from "../../lib/auth";
 import bcrypt from "bcryptjs";
 import { prisma } from "../../plugins/prisma";
 
 export const authModule = new Elysia({ prefix: "/api/auth" })
-  .use(
-    jwt({
-      name: "jwtAuth",
-      secret: process.env.JWT_SECRET || "qevent_super_secret_jwt_key_2026_production_grade",
-    })
-  )
+  .use(jwt(JWT_CONFIG))
   .post(
     "/register",
     async ({ body, jwtAuth, set }) => {

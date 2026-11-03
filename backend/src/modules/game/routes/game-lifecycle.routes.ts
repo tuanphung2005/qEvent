@@ -1,35 +1,14 @@
 import { Elysia } from "elysia";
 import { jwt } from "@elysiajs/jwt";
+import { JWT_CONFIG, deriveCurrentUser } from "../../../lib/auth";
 import { prisma } from "../../../plugins/prisma";
 import { broadcastToGame } from "../services/broadcast.service";
 import { getGameLeaderboard } from "../services/scoring.service";
 import { requireHost, transition } from "../services/access.service";
 
 export const gameLifecycleRoutes = new Elysia()
-  .use(
-    jwt({
-      name: "jwtAuth",
-      secret: process.env.JWT_SECRET || "qevent_super_secret_jwt_key_2026_production_grade",
-    })
-  )
-  .derive(async ({ headers, jwtAuth }) => {
-    const authHeader = headers["authorization"];
-    if (!authHeader?.startsWith("Bearer ")) {
-      return { currentUser: null };
-    }
-    const token = authHeader.slice(7);
-    const payload = await jwtAuth.verify(token);
-    if (!payload || typeof payload !== "object" || !("id" in payload)) {
-      return { currentUser: null };
-    }
-    return {
-      currentUser: {
-        id: payload.id as string,
-        email: payload.email as string,
-        role: payload.role as string,
-      },
-    };
-  })
+  .use(jwt(JWT_CONFIG))
+  .derive(deriveCurrentUser)
   // Host: Start the game (starts question 0)
   .post("/:gameId/start", async ({ params, currentUser, set }) => {
     const guard = await requireHost(params.gameId, currentUser?.id, { statuses: ["WAITING"] });

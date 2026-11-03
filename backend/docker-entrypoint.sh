@@ -9,5 +9,5 @@ if [ "$SEED_DB" = "true" ]; then
   bun run prisma/seed.ts || echo "Seed skipped or already populated."
 fi
 
-echo "🚀 Starting qCheck backend..."
+echo "🚀 Starting qEvent backend..."
 exec bun run start

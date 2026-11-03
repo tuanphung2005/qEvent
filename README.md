@@ -52,10 +52,10 @@ Tạo hoặc kiểm tra file `backend/.env` (được cấu hình mặc định 
 
 ```env
 # Kết nối PostgreSQL (trỏ vào localhost:5432 hoặc tên container)
-DATABASE_URL="postgresql://postgres:password123@localhost:5432/qcheck?schema=public"
+DATABASE_URL="postgresql://postgres:password123@localhost:5432/qevent?schema=public"
 
 # Khóa bí mật ký JWT (bắt buộc trong môi trường production)
-JWT_SECRET="qcheck_super_secret_jwt_key_2026_production_grade"
+JWT_SECRET="qevent_super_secret_jwt_key_2026_production_grade"
 
 # Cổng lắng nghe của máy chủ backend
 PORT=3000

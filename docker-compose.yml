@@ -1,18 +1,18 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: qcheck-postgres
+    container_name: qevent-postgres
     restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password123
-      POSTGRES_DB: qcheck
+      POSTGRES_DB: qevent
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d qcheck"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d qevent"]
       interval: 3s
       timeout: 3s
       retries: 5
@@ -26,7 +26,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://postgres:password123@postgres:5432/qcheck?schema=public
+      DATABASE_URL: postgresql://postgres:password123@postgres:5432/qevent?schema=public
       JWT_SECRET: qevent_super_secret_jwt_key_2026_production_grade
       PORT: 3000
       HOST: 0.0.0.0

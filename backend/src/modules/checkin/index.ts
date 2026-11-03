@@ -5,6 +5,11 @@ import { syncRoutes } from "./routes/sync.routes";
 
 export const checkinModule = new Elysia().use(checkinRoutes).use(monitorRoutes).use(syncRoutes);
 
-export * from "./services/verification.service";
 export * from "./services/sync.service";
+export {
+  verifyDynamicQRToken,
+  verifyTOTP,
+  generateTOTP,
+  signDynamicQRPayload,
+} from "../../config/keys";
 export * from "./schemas";

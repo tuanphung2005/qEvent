@@ -22,7 +22,8 @@
     "@types/bcryptjs": "^3.0.0",
     "@types/pg": "^8.23.1",
     "bun-types": "latest",
-    "prisma": "6.19.3"
+    "prisma": "6.19.3",
+    "typescript": "5.9.3"
   },
   "module": "src/index.js"
 }
