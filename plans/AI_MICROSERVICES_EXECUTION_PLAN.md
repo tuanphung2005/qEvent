@@ -51,7 +51,7 @@ Hệ thống gồm **1 API Gateway** và **3 Business Services** độc lập:
                                          │
                                          ▼ (Port 8000)
                     ┌──────────────────────────────────────────┐
-                    │          API Gateway (TV 1)              │
+                    │       API Gateway (Tuấn - Lead)          │
                     │  - Reverse Proxy (ElysiaJS)              │
                     │  - JWT Verification (+0.25đ)             │
                     │  - Circuit Breaker (+0.25đ)              │
@@ -60,7 +60,7 @@ Hệ thống gồm **1 API Gateway** và **3 Business Services** độc lập:
      ┌───────────────────┘               │                └───────────────────┐
      ▼ (Port 3001)                       ▼ (Port 3002)                        ▼ (Port 3003)
 ┌───────────────────────┐   ┌─────────────────────────┐   ┌─────────────────────────┐
-│  Event Service (TV 2) │   │ Admission Service (TV 3)│   │Engagement Service (TV 4)│
+│ Event Service (Thành) │   │ Admission Service (Vũ)  │   │Engagement Service(Trọng)│
 │  - Events, Rooms      │   │ - Auth & User Accounts  │   │ - Live Q&A, Upvotes     │
 │  - TicketTypes        │   │ - Ticket Orders (Saga)  │   │ - Polls, Voting         │
 │  - Reservations       │   │ - Dynamic QR (RSA/TOTP) │   │ - Live Quiz Engine (WS) │
@@ -79,10 +79,10 @@ Hệ thống gồm **1 API Gateway** và **3 Business Services** độc lập:
 
 | Thành viên | Module / Thành phần phụ trách | Dữ liệu quản lý | Trách nhiệm báo cáo & thi vấn đáp |
 |---|---|---|---|
-| **TV 1 (Lead)** | `gateway/` | Không sở hữu DB | Thiết kế kiến trúc tổng thể, API Gateway Pattern, Circuit Breaker, Demo kịch bản lỗi khi sập service. |
-| **TV 2** | `services/event-service/` | DB `qevent_event`: `Event`, `Room`, `Session`, `TicketType`, `Reservation` | Nghiệp vụ quản lý sự kiện, bảo đảm sức chứa (Capacity limits), kỹ thuật xử lý tranh chấp giữ chỗ (Atomic Reservation). |
-| **TV 3** | `services/admission-service/` | DB `qevent_admission`: `User`, `Order`, `Ticket`, `CheckinLog`, `IdempotencyLog` | Quản lý định danh, luồng đặt vé Saga liên service, thuật toán mã hóa Dynamic QR (RSA + TOTP), thuật toán CAS chống check-in trùng. |
-| **TV 4** | `services/engagement-service/` | DB `qevent_engagement`: `QAQuestion`, `QAVote`, `Poll`, `PollVote`, `QuizGame`, `QuizQuestion`, `QuizAnswer` | Tương tác thời gian thực (WebSocket), xác minh quyền tham gia phiên qua liên service, tổng hợp Postman $\ge 10$ req & Slide bảo vệ. |
+| **Tuấn (Nhóm trưởng)** | `gateway/` | Không sở hữu DB | Thiết kế kiến trúc tổng thể, API Gateway Pattern, Circuit Breaker, Demo kịch bản lỗi khi sập service. |
+| **Thành** | `services/event-service/` | DB `qevent_event`: `Event`, `Room`, `Session`, `TicketType`, `Reservation` | Nghiệp vụ quản lý sự kiện, bảo đảm sức chứa (Capacity limits), kỹ thuật xử lý tranh chấp giữ chỗ (Atomic Reservation). |
+| **Vũ** | `services/admission-service/` | DB `qevent_admission`: `User`, `Order`, `Ticket`, `CheckinLog`, `IdempotencyLog` | Quản lý định danh, luồng đặt vé Saga liên service, thuật toán mã hóa Dynamic QR (RSA + TOTP), thuật toán CAS chống check-in trùng. |
+| **Trọng** | `services/engagement-service/` | DB `qevent_engagement`: `QAQuestion`, `QAVote`, `Poll`, `PollVote`, `QuizGame`, `QuizQuestion`, `QuizAnswer` | Tương tác thời gian thực (WebSocket), xác minh quyền tham gia phiên qua liên service, tổng hợp Postman $\ge 10$ req & Slide bảo vệ. |
 
 ---
 
@@ -642,25 +642,25 @@ volumes:
 
 Mỗi sinh viên chuẩn bị kỹ các câu hỏi "tủ" sau để đạt điểm tuyệt đối 3.0 phần Vấn đáp:
 
-### 👤 Thành viên 1 (API Gateway & Hạ tầng)
+### 👤 Tuấn (Nhóm trưởng – API Gateway & Hạ tầng)
 - **Q: Tại sao phải xác thực JWT tại API Gateway mà không để từng service làm?**  
   *A:* Áp dụng mẫu kiến trúc Centralized Authentication. Gateway đóng vai trò người gác cổng, xác thực chữ ký token một lần duy nhất, loại bỏ các request giả mạo ngay tại biên mạng. Các service bên trong chỉ cần đọc thông tin tin cậy qua Header `x-user-id` và `x-user-role`, giúp giảm tải việc giải mã token lặp lại nhiều lần.
 - **Q: Circuit Breaker hoạt động ra sao và giải quyết vấn đề gì?**  
   *A:* Giải quyết hiện tượng lỗi dây chuyền (Cascading Failure). Nếu một service con bị chậm hoặc chết, các request đến Gateway sẽ bị treo hàng loạt làm cạn kiệt connection pool. Khi tỷ lệ lỗi vượt quá 50%, Circuit Breaker ngắt mạch (OPEN), từ chối ngay lập tức để service con có thời gian hồi phục.
 
-### 👤 Thành viên 2 (Event Service)
+### 👤 Thành (Event Service)
 - **Q: Tại sao không để Event Service chung Database với Admission Service?**  
   *A:* Tuân thủ nguyên lý Database-per-service của kiến trúc Microservices để đạt tính Loose Coupling (khớp nối lỏng). Dữ liệu sự kiện có thể cache mạnh và đọc nhiều (Read-heavy), trong khi dữ liệu vé và check-in ghi liên tục (Write-heavy). Tách DB giúp tối ưu chỉ mục và có thể scale độc lập tài nguyên máy chủ.
 - **Q: Nếu 100 người cùng đặt 1 vé cuối cùng thì giải quyết tranh chấp (Race Condition) thế nào?**  
   *A:* Sử dụng câu lệnh cập nhật có điều kiện nguyên tử (Atomic Update with CAS): `UPDATE "TicketType" SET "soldCount" = "soldCount" + 1 WHERE id = :id AND "soldCount" < "quota"`. Chỉ đúng 1 giao dịch thực hiện thành công, 99 giao dịch còn lại nhận kết quả 0 hàng bị ảnh hưởng và lập tức trả mã lỗi `409 SOLD_OUT`.
 
-### 👤 Thành viên 3 (Admission Service)
+### 👤 Vũ (Admission Service)
 - **Q: Giải thích cơ chế luồng 2 bước (Saga) khi đặt vé? Nếu rớt mạng thì sao?**  
   *A:* Admission Service đóng vai trò Orchestrator. Trước khi gọi mạng sang Event Service, Admission tạo Order ở trạng thái `PENDING` kèm `operationId`. Nếu gọi Event Service bị timeout, hệ thống trả về mã `202 PENDING`. Sau đó, tiến trình đối soát nền sẽ kiểm tra lại: nếu bên Event đã trừ vé mà Admission chưa tạo được vé thì sẽ gọi API bù hoàn (`DELETE /internal/reservations`) để hoàn trả số lượng vé, tránh tình trạng mất tiền mà không có vé.
 - **Q: Dynamic QR chống gian lận chụp màn hình như thế nào?**  
   *A:* Mã QR không chứa chuỗi tĩnh mà là một token JWT ký bằng khóa riêng RSA-256 kết hợp mã TOTP xoay vòng mỗi 30 giây (RFC 6238). Nếu khán giả chụp ảnh màn hình gửi cho người khác, sau 30 giây mã đó sẽ hết hạn và máy quét của Staff sẽ từ chối với mã lỗi `400 INVALID_QR_TOKEN`.
 
-### 👤 Thành viên 4 (Engagement Service & Testing)
+### 👤 Trọng (Engagement Service & Testing)
 - **Q: Tại sao Engagement Service cần gọi Admission Service khi người dùng đặt câu hỏi?**  
   *A:* Để thực thi quy tắc nghiệp vụ BR-6: Chỉ khán giả đã check-in vào cửa mới có quyền gửi câu hỏi và bình chọn. Do Engagement không truy cập trực tiếp database của Admission, nó gọi qua endpoint nội bộ `GET /internal/tickets/verify-access` kèm cơ chế timeout 1s và cache ngắn hạn.
 - **Q: Kết quả đo đạc khi tắt service thử nghiệm cho thấy điều gì?**  
