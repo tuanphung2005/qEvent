@@ -1,0 +1,43 @@
+name: qevent-admission
+
+services:
+  postgres-admission:
+    image: postgres:16-alpine
+    container_name: qevent-db-admission
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: qevent_admission
+    ports:
+      - "5434:5432"
+    volumes:
+      - admission_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d qevent_admission"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  admission-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qevent-admission-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://postgres:password123@postgres-admission:5432/qevent_admission?schema=public"
+      EVENT_SERVICE_URL: "http://event-service:3001"
+      JWT_SECRET: "qevent_super_jwt_secret_key_2026"
+      INTERNAL_SERVICE_TOKEN: "qevent_internal_service_token_2026"
+      KEYS_DIR: "/app/keys"
+      PORT: 3002
+    volumes:
+      - admission_keys:/app/keys
+    depends_on:
+      postgres-admission:
+        condition: service_healthy
+
+volumes:
+  admission_data:
+  admission_keys:

@@ -1,0 +1,628 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "qEvent Admission Service",
+    "description": "Accounts, ticket orders with the Event Service saga, dynamic QR, and check-in.",
+    "version": "1.0.0"
+  },
+  "tags": [
+    {
+      "name": "auth",
+      "description": "Accounts and JWT"
+    },
+    {
+      "name": "orders",
+      "description": "Ticket ordering saga"
+    },
+    {
+      "name": "tickets",
+      "description": "Ticket listing and dynamic QR"
+    },
+    {
+      "name": "checkins",
+      "description": "Online and offline check-in"
+    },
+    {
+      "name": "internal",
+      "description": "Service-to-service access checks"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "responses": {
+          "200": {}
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "parameters": [],
+        "operationId": "postApiAuthRegister",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password",
+                  "fullName"
+                ],
+                "properties": {
+                  "email": {
+                    "minLength": 3,
+                    "type": "string"
+                  },
+                  "password": {
+                    "minLength": 8,
+                    "type": "string"
+                  },
+                  "fullName": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password",
+                  "fullName"
+                ],
+                "properties": {
+                  "email": {
+                    "minLength": 3,
+                    "type": "string"
+                  },
+                  "password": {
+                    "minLength": 8,
+                    "type": "string"
+                  },
+                  "fullName": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "text/plain": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password",
+                  "fullName"
+                ],
+                "properties": {
+                  "email": {
+                    "minLength": 3,
+                    "type": "string"
+                  },
+                  "password": {
+                    "minLength": 8,
+                    "type": "string"
+                  },
+                  "fullName": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {}
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "parameters": [],
+        "operationId": "postApiAuthLogin",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "minLength": 3,
+                    "type": "string"
+                  },
+                  "password": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "minLength": 3,
+                    "type": "string"
+                  },
+                  "password": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "text/plain": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "minLength": 3,
+                    "type": "string"
+                  },
+                  "password": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {}
+        }
+      }
+    },
+    "/api/orders": {
+      "post": {
+        "parameters": [],
+        "operationId": "postApiOrders",
+        "tags": [
+          "orders"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "eventId",
+                  "ticketTypeId"
+                ],
+                "properties": {
+                  "eventId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "ticketTypeId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "minimum": 1,
+                    "maximum": 10,
+                    "anyOf": [
+                      {
+                        "format": "integer",
+                        "default": 0,
+                        "type": "string"
+                      },
+                      {
+                        "minimum": 1,
+                        "maximum": 10,
+                        "type": "integer"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "eventId",
+                  "ticketTypeId"
+                ],
+                "properties": {
+                  "eventId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "ticketTypeId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "minimum": 1,
+                    "maximum": 10,
+                    "anyOf": [
+                      {
+                        "format": "integer",
+                        "default": 0,
+                        "type": "string"
+                      },
+                      {
+                        "minimum": 1,
+                        "maximum": 10,
+                        "type": "integer"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "text/plain": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "eventId",
+                  "ticketTypeId"
+                ],
+                "properties": {
+                  "eventId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "ticketTypeId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "minimum": 1,
+                    "maximum": 10,
+                    "anyOf": [
+                      {
+                        "format": "integer",
+                        "default": 0,
+                        "type": "string"
+                      },
+                      {
+                        "minimum": 1,
+                        "maximum": 10,
+                        "type": "integer"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {}
+        }
+      }
+    },
+    "/api/orders/{id}": {
+      "get": {
+        "operationId": "getApiOrdersById",
+        "tags": [
+          "orders"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {}
+        }
+      }
+    },
+    "/api/tickets": {
+      "get": {
+        "operationId": "getApiTickets",
+        "tags": [
+          "tickets"
+        ],
+        "responses": {
+          "200": {}
+        }
+      }
+    },
+    "/api/tickets/my": {
+      "get": {
+        "operationId": "getApiTicketsMy",
+        "tags": [
+          "tickets"
+        ],
+        "responses": {
+          "200": {}
+        }
+      }
+    },
+    "/api/tickets/{id}/qr-token": {
+      "get": {
+        "operationId": "getApiTicketsByIdQr-token",
+        "tags": [
+          "tickets"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {}
+        }
+      }
+    },
+    "/api/checkins": {
+      "post": {
+        "parameters": [],
+        "operationId": "postApiCheckins",
+        "tags": [
+          "checkins"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "qrToken"
+                ],
+                "properties": {
+                  "qrToken": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "deviceId": {
+                    "type": "string"
+                  },
+                  "gate": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "qrToken"
+                ],
+                "properties": {
+                  "qrToken": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "deviceId": {
+                    "type": "string"
+                  },
+                  "gate": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "text/plain": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "qrToken"
+                ],
+                "properties": {
+                  "qrToken": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "deviceId": {
+                    "type": "string"
+                  },
+                  "gate": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {}
+        }
+      }
+    },
+    "/api/checkins/sync-offline": {
+      "post": {
+        "parameters": [],
+        "operationId": "postApiCheckinsSync-offline",
+        "tags": [
+          "checkins"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "logs"
+                ],
+                "properties": {
+                  "logs": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "ticketId",
+                        "scannedAt"
+                      ],
+                      "properties": {
+                        "ticketId": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "scannedAt": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "deviceId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "logs"
+                ],
+                "properties": {
+                  "logs": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "ticketId",
+                        "scannedAt"
+                      ],
+                      "properties": {
+                        "ticketId": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "scannedAt": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "deviceId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "text/plain": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "logs"
+                ],
+                "properties": {
+                  "logs": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "ticketId",
+                        "scannedAt"
+                      ],
+                      "properties": {
+                        "ticketId": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "scannedAt": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "deviceId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {}
+        }
+      }
+    },
+    "/internal/tickets/verify-access": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "query",
+            "name": "userId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "query",
+            "name": "eventId",
+            "required": true
+          }
+        ],
+        "operationId": "getInternalTicketsVerify-access",
+        "tags": [
+          "internal"
+        ],
+        "responses": {
+          "200": {}
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {}
+  }
+}
