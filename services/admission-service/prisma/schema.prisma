@@ -1,0 +1,102 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ORGANIZER
+  STAFF
+  ATTENDEE
+}
+
+enum TicketStatus {
+  PENDING_PAYMENT
+  PAID
+  CHECKED_IN
+  CANCELLED
+}
+
+model User {
+  id              String           @id @default(uuid())
+  email           String           @unique
+  passwordHash    String
+  fullName        String
+  role            Role             @default(ATTENDEE)
+  createdAt       DateTime         @default(now())
+  tickets         Ticket[]
+  orders          Order[]
+  idempotencyLogs IdempotencyLog[]
+}
+
+model Order {
+  id             String           @id @default(uuid())
+  userId         String
+  eventId        String
+  ticketTypeId   String
+  idempotencyKey String
+  operationId    String           @unique
+  status         String           @default("PENDING")
+  quantity       Int              @default(1)
+  totalAmount    Float            @default(0)
+  failureCode    String?
+  leaseUntil     DateTime?
+  attempts       Int              @default(0)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  user           User             @relation(fields: [userId], references: [id])
+  tickets        Ticket[]
+  idempotency    IdempotencyLog?
+}
+
+model IdempotencyLog {
+  id             String   @id @default(uuid())
+  userId         String
+  key            String
+  fingerprint    String
+  orderId        String?  @unique
+  status         String   @default("IN_PROGRESS")
+  responseStatus Int?
+  responseBody   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id])
+  order          Order?   @relation(fields: [orderId], references: [id])
+
+  @@unique([userId, key])
+  @@index([status])
+}
+
+model Ticket {
+  id           String       @id @default(uuid())
+  orderId      String
+  userId       String
+  eventId      String
+  ticketTypeId String
+  status       TicketStatus @default(PAID)
+  qrSecret     String
+  checkedInAt  DateTime?
+  createdAt    DateTime     @default(now())
+  order        Order        @relation(fields: [orderId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+  checkinLogs  CheckinLog[]
+
+  @@index([userId, eventId])
+}
+
+model CheckinLog {
+  id         String   @id @default(uuid())
+  ticketId   String
+  scannedBy  String
+  scannedAt  DateTime @default(now())
+  isOffline  Boolean  @default(false)
+  deviceId   String?
+  syncStatus String   @default("SYNCED")
+  scanKey    String   @unique
+  ticket     Ticket   @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId])
+}
