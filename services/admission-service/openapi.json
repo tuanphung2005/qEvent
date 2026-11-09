@@ -2,9 +2,19 @@
   "openapi": "3.0.3",
   "info": {
     "title": "qEvent Admission Service",
-    "description": "Accounts, ticket orders with the Event Service saga, dynamic QR, and check-in.",
+    "description": "Accounts, ticket orders with the Event Service saga, dynamic QR, and check-in. Protected endpoints verify the JWT inside this service and never trust identity from the body. Errors always use `{ code, message }` except request validation failures, which return the Elysia validation payload. Order creation is idempotent per user and `Idempotency-Key`; an unknown downstream result returns `202` with a `Location` header instead of a false failure.",
     "version": "1.0.0"
   },
+  "servers": [
+    {
+      "url": "http://localhost:3002",
+      "description": "Direct service port (Docker network)"
+    },
+    {
+      "url": "http://localhost:8000",
+      "description": "API Gateway entry point"
+    }
+  ],
   "tags": [
     {
       "name": "auth",
@@ -25,604 +35,1649 @@
     {
       "name": "internal",
       "description": "Service-to-service access checks"
+    },
+    {
+      "name": "health",
+      "description": "Service and database readiness"
     }
   ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT issued by `/api/auth/login` or `/api/auth/register`."
+      },
+      "serviceToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-service-token",
+        "description": "Shared service credential for internal endpoints."
+      }
+    },
+    "schemas": {
+      "ErrorBody": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "ALREADY_CHECKED_IN"
+          },
+          "message": {
+            "type": "string",
+            "example": "Ticket has already been checked in"
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "required": [
+          "type",
+          "on",
+          "property",
+          "message"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "example": "validation"
+          },
+          "on": {
+            "type": "string",
+            "example": "body"
+          },
+          "property": {
+            "type": "string",
+            "example": "/password"
+          },
+          "message": {
+            "type": "string",
+            "example": "Expected string length greater or equal to 8"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "expected": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "found": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "service",
+          "database"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ]
+          },
+          "service": {
+            "type": "string",
+            "example": "admission-service"
+          },
+          "database": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "unavailable"
+            ]
+          }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "fullName"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "minLength": 3
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "type": "string",
+            "description": "Ignored; public registration always creates an ATTENDEE."
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "minLength": 3
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "fullName",
+          "role"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "ORGANIZER",
+              "STAFF",
+              "ATTENDEE"
+            ]
+          }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "required": [
+          "token",
+          "user"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "JWT valid for 12 hours."
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "PlaceOrderRequest": {
+        "type": "object",
+        "required": [
+          "eventId",
+          "ticketTypeId"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "ticketTypeId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10,
+            "default": 1
+          }
+        }
+      },
+      "OrderTicket": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "eventId",
+          "ticketTypeId",
+          "checkedInAt",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING_PAYMENT",
+              "PAID",
+              "CHECKED_IN",
+              "CANCELLED"
+            ]
+          },
+          "eventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ticketTypeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "checkedInAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "required": [
+          "id",
+          "userId",
+          "eventId",
+          "ticketTypeId",
+          "status",
+          "quantity",
+          "totalAmount",
+          "failureCode",
+          "createdAt",
+          "tickets"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "eventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ticketTypeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "PENDING_RECONCILIATION",
+              "COMPENSATING",
+              "CONFIRMED",
+              "FAILED"
+            ]
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "totalAmount": {
+            "type": "number",
+            "example": 50
+          },
+          "failureCode": {
+            "type": "string",
+            "nullable": true,
+            "example": "SOLD_OUT"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tickets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderTicket"
+            }
+          }
+        }
+      },
+      "OrderResponse": {
+        "type": "object",
+        "required": [
+          "order"
+        ],
+        "properties": {
+          "order": {
+            "$ref": "#/components/schemas/Order"
+          }
+        }
+      },
+      "TicketSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "eventId",
+          "ticketTypeId",
+          "status",
+          "orderStatus",
+          "checkedInAt",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "eventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ticketTypeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING_PAYMENT",
+              "PAID",
+              "CHECKED_IN",
+              "CANCELLED"
+            ]
+          },
+          "orderStatus": {
+            "type": "string",
+            "example": "CONFIRMED"
+          },
+          "checkedInAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TicketListResponse": {
+        "type": "object",
+        "required": [
+          "tickets"
+        ],
+        "properties": {
+          "tickets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TicketSummary"
+            }
+          }
+        }
+      },
+      "QrTokenResponse": {
+        "type": "object",
+        "required": [
+          "ticketId",
+          "qrToken",
+          "expiresIn",
+          "status",
+          "checkedInAt"
+        ],
+        "properties": {
+          "ticketId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "qrToken": {
+            "type": "string",
+            "description": "Ticket-bound JWT signed with RSA-SHA256 and carrying a TOTP code for the current 30-second step."
+          },
+          "expiresIn": {
+            "type": "integer",
+            "example": 30
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING_PAYMENT",
+              "PAID",
+              "CHECKED_IN",
+              "CANCELLED"
+            ]
+          },
+          "checkedInAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "CheckinRequest": {
+        "type": "object",
+        "required": [
+          "qrToken"
+        ],
+        "properties": {
+          "qrToken": {
+            "type": "string",
+            "minLength": 1
+          },
+          "deviceId": {
+            "type": "string"
+          },
+          "gate": {
+            "type": "string"
+          }
+        }
+      },
+      "CheckinTicket": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "checkedInAt",
+          "attendeeName"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CHECKED_IN"
+            ]
+          },
+          "checkedInAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "attendeeName": {
+            "type": "string"
+          }
+        }
+      },
+      "CheckinSuccess": {
+        "type": "object",
+        "required": [
+          "status",
+          "code",
+          "ticket",
+          "logId"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "CHECKIN_SUCCESS"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "CHECKIN_SUCCESS"
+            ]
+          },
+          "ticket": {
+            "$ref": "#/components/schemas/CheckinTicket"
+          },
+          "logId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "CheckinConflict": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "ticket"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "ALREADY_CHECKED_IN"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "ticket": {
+            "type": "object",
+            "required": [
+              "id",
+              "status",
+              "checkedInAt",
+              "attendeeName"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "CHECKED_IN"
+                ]
+              },
+              "checkedInAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "attendeeName": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "OfflineSyncRequest": {
+        "type": "object",
+        "required": [
+          "logs"
+        ],
+        "properties": {
+          "logs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "ticketId",
+                "scannedAt"
+              ],
+              "properties": {
+                "ticketId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "scannedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "deviceId": {
+                  "type": "string"
+                }
+              }
+            },
+            "minItems": 1
+          }
+        }
+      },
+      "OfflineSyncResult": {
+        "type": "object",
+        "required": [
+          "ticketId",
+          "status"
+        ],
+        "properties": {
+          "ticketId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "SYNCED",
+              "CONFLICT",
+              "DUPLICATE",
+              "ERROR"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "example": "TICKET_NOT_FOUND"
+          },
+          "message": {
+            "type": "string"
+          },
+          "attendeeName": {
+            "type": "string"
+          },
+          "logId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "OfflineSyncResponse": {
+        "type": "object",
+        "required": [
+          "processed",
+          "synced",
+          "conflicts",
+          "duplicates",
+          "results"
+        ],
+        "properties": {
+          "processed": {
+            "type": "integer",
+            "example": 2
+          },
+          "synced": {
+            "type": "integer",
+            "example": 1
+          },
+          "conflicts": {
+            "type": "integer",
+            "example": 1
+          },
+          "duplicates": {
+            "type": "integer",
+            "example": 0
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OfflineSyncResult"
+            }
+          }
+        }
+      },
+      "InternalAccessResponse": {
+        "type": "object",
+        "required": [
+          "userId",
+          "eventId",
+          "checkedIn",
+          "hasAccess",
+          "ticketId"
+        ],
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "eventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "checkedIn": {
+            "type": "boolean"
+          },
+          "hasAccess": {
+            "type": "boolean"
+          },
+          "ticketId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Authentication is missing or the JWT is invalid.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorBody"
+            },
+            "example": {
+              "code": "UNAUTHORIZED",
+              "message": "Authentication is required"
+            }
+          }
+        }
+      },
+      "ServiceUnauthorized": {
+        "description": "The service token is missing or invalid.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorBody"
+            },
+            "example": {
+              "code": "UNAUTHORIZED_SERVICE",
+              "message": "Valid service token is required"
+            }
+          }
+        }
+      },
+      "ValidationFailed": {
+        "description": "The request body or query does not satisfy the declared schema.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "example": {
+              "type": "validation",
+              "on": "body",
+              "property": "/password",
+              "message": "Expected string length greater or equal to 8",
+              "summary": "string",
+              "expected": {},
+              "found": {},
+              "errors": [
+                {}
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
   "paths": {
     "/health": {
       "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Report service and database readiness",
         "operationId": "getHealth",
         "responses": {
-          "200": {}
+          "200": {
+            "description": "Service and database are reachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "example": {
+                  "status": "ok",
+                  "service": "admission-service",
+                  "database": "ok"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "example": {
+                  "status": "degraded",
+                  "service": "admission-service",
+                  "database": "unavailable"
+                }
+              }
+            }
+          }
         }
       }
     },
     "/api/auth/register": {
       "post": {
-        "parameters": [],
-        "operationId": "postApiAuthRegister",
         "tags": [
           "auth"
         ],
+        "summary": "Register an attendee",
+        "description": "Creates an ATTENDEE account and returns a JWT. The optional `role` field is ignored.",
+        "operationId": "register",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "email",
-                  "password",
-                  "fullName"
-                ],
-                "properties": {
-                  "email": {
-                    "minLength": 3,
-                    "type": "string"
-                  },
-                  "password": {
-                    "minLength": 8,
-                    "type": "string"
-                  },
-                  "fullName": {
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "role": {
-                    "type": "string"
-                  }
-                }
-              }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "email",
-                  "password",
-                  "fullName"
-                ],
-                "properties": {
-                  "email": {
-                    "minLength": 3,
-                    "type": "string"
-                  },
-                  "password": {
-                    "minLength": 8,
-                    "type": "string"
-                  },
-                  "fullName": {
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "role": {
-                    "type": "string"
-                  }
-                }
-              }
-            },
-            "text/plain": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "email",
-                  "password",
-                  "fullName"
-                ],
-                "properties": {
-                  "email": {
-                    "minLength": 3,
-                    "type": "string"
-                  },
-                  "password": {
-                    "minLength": 8,
-                    "type": "string"
-                  },
-                  "fullName": {
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "role": {
-                    "type": "string"
-                  }
-                }
+                "$ref": "#/components/schemas/RegisterRequest"
+              },
+              "example": {
+                "email": "attendee@qevent.dev",
+                "password": "password123",
+                "fullName": "Nguyen Van A",
+                "role": "string"
               }
             }
           }
         },
         "responses": {
-          "200": {}
+          "201": {
+            "description": "Account created and JWT issued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                },
+                "example": {
+                  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjVmM2I2ZSJ9.signature",
+                  "user": {
+                    "id": "00000000-0000-4000-8000-000000000002",
+                    "email": "attendee@qevent.dev",
+                    "fullName": "Nguyen Van A",
+                    "role": "ATTENDEE"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The email is already registered.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "EMAIL_TAKEN",
+                  "message": "Email is already registered"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          }
         }
       }
     },
     "/api/auth/login": {
       "post": {
-        "parameters": [],
-        "operationId": "postApiAuthLogin",
         "tags": [
           "auth"
         ],
+        "summary": "Log in and issue a JWT",
+        "operationId": "login",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "email",
-                  "password"
-                ],
-                "properties": {
-                  "email": {
-                    "minLength": 3,
-                    "type": "string"
-                  },
-                  "password": {
-                    "minLength": 1,
-                    "type": "string"
-                  }
-                }
-              }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "email",
-                  "password"
-                ],
-                "properties": {
-                  "email": {
-                    "minLength": 3,
-                    "type": "string"
-                  },
-                  "password": {
-                    "minLength": 1,
-                    "type": "string"
-                  }
-                }
-              }
-            },
-            "text/plain": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "email",
-                  "password"
-                ],
-                "properties": {
-                  "email": {
-                    "minLength": 3,
-                    "type": "string"
-                  },
-                  "password": {
-                    "minLength": 1,
-                    "type": "string"
-                  }
-                }
+                "$ref": "#/components/schemas/LoginRequest"
+              },
+              "example": {
+                "email": "attendee@qevent.dev",
+                "password": "password123"
               }
             }
           }
         },
         "responses": {
-          "200": {}
+          "200": {
+            "description": "Credentials accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                },
+                "example": {
+                  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjVmM2I2ZSJ9.signature",
+                  "user": {
+                    "id": "00000000-0000-4000-8000-000000000003",
+                    "email": "attendee@qevent.dev",
+                    "fullName": "Nguyen Van A",
+                    "role": "ATTENDEE"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The email or password is incorrect.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "INVALID_CREDENTIALS",
+                  "message": "Email or password is incorrect"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          }
         }
       }
     },
     "/api/orders": {
       "post": {
-        "parameters": [],
-        "operationId": "postApiOrders",
         "tags": [
           "orders"
+        ],
+        "summary": "Place a ticket order through the Event Service saga",
+        "description": "Requires a unique `Idempotency-Key` per user. Replaying the same key and payload returns the stored result; reusing it with a different payload returns `409 IDEMPOTENCY_CONFLICT`. When the downstream result is unknown (timeout or 5xx), the order stays pending and the response is `202` with `Location` for polling.",
+        "operationId": "placeOrder",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Client-generated unique key scoped to the authenticated user."
+          }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "eventId",
-                  "ticketTypeId"
-                ],
-                "properties": {
-                  "eventId": {
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "ticketTypeId": {
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "quantity": {
-                    "minimum": 1,
-                    "maximum": 10,
-                    "anyOf": [
-                      {
-                        "format": "integer",
-                        "default": 0,
-                        "type": "string"
-                      },
-                      {
-                        "minimum": 1,
-                        "maximum": 10,
-                        "type": "integer"
-                      }
-                    ]
-                  }
-                }
+                "$ref": "#/components/schemas/PlaceOrderRequest"
+              },
+              "example": {
+                "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
+                "ticketTypeId": "9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70",
+                "quantity": 1
               }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "eventId",
-                  "ticketTypeId"
-                ],
-                "properties": {
-                  "eventId": {
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "ticketTypeId": {
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "quantity": {
-                    "minimum": 1,
-                    "maximum": 10,
-                    "anyOf": [
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Reservation confirmed and tickets issued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponse"
+                },
+                "example": {
+                  "order": {
+                    "id": "00000000-0000-4000-8000-000000000004",
+                    "userId": "5f3b6e2a-1c4d-4a8e-9b7f-2d6c8a1e4b90",
+                    "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
+                    "ticketTypeId": "9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70",
+                    "status": "CONFIRMED",
+                    "quantity": 1,
+                    "totalAmount": 50,
+                    "failureCode": null,
+                    "createdAt": "2026-11-09T08:00:00.000Z",
+                    "tickets": [
                       {
-                        "format": "integer",
-                        "default": 0,
-                        "type": "string"
-                      },
-                      {
-                        "minimum": 1,
-                        "maximum": 10,
-                        "type": "integer"
-                      }
-                    ]
-                  }
-                }
-              }
-            },
-            "text/plain": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "eventId",
-                  "ticketTypeId"
-                ],
-                "properties": {
-                  "eventId": {
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "ticketTypeId": {
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "quantity": {
-                    "minimum": 1,
-                    "maximum": 10,
-                    "anyOf": [
-                      {
-                        "format": "integer",
-                        "default": 0,
-                        "type": "string"
-                      },
-                      {
-                        "minimum": 1,
-                        "maximum": 10,
-                        "type": "integer"
+                        "id": "00000000-0000-4000-8000-000000000005",
+                        "status": "PAID",
+                        "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
+                        "ticketTypeId": "9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70",
+                        "checkedInAt": null,
+                        "createdAt": "2026-11-09T08:00:00.000Z"
                       }
                     ]
                   }
                 }
               }
             }
+          },
+          "202": {
+            "description": "Reservation outcome is unknown; the order is pending reconciliation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponse"
+                },
+                "example": {
+                  "order": {
+                    "id": "00000000-0000-4000-8000-000000000006",
+                    "userId": "5f3b6e2a-1c4d-4a8e-9b7f-2d6c8a1e4b90",
+                    "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
+                    "ticketTypeId": "9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70",
+                    "status": "PENDING_RECONCILIATION",
+                    "quantity": 1,
+                    "totalAmount": 0,
+                    "failureCode": null,
+                    "createdAt": "2026-11-09T08:00:00.000Z",
+                    "tickets": []
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "description": "Order status URL for polling.",
+                "schema": {
+                  "type": "string",
+                  "example": "/api/orders/0f7b6d1e-8a5c-4f2b-9d3e-1c7a5b9e2f40"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The Idempotency-Key header is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "IDEMPOTENCY_KEY_REQUIRED",
+                  "message": "Idempotency-Key header is required"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "409": {
+            "description": "The key conflicts with another payload, or capacity is exhausted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "examples": {
+                  "idempotencyConflict": {
+                    "value": {
+                      "code": "IDEMPOTENCY_CONFLICT",
+                      "message": "Idempotency key reused with a different payload"
+                    }
+                  },
+                  "soldOut": {
+                    "value": {
+                      "code": "SOLD_OUT",
+                      "message": "Ticket type or event capacity is exhausted"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "502": {
+            "description": "Tickets could not be issued and the reservation was released.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "TICKET_ISSUE_FAILED",
+                  "message": "Ticket issuance failed; reservation was released"
+                }
+              }
+            }
           }
-        },
-        "responses": {
-          "200": {}
         }
       }
     },
     "/api/orders/{id}": {
       "get": {
-        "operationId": "getApiOrdersById",
         "tags": [
           "orders"
         ],
+        "summary": "Get an order and its tickets",
+        "description": "Attendees can read only their own orders; STAFF and ORGANIZER can read any order.",
+        "operationId": "getOrder",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
             "name": "id",
-            "required": true
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
-          "200": {}
+          "200": {
+            "description": "Order found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponse"
+                },
+                "example": {
+                  "order": {
+                    "id": "00000000-0000-4000-8000-000000000008",
+                    "userId": "5f3b6e2a-1c4d-4a8e-9b7f-2d6c8a1e4b90",
+                    "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
+                    "ticketTypeId": "9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70",
+                    "status": "CONFIRMED",
+                    "quantity": 1,
+                    "totalAmount": 50,
+                    "failureCode": null,
+                    "createdAt": "2026-11-09T08:00:00.000Z",
+                    "tickets": [
+                      {
+                        "id": "00000000-0000-4000-8000-000000000009",
+                        "status": "PAID",
+                        "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
+                        "ticketTypeId": "9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70",
+                        "checkedInAt": null,
+                        "createdAt": "2026-11-09T08:00:00.000Z"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "The order does not exist or is not visible to the caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "ORDER_NOT_FOUND",
+                  "message": "Order was not found"
+                }
+              }
+            }
+          }
         }
       }
     },
     "/api/tickets": {
       "get": {
-        "operationId": "getApiTickets",
         "tags": [
           "tickets"
         ],
+        "summary": "List the caller's tickets",
+        "description": "Alias of `/api/tickets/my`. QR secrets are never returned.",
+        "operationId": "listTickets",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
-          "200": {}
+          "200": {
+            "description": "Tickets owned by the authenticated user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketListResponse"
+                },
+                "example": {
+                  "tickets": [
+                    {
+                      "id": "00000000-0000-4000-8000-000000000010",
+                      "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
+                      "ticketTypeId": "9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70",
+                      "status": "PAID",
+                      "orderStatus": "CONFIRMED",
+                      "checkedInAt": null,
+                      "createdAt": "2026-11-09T08:00:00.000Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
         }
       }
     },
     "/api/tickets/my": {
       "get": {
-        "operationId": "getApiTicketsMy",
         "tags": [
           "tickets"
         ],
+        "summary": "List the caller's tickets",
+        "operationId": "listMyTickets",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
-          "200": {}
+          "200": {
+            "description": "Tickets owned by the authenticated user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketListResponse"
+                },
+                "example": {
+                  "tickets": [
+                    {
+                      "id": "00000000-0000-4000-8000-000000000001",
+                      "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
+                      "ticketTypeId": "9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70",
+                      "status": "CHECKED_IN",
+                      "orderStatus": "CONFIRMED",
+                      "checkedInAt": "2026-11-09T09:15:00.000Z",
+                      "createdAt": "2026-11-09T08:00:00.000Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
         }
       }
     },
     "/api/tickets/{id}/qr-token": {
       "get": {
-        "operationId": "getApiTicketsByIdQr-token",
         "tags": [
           "tickets"
         ],
+        "summary": "Issue a dynamic QR token",
+        "description": "Only the ticket owner or STAFF/ORGANIZER may request it. The token expires after 30 seconds and is bound to the ticket and event.",
+        "operationId": "getTicketQrToken",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
             "name": "id",
-            "required": true
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
-          "200": {}
+          "200": {
+            "description": "A fresh dynamic QR token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QrTokenResponse"
+                },
+                "example": {
+                  "ticketId": "1b4d7f9a-3c6e-4a2b-8d5f-7e9c1a3b5d20",
+                  "qrToken": "eyJhbGciOiJSUzI1NiJ9.eyJ0aWQiOiIxYjRkN2Y5YSIsImVpZCI6IjdjMWU5YTNkIiwiY29kZSI6IjEyMzQ1NiJ9.signature",
+                  "expiresIn": 30,
+                  "status": "PAID",
+                  "checkedInAt": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "The ticket belongs to another attendee.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "FORBIDDEN",
+                  "message": "Ticket belongs to another attendee"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The ticket does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "TICKET_NOT_FOUND",
+                  "message": "Ticket was not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The ticket cannot produce a usable QR token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "examples": {
+                  "cancelled": {
+                    "value": {
+                      "code": "TICKET_CANCELLED",
+                      "message": "Ticket has been cancelled"
+                    }
+                  },
+                  "orderNotConfirmed": {
+                    "value": {
+                      "code": "ORDER_NOT_CONFIRMED",
+                      "message": "Ticket order is not confirmed"
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
     "/api/checkins": {
       "post": {
-        "parameters": [],
-        "operationId": "postApiCheckins",
         "tags": [
           "checkins"
+        ],
+        "summary": "Check in one ticket online",
+        "description": "Requires STAFF or ORGANIZER. Verifies the RSA signature and the 30-second TOTP before a compare-and-set update from PAID to CHECKED_IN. Concurrent scans accept exactly one request.",
+        "operationId": "checkIn",
+        "security": [
+          {
+            "bearerAuth": []
+          }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "qrToken"
-                ],
-                "properties": {
-                  "qrToken": {
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "deviceId": {
-                    "type": "string"
-                  },
-                  "gate": {
-                    "type": "string"
-                  }
-                }
-              }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "qrToken"
-                ],
-                "properties": {
-                  "qrToken": {
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "deviceId": {
-                    "type": "string"
-                  },
-                  "gate": {
-                    "type": "string"
-                  }
-                }
-              }
-            },
-            "text/plain": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "qrToken"
-                ],
-                "properties": {
-                  "qrToken": {
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "deviceId": {
-                    "type": "string"
-                  },
-                  "gate": {
-                    "type": "string"
-                  }
-                }
+                "$ref": "#/components/schemas/CheckinRequest"
+              },
+              "example": {
+                "qrToken": "eyJhbGciOiJSUzI1NiJ9.eyJ0aWQiOiIxYjRkN2Y5YSIsImVpZCI6IjdjMWU5YTNkIiwiY29kZSI6IjEyMzQ1NiJ9.signature",
+                "deviceId": "gate-1",
+                "gate": "gate-a"
               }
             }
           }
         },
         "responses": {
-          "200": {}
+          "201": {
+            "description": "The ticket was checked in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckinSuccess"
+                },
+                "example": {
+                  "status": "CHECKIN_SUCCESS",
+                  "code": "CHECKIN_SUCCESS",
+                  "ticket": {
+                    "id": "00000000-0000-4000-8000-000000000012",
+                    "status": "CHECKED_IN",
+                    "checkedInAt": "2026-11-09T08:00:00.000Z",
+                    "attendeeName": "Nguyen Van A"
+                  },
+                  "logId": "3d6f8b2c-5e9a-4c4d-8f7b-9a2e1c3d5f40"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The QR token is invalid, expired, or the ticket status is unusable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "examples": {
+                  "invalidQrToken": {
+                    "value": {
+                      "code": "INVALID_QR_TOKEN",
+                      "message": "Dynamic QR token has expired"
+                    }
+                  },
+                  "invalidTicketStatus": {
+                    "value": {
+                      "code": "INVALID_TICKET_STATUS",
+                      "message": "Ticket status is CANCELLED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "The caller is not STAFF or ORGANIZER.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "FORBIDDEN",
+                  "message": "Staff role is required"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The ticket was already checked in or its order is not confirmed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CheckinConflict"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorBody"
+                    }
+                  ]
+                },
+                "examples": {
+                  "alreadyCheckedIn": {
+                    "value": {
+                      "code": "ALREADY_CHECKED_IN",
+                      "message": "Ticket has already been checked in",
+                      "ticket": {
+                        "id": "00000000-0000-4000-8000-000000000013",
+                        "status": "CHECKED_IN",
+                        "checkedInAt": "2026-11-09T08:00:00.000Z",
+                        "attendeeName": "Nguyen Van A"
+                      }
+                    }
+                  },
+                  "orderNotConfirmed": {
+                    "value": {
+                      "code": "ORDER_NOT_CONFIRMED",
+                      "message": "Ticket order is not confirmed"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          }
         }
       }
     },
     "/api/checkins/sync-offline": {
       "post": {
-        "parameters": [],
-        "operationId": "postApiCheckinsSync-offline",
         "tags": [
           "checkins"
+        ],
+        "summary": "Synchronize offline check-in logs",
+        "description": "Requires STAFF or ORGANIZER. Scans are applied in chronological order. The first scan per ticket wins; later scans are reported as CONFLICT. Replayed scans are reported as DUPLICATE and do not change state.",
+        "operationId": "syncOfflineCheckins",
+        "security": [
+          {
+            "bearerAuth": []
+          }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "logs"
-                ],
-                "properties": {
-                  "logs": {
-                    "minItems": 1,
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "required": [
-                        "ticketId",
-                        "scannedAt"
-                      ],
-                      "properties": {
-                        "ticketId": {
-                          "minLength": 1,
-                          "type": "string"
-                        },
-                        "scannedAt": {
-                          "minLength": 1,
-                          "type": "string"
-                        },
-                        "deviceId": {
-                          "type": "string"
-                        }
-                      }
-                    }
+                "$ref": "#/components/schemas/OfflineSyncRequest"
+              },
+              "example": {
+                "logs": [
+                  {
+                    "ticketId": "1b4d7f9a-3c6e-4a2b-8d5f-7e9c1a3b5d20",
+                    "scannedAt": "2026-11-09T08:00:00.000Z",
+                    "deviceId": "gate-1"
                   }
-                }
-              }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "logs"
-                ],
-                "properties": {
-                  "logs": {
-                    "minItems": 1,
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "required": [
-                        "ticketId",
-                        "scannedAt"
-                      ],
-                      "properties": {
-                        "ticketId": {
-                          "minLength": 1,
-                          "type": "string"
-                        },
-                        "scannedAt": {
-                          "minLength": 1,
-                          "type": "string"
-                        },
-                        "deviceId": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            },
-            "text/plain": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "logs"
-                ],
-                "properties": {
-                  "logs": {
-                    "minItems": 1,
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "required": [
-                        "ticketId",
-                        "scannedAt"
-                      ],
-                      "properties": {
-                        "ticketId": {
-                          "minLength": 1,
-                          "type": "string"
-                        },
-                        "scannedAt": {
-                          "minLength": 1,
-                          "type": "string"
-                        },
-                        "deviceId": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
+                ]
               }
             }
           }
         },
         "responses": {
-          "200": {}
+          "200": {
+            "description": "Per-scan synchronization results.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfflineSyncResponse"
+                },
+                "example": {
+                  "processed": 1,
+                  "synced": 1,
+                  "conflicts": 0,
+                  "duplicates": 0,
+                  "results": [
+                    {
+                      "ticketId": "1b4d7f9a-3c6e-4a2b-8d5f-7e9c1a3b5d20",
+                      "status": "SYNCED",
+                      "reason": "TICKET_NOT_FOUND",
+                      "message": "Ticket has already been checked in",
+                      "attendeeName": "Nguyen Van A",
+                      "logId": "3d6f8b2c-5e9a-4c4d-8f7b-9a2e1c3d5f40"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "The caller is not STAFF or ORGANIZER.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "FORBIDDEN",
+                  "message": "Staff role is required"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          }
         }
       }
     },
     "/internal/tickets/verify-access": {
       "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1
-            },
-            "in": "query",
-            "name": "userId",
-            "required": true
-          },
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1
-            },
-            "in": "query",
-            "name": "eventId",
-            "required": true
-          }
-        ],
-        "operationId": "getInternalTicketsVerify-access",
         "tags": [
           "internal"
         ],
+        "summary": "Check whether a user checked in to an event",
+        "description": "Used by the Engagement Service to enforce BR-6. Requires the shared service token instead of a user JWT.",
+        "operationId": "verifyAccess",
+        "security": [
+          {
+            "serviceToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "eventId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": {}
+          "200": {
+            "description": "Access decision for the user and event.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalAccessResponse"
+                },
+                "examples": {
+                  "checkedIn": {
+                    "value": {
+                      "userId": "5f3b6e2a-1c4d-4a8e-9b7f-2d6c8a1e4b90",
+                      "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
+                      "checkedIn": true,
+                      "hasAccess": true,
+                      "ticketId": "1b4d7f9a-3c6e-4a2b-8d5f-7e9c1a3b5d20"
+                    }
+                  },
+                  "notCheckedIn": {
+                    "value": {
+                      "userId": "5f3b6e2a-1c4d-4a8e-9b7f-2d6c8a1e4b90",
+                      "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
+                      "checkedIn": false,
+                      "hasAccess": false,
+                      "ticketId": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/ServiceUnauthorized"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          }
         }
       }
     }
-  },
-  "components": {
-    "schemas": {}
   }
 }
