@@ -1,5 +1,6 @@
 import { Elysia } from "elysia";
 import { swagger } from "@elysiajs/swagger";
+import { openapiDocumentation } from "./openapi";
 import { makeDeps, type Deps } from "./deps";
 import { authRoutes } from "./modules/auth.routes";
 import { orderRoutes } from "./modules/order.routes";
@@ -14,21 +15,7 @@ export function createApp(overrides: Partial<Deps> = {}) {
     .use(
       swagger({
         path: "/swagger",
-        documentation: {
-          info: {
-            title: "qEvent Admission Service",
-            version: "1.0.0",
-            description:
-              "Accounts, ticket orders with the Event Service saga, dynamic QR, and check-in.",
-          },
-          tags: [
-            { name: "auth", description: "Accounts and JWT" },
-            { name: "orders", description: "Ticket ordering saga" },
-            { name: "tickets", description: "Ticket listing and dynamic QR" },
-            { name: "checkins", description: "Online and offline check-in" },
-            { name: "internal", description: "Service-to-service access checks" },
-          ],
-        },
+        documentation: openapiDocumentation,
       })
     )
     .get("/health", async ({ set }) => {
