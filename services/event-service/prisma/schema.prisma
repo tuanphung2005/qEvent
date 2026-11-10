@@ -1,0 +1,73 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Event {
+  id            String       @id @default(uuid())
+  name          String
+  venue         String
+  startTime     DateTime
+  endTime       DateTime
+  maxCapacity   Int
+  reservedCount Int          @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  rooms         Room[]
+  sessions      Session[]
+  ticketTypes   TicketType[]
+}
+
+model Room {
+  id       String @id @default(uuid())
+  eventId  String
+  name     String
+  capacity Int
+  event    Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  eventId   String
+  title     String
+  speaker   String
+  startTime DateTime
+  endTime   DateTime
+  isLive    Boolean  @default(false)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model TicketType {
+  id           String        @id @default(uuid())
+  eventId      String
+  name         String
+  price        Float
+  quota        Int
+  soldCount    Int           @default(0)
+  event        Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  reservations Reservation[]
+
+  @@index([eventId])
+}
+
+model Reservation {
+  id           String     @id @default(uuid())
+  operationId  String     @unique
+  eventId      String
+  ticketTypeId String
+  quantity     Int
+  status       String     @default("CONFIRMED")
+  expiresAt    DateTime
+  createdAt    DateTime   @default(now())
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
