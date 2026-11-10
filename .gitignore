@@ -27,6 +27,7 @@ android/
 
 # Build & Test
 coverage/
+.test-keys/
 .next/
 out/
 build/

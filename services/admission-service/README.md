@@ -84,8 +84,8 @@ bun prisma/seed.ts            # idempotent, không xóa dữ liệu
 bun run dev                   # http://localhost:3002
 ```
 
-Thư mục này đang trỏ Postgres ở `localhost:5433` vì máy hiện tại có PostgreSQL 18
-chiếm `5432`. Đổi `DATABASE_URL` nếu môi trường của bạn khác.
+Thư mục này trỏ Postgres ở `localhost:5434` (cổng mapping của `postgres-admission`
+trong docker-compose theo `plans/AI_MICROSERVICES_EXECUTION_PLAN.md`). Đổi `DATABASE_URL` nếu môi trường của bạn khác.
 
 Tạo database test (một lần):
 

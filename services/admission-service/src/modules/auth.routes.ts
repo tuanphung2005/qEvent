@@ -32,6 +32,7 @@ export function authRoutes(deps: Deps, secret: string) {
         }
 
         const token = await jwtAuth.sign({
+          sub: user.id,
           id: user.id,
           email: user.email,
           fullName: user.fullName,
@@ -63,6 +64,7 @@ export function authRoutes(deps: Deps, secret: string) {
         }
 
         const token = await jwtAuth.sign({
+          sub: user.id,
           id: user.id,
           email: user.email,
           fullName: user.fullName,
