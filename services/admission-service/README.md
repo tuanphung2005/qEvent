@@ -32,7 +32,12 @@ Thuộc phần việc của Vũ theo `plans/AI_MICROSERVICES_EXECUTION_PLAN.md` 
 | GET | `/internal/tickets/verify-access` | `200 { hasAccess }` | `401 UNAUTHORIZED_SERVICE` |
 | GET | `/health` | `200` | `503` khi DB không sẵn sàng |
 
-OpenAPI: `openapi.json` (sinh bằng `bun run openapi`) và Swagger UI tại `/swagger`.
+OpenAPI 3.0.3: `openapi.json` and `openapi.yaml` (generate both with `bun run openapi`),
+served at `/swagger` with the raw spec at `/swagger/json`. The contract documents request/response
+schemas, JWT and `x-service-token` security, every success/error status, and success/error examples.
+Examples and response payloads are generated from the schemas in `src/openapi.ts`, so the checked-in
+files cannot drift from the contract. `test/openapi.test.ts` fails when the files drift from the
+served spec or an operation loses its examples.
 
 ## Hợp đồng với Event Service
 
@@ -96,6 +101,16 @@ bun test
 
 Test dùng `TEST_DATABASE_URL`, tự `prisma db push` schema test và không đụng database dev.
 
+Tài khoản seed (mật khẩu chung `password123`):
+
+| Email | Role |
+|---|---|
+| `organizer@qevent.com` | `ORGANIZER` |
+| `staff1@qevent.com` | `STAFF` |
+| `staff2@qevent.com` | `STAFF` |
+| `attendee@qevent.com` | `ATTENDEE` |
+| `attendee2@qevent.com` | `ATTENDEE` |
+
 ## Docker
 
 ```bash
@@ -103,9 +118,9 @@ cd services/admission-service
 docker compose up --build
 ```
 
-Compose tại đây chỉ chạy `postgres-admission` + `admission-service` (chưa publish cổng host,
-theo quy ước chỉ Gateway được public). Khi ghép hệ thống, trỏ `EVENT_SERVICE_URL` tới
-`http://event-service:3001` và thêm service này vào compose tổng.
+Compose tại đây chạy `postgres-admission` (publish `5434` ra host theo quy ước compose tổng)
+và `admission-service` (chỉ mở trong mạng Docker, không publish cổng host). Khi ghép hệ thống,
+trỏ `EVENT_SERVICE_URL` tới `http://event-service:3001` và thêm service này vào compose tổng.
 
 ## Giới hạn đã biết
 
