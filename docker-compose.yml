@@ -35,5 +35,23 @@ services:
       postgres:
         condition: service_healthy
 
+  api-gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: qevent-api-gateway
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      PORT: 8000
+      JWT_SECRET: qevent_super_secret_jwt_key_2026_production_grade
+      EVENT_SERVICE_URL: http://backend:3000
+      ADMISSION_SERVICE_URL: http://backend:3000
+      ENGAGEMENT_SERVICE_URL: http://backend:3000
+    depends_on:
+      backend:
+        condition: service_started
+
 volumes:
   postgres_data:
