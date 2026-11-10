@@ -186,6 +186,68 @@ describe("ticket ordering saga", () => {
     expect(replayAfter.data.order.id).toBe(pending.data.order.id);
   });
 
+  it("returns 202 when the event service answers 5xx", async () => {
+    const fake = new FakeEventClient(() => ({ status: 503, body: {} }));
+    const { app } = makeTestApp({ eventClient: fake });
+    const buyer = await registerAttendee(app);
+
+    const result = await call(app, "/api/orders", {
+      method: "POST",
+      token: buyer.token,
+      headers: { "idempotency-key": crypto.randomUUID() },
+      body: orderBody(),
+    });
+
+    expect(result.status).toBe(202);
+    expect(result.data.order.status).toBe("PENDING_RECONCILIATION");
+
+    await prisma.order.update({
+      where: { id: result.data.order.id },
+      data: { status: "FAILED" },
+    });
+  });
+
+  it("marks the order failed when reconciliation is rejected by the event service", async () => {
+    const fake = new FakeEventClient(() => ({
+      status: 409,
+      body: { code: "SOLD_OUT", message: "Capacity exhausted" },
+    }));
+    const { deps } = makeTestApp({ eventClient: fake });
+    const user = await prisma.user.create({
+      data: {
+        email: `reject-${crypto.randomUUID()}@test.local`,
+        passwordHash: "x",
+        fullName: "Reject User",
+      },
+    });
+    const key = crypto.randomUUID();
+    const order = await prisma.order.create({
+      data: {
+        userId: user.id,
+        eventId: "event-reject",
+        ticketTypeId: "ticket-type-reject",
+        idempotencyKey: key,
+        operationId: crypto.randomUUID(),
+        status: "PENDING_RECONCILIATION",
+      },
+    });
+    await prisma.idempotencyLog.create({
+      data: { userId: user.id, key, fingerprint: "fp", orderId: order.id, status: "PENDING" },
+    });
+
+    expect(await reconcileOnce(deps)).toBe(1);
+
+    const failed = await prisma.order.findUniqueOrThrow({
+      where: { id: order.id },
+      include: { idempotency: true, tickets: true },
+    });
+    expect(failed.status).toBe("FAILED");
+    expect(failed.failureCode).toBe("SOLD_OUT");
+    expect(failed.tickets).toHaveLength(0);
+    expect(failed.idempotency?.status).toBe("COMPLETED");
+    expect(failed.idempotency?.responseStatus).toBe(409);
+  });
+
   it("only the owner or staff can read an order", async () => {
     const { app } = makeTestApp({ eventClient: new FakeEventClient() });
     const owner = await registerAttendee(app);
@@ -195,6 +257,11 @@ describe("ticket ordering saga", () => {
 
     expect((await call(app, `/api/orders/${order.id}`, { token: owner.token })).status).toBe(200);
     expect((await call(app, `/api/orders/${order.id}`, { token: other.token })).status).toBe(404);
+
+    const missing = await call(app, `/api/orders/${crypto.randomUUID()}`, { token: owner.token });
+    expect(missing.status).toBe(404);
+    expect(missing.data.code).toBe("ORDER_NOT_FOUND");
+
     expect((await call(app, `/api/orders/${order.id}`, { token: staff.token })).status).toBe(200);
   });
 

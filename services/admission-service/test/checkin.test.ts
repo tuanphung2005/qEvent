@@ -119,6 +119,40 @@ describe("online check-in", () => {
     expect(wrongResult.data.code).toBe("INVALID_QR_TOKEN");
   });
 
+  it("rejects a valid QR token bound to another event", async () => {
+    const buyer = await registerAttendee(app);
+    const staff = await registerStaff(app);
+    const { ticket } = await issueTicket(buyer.token);
+
+    const token = qrFor(deps, { ...ticket, eventId: "another-event" }, Date.now());
+    const result = await scan(staff.token, token);
+
+    expect(result.status).toBe(400);
+    expect(result.data.code).toBe("INVALID_QR_TOKEN");
+  });
+
+  it("rejects a valid QR token whose order is not confirmed", async () => {
+    const buyer = await registerAttendee(app);
+    const staff = await registerStaff(app);
+    const { ticket, order } = await issueTicket(buyer.token);
+    await prisma.order.update({ where: { id: order.id }, data: { status: "FAILED" } });
+
+    const result = await scan(staff.token, qrFor(deps, ticket, Date.now()));
+    expect(result.status).toBe(409);
+    expect(result.data.code).toBe("ORDER_NOT_CONFIRMED");
+  });
+
+  it("rejects a valid QR token for a cancelled ticket", async () => {
+    const buyer = await registerAttendee(app);
+    const staff = await registerStaff(app);
+    const { ticket } = await issueTicket(buyer.token);
+    await prisma.ticket.update({ where: { id: ticket.id }, data: { status: "CANCELLED" } });
+
+    const result = await scan(staff.token, qrFor(deps, ticket, Date.now()));
+    expect(result.status).toBe(400);
+    expect(result.data.code).toBe("INVALID_TICKET_STATUS");
+  });
+
   it("requires a staff or organizer role", async () => {
     const buyer = await registerAttendee(app);
     const { ticket } = await issueTicket(buyer.token);
@@ -167,6 +201,24 @@ describe("ticket access", () => {
     const result = await getQrToken(buyer.token, ticket.id);
     expect(result.status).toBe(409);
     expect(result.data.code).toBe("TICKET_CANCELLED");
+  });
+
+  it("refuses QR tokens while the order is not confirmed", async () => {
+    const buyer = await registerAttendee(app);
+    const { ticket, order } = await issueTicket(buyer.token);
+    await prisma.order.update({ where: { id: order.id }, data: { status: "FAILED" } });
+
+    const result = await getQrToken(buyer.token, ticket.id);
+    expect(result.status).toBe(409);
+    expect(result.data.code).toBe("ORDER_NOT_CONFIRMED");
+  });
+
+  it("returns 404 for an unknown ticket", async () => {
+    const buyer = await registerAttendee(app);
+
+    const result = await getQrToken(buyer.token, crypto.randomUUID());
+    expect(result.status).toBe(404);
+    expect(result.data.code).toBe("TICKET_NOT_FOUND");
   });
 });
 
@@ -218,6 +270,19 @@ describe("offline check-in sync", () => {
     expect(unknown.data.results[0].status).toBe("ERROR");
     expect(unknown.data.results[0].reason).toBe("TICKET_NOT_FOUND");
 
+    const invalidTime = await call(app, "/api/checkins/sync-offline", {
+      method: "POST",
+      token: staff.token,
+      body: {
+        logs: [{ ticketId: crypto.randomUUID(), scannedAt: "not-a-date" }],
+      },
+    });
+    expect(invalidTime.status).toBe(200);
+    expect(invalidTime.data.results[0]).toMatchObject({
+      status: "ERROR",
+      reason: "INVALID_TIMESTAMP",
+    });
+
     const forbidden = await call(app, "/api/checkins/sync-offline", {
       method: "POST",
       token: attendee.token,
@@ -259,5 +324,10 @@ describe("internal access verification", () => {
     const unauthorized = await verifyAccess(buyer.userId, order.eventId, "wrong-token");
     expect(unauthorized.status).toBe(401);
     expect(unauthorized.data.code).toBe("UNAUTHORIZED_SERVICE");
+
+    const invalid = await call(app, "/internal/tickets/verify-access", {
+      headers: { "x-service-token": deps.internalToken },
+    });
+    expect(invalid.status).toBe(422);
   });
 });
