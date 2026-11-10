@@ -27,7 +27,7 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: postgresql://postgres:password123@postgres:5432/qevent?schema=public
-      JWT_SECRET: qevent_super_secret_jwt_key_2026_production_grade
+      JWT_SECRET: qevent_local_dev_jwt_secret_do_not_use_in_prod_2026
       PORT: 3000
       HOST: 0.0.0.0
       SEED_DB: "true"
@@ -45,7 +45,7 @@ services:
       - "8000:8000"
     environment:
       PORT: 8000
-      JWT_SECRET: qevent_super_secret_jwt_key_2026_production_grade
+      JWT_SECRET: qevent_local_dev_jwt_secret_do_not_use_in_prod_2026
       EVENT_SERVICE_URL: http://backend:3000
       ADMISSION_SERVICE_URL: http://backend:3000
       ENGAGEMENT_SERVICE_URL: http://backend:3000
