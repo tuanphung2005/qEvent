@@ -1,0 +1,37 @@
+name: qevent-event
+
+services:
+  postgres-event:
+    image: postgres:16-alpine
+    container_name: qevent-db-event
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: qevent_event
+    ports:
+      - "5433:5432"
+    volumes:
+      - event_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d qevent_event"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  event-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qevent-event-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://postgres:password123@postgres-event:5432/qevent_event?schema=public"
+      INTERNAL_SERVICE_TOKEN: "qevent_internal_service_token_2026"
+      PORT: 3001
+    depends_on:
+      postgres-event:
+        condition: service_healthy
+
+volumes:
+  event_data:
