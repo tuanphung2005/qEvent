@@ -1,0 +1,288 @@
+{
+  "info": {
+    "name": "qEvent Engagement Service & Microservices Collection",
+    "description": "Comprehensive Postman test suite for qEvent Engagement Service (Port 3003 / Gateway 8000), covering Q&A, Polls, and Kahoot Live Quiz Game engine.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "1. GET /health (Engagement Service)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Live Q&A",
+      "item": [
+        {
+          "name": "2. GET /api/sessions/:sessionId/questions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/questions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sessions", "{{sessionId}}", "questions"]
+            }
+          }
+        },
+        {
+          "name": "3. POST /api/sessions/:sessionId/questions (403 Not Checked In)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user-id", "value": "unregistered-user-id" },
+              { "key": "x-user-role", "value": "ATTENDEE" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Câu hỏi thử nghiệm khi chưa check-in\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/questions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sessions", "{{sessionId}}", "questions"]
+            }
+          }
+        },
+        {
+          "name": "4. POST /api/sessions/:sessionId/questions (201 Checked In)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user-id", "value": "{{attendeeId}}" },
+              { "key": "x-user-role", "value": "ATTENDEE" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Microservices giúp qEvent giải quyết vấn đề nghẽn cổ chai ra sao?\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/questions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sessions", "{{sessionId}}", "questions"]
+            }
+          }
+        },
+        {
+          "name": "5. PUT /api/questions/:questionId/votes (Toggle Upvote)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user-id", "value": "{{attendeeId}}" },
+              { "key": "x-user-role", "value": "ATTENDEE" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/questions/{{questionId}}/votes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "questions", "{{questionId}}", "votes"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Interactive Polls",
+      "item": [
+        {
+          "name": "6. GET /api/sessions/:sessionId/polls",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/polls",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sessions", "{{sessionId}}", "polls"]
+            }
+          }
+        },
+        {
+          "name": "7. POST /api/sessions/:sessionId/polls (Host creates Poll)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user-id", "value": "{{organizerId}}" },
+              { "key": "x-user-role", "value": "ORGANIZER" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Bạn đánh giá thế nào về kiến trúc Microservices qEvent?\",\n  \"options\": [\n    \"Rất linh hoạt và độc lập\",\n    \"Phức tạp khi gỡ lỗi phân tán\",\n    \"Cần tối ưu thêm độ trễ\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/polls",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sessions", "{{sessionId}}", "polls"]
+            }
+          }
+        },
+        {
+          "name": "8. POST /api/polls/:pollId/vote (Cast / Switch vote)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user-id", "value": "{{attendeeId}}" },
+              { "key": "x-user-role", "value": "ATTENDEE" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"optionId\": \"{{pollOptionId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/polls/{{pollId}}/vote",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "polls", "{{pollId}}", "vote"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Kahoot Live Quiz Game",
+      "item": [
+        {
+          "name": "9. POST /api/sessions/:sessionId/game (Create Game)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-user-id", "value": "{{organizerId}}" },
+              { "key": "x-user-role", "value": "ORGANIZER" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/game",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sessions", "{{sessionId}}", "game"]
+            }
+          }
+        },
+        {
+          "name": "10. POST /api/game/:gameId/question (Add Question)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user-id", "value": "{{organizerId}}" },
+              { "key": "x-user-role", "value": "ORGANIZER" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Thuật toán nào ngăn chặn check-in trùng?\",\n  \"options\": [\n    \"Two-Phase Locking\",\n    \"Compare-And-Set (CAS)\",\n    \"Eventual Consistency\",\n    \"DNS Round Robin\"\n  ],\n  \"correctOption\": 1,\n  \"timeLimitSec\": 20\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/game/{{gameId}}/question",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "game", "{{gameId}}", "question"]
+            }
+          }
+        },
+        {
+          "name": "11. GET /api/game/:gameId (View Game Status)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-user-id", "value": "{{organizerId}}" },
+              { "key": "x-user-role", "value": "ORGANIZER" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/game/{{gameId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "game", "{{gameId}}"]
+            }
+          }
+        },
+        {
+          "name": "12. POST /api/game/:gameId/start (Start Game - CAS)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-user-id", "value": "{{organizerId}}" },
+              { "key": "x-user-role", "value": "ORGANIZER" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/game/{{gameId}}/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "game", "{{gameId}}", "start"]
+            }
+          }
+        },
+        {
+          "name": "13. POST /api/game/:gameId/answer (Submit Answer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user-id", "value": "{{attendeeId}}" },
+              { "key": "x-user-role", "value": "ATTENDEE" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"questionId\": \"{{questionId}}\",\n  \"selectedOption\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/game/{{gameId}}/answer",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "game", "{{gameId}}", "answer"]
+            }
+          }
+        },
+        {
+          "name": "14. POST /api/game/:gameId/reveal (Reveal Answer - CAS)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-user-id", "value": "{{organizerId}}" },
+              { "key": "x-user-role", "value": "ORGANIZER" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/game/{{gameId}}/reveal",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "game", "{{gameId}}", "reveal"]
+            }
+          }
+        },
+        {
+          "name": "15. POST /api/game/:gameId/end (End Game - CAS)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-user-id", "value": "{{organizerId}}" },
+              { "key": "x-user-role", "value": "ORGANIZER" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/game/{{gameId}}/end",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "game", "{{gameId}}", "end"]
+            }
+          }
+        },
+        {
+          "name": "16. GET /api/game/:gameId/leaderboard (Leaderboard)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/game/{{gameId}}/leaderboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "game", "{{gameId}}", "leaderboard"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
