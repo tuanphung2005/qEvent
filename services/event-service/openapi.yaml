@@ -1,0 +1,1298 @@
+openapi: 3.0.3
+info:
+  title: qEvent Event Service
+  description: "Events, rooms, sessions, ticket types and atomic seat reservations. The service owns `qevent_event` and never joins another service database. Organizer endpoints trust the `x-user-role` header forwarded by the API Gateway after JWT verification. Errors use `{ code, message }` except request validation failures, which return the Elysia validation payload."
+  version: 1.0.0
+servers:
+  - url: http://localhost:3001
+    description: Direct service port (Docker network)
+  - url: http://localhost:8000
+    description: API Gateway entry point
+tags:
+  - name: events
+    description: "Event, room, session and ticket type management"
+  - name: internal
+    description: Service-to-service reservations and metadata
+  - name: health
+    description: Service and database readiness
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT verified by the API Gateway before the request is forwarded.
+    serviceToken:
+      type: apiKey
+      in: header
+      name: x-service-token
+      description: Shared service credential for internal endpoints.
+  schemas:
+    ErrorBody:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: SOLD_OUT
+        message:
+          type: string
+          example: Ticket type or event capacity is exhausted
+    ValidationError:
+      type: object
+      required:
+        - type
+        - "on"
+        - property
+        - message
+      properties:
+        type:
+          type: string
+          example: validation
+        "on":
+          type: string
+          example: body
+        property:
+          type: string
+          example: /maxCapacity
+        message:
+          type: string
+          example: Expected number to be greater or equal to 1
+        summary:
+          type: string
+        expected:
+          type: object
+          additionalProperties: true
+        found:
+          type: object
+          additionalProperties: true
+        errors:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - service
+        - database
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - degraded
+        service:
+          type: string
+          example: event-service
+        database:
+          type: string
+          enum:
+            - ok
+            - unavailable
+    Room:
+      type: object
+      required:
+        - id
+        - name
+        - capacity
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Main Hall
+        capacity:
+          type: integer
+          minimum: 1
+          example: 500
+    Session:
+      type: object
+      required:
+        - id
+        - title
+        - speaker
+        - startTime
+        - endTime
+        - isLive
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: Opening Keynote
+        speaker:
+          type: string
+          example: Alex Nguyen
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        isLive:
+          type: boolean
+    TicketType:
+      type: object
+      required:
+        - id
+        - name
+        - price
+        - quota
+        - soldCount
+        - available
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Standard
+        price:
+          type: number
+          minimum: 0
+          example: 25
+        quota:
+          type: integer
+          minimum: 1
+          example: 500
+        soldCount:
+          type: integer
+          minimum: 0
+          example: 12
+        available:
+          type: integer
+          minimum: 0
+          example: 488
+    Event:
+      type: object
+      required:
+        - id
+        - name
+        - venue
+        - startTime
+        - endTime
+        - maxCapacity
+        - reservedCount
+        - createdAt
+        - rooms
+        - sessions
+        - ticketTypes
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Tech Summit Vietnam 2026
+        venue:
+          type: string
+          example: Saigon Exhibition and Convention Center
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        maxCapacity:
+          type: integer
+          minimum: 1
+          example: 500
+        reservedCount:
+          type: integer
+          minimum: 0
+          example: 12
+        createdAt:
+          type: string
+          format: date-time
+        rooms:
+          type: array
+          items:
+            $ref: "#/components/schemas/Room"
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Session"
+        ticketTypes:
+          type: array
+          items:
+            $ref: "#/components/schemas/TicketType"
+    EventResponse:
+      type: object
+      required:
+        - event
+      properties:
+        event:
+          $ref: "#/components/schemas/Event"
+    EventListResponse:
+      type: object
+      required:
+        - events
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/Event"
+    RoomRequest:
+      type: object
+      required:
+        - name
+        - capacity
+      properties:
+        name:
+          type: string
+          minLength: 1
+        capacity:
+          type: integer
+          minimum: 1
+    RoomResponse:
+      type: object
+      required:
+        - room
+      properties:
+        room:
+          $ref: "#/components/schemas/Room"
+    SessionRequest:
+      type: object
+      required:
+        - title
+        - speaker
+        - startTime
+        - endTime
+        - isLive
+      properties:
+        title:
+          type: string
+          minLength: 1
+        speaker:
+          type: string
+          minLength: 1
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        isLive:
+          type: boolean
+    SessionResponse:
+      type: object
+      required:
+        - session
+      properties:
+        session:
+          $ref: "#/components/schemas/Session"
+    TicketTypeRequest:
+      type: object
+      required:
+        - name
+        - price
+        - quota
+      properties:
+        name:
+          type: string
+          minLength: 1
+        price:
+          type: number
+          minimum: 0
+        quota:
+          type: integer
+          minimum: 1
+    TicketTypeResponse:
+      type: object
+      required:
+        - ticketType
+      properties:
+        ticketType:
+          $ref: "#/components/schemas/TicketType"
+    CreateEventRequest:
+      type: object
+      required:
+        - name
+        - venue
+        - startTime
+        - endTime
+        - maxCapacity
+        - rooms
+        - sessions
+        - ticketTypes
+      properties:
+        name:
+          type: string
+          minLength: 1
+        venue:
+          type: string
+          minLength: 1
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        maxCapacity:
+          type: integer
+          minimum: 1
+        rooms:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoomRequest"
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/SessionRequest"
+        ticketTypes:
+          type: array
+          items:
+            $ref: "#/components/schemas/TicketTypeRequest"
+    UpdateEventRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+        venue:
+          type: string
+          minLength: 1
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        maxCapacity:
+          type: integer
+          minimum: 1
+    ReservationRequest:
+      type: object
+      required:
+        - operationId
+        - eventId
+        - ticketTypeId
+        - quantity
+      properties:
+        operationId:
+          type: string
+          minLength: 1
+        eventId:
+          type: string
+          minLength: 1
+        ticketTypeId:
+          type: string
+          minLength: 1
+        quantity:
+          type: integer
+          minimum: 1
+          example: 1
+    Reservation:
+      type: object
+      required:
+        - id
+        - operationId
+        - eventId
+        - ticketTypeId
+        - quantity
+        - status
+        - expiresAt
+        - createdAt
+        - unitPrice
+      properties:
+        id:
+          type: string
+          format: uuid
+        operationId:
+          type: string
+          example: 3f6f2f0e-9b2a-4c6d-8e1a-2b3c4d5e6f70
+        eventId:
+          type: string
+          format: uuid
+        ticketTypeId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+            - CONFIRMED
+            - RELEASED
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        unitPrice:
+          type: number
+          minimum: 0
+          example: 25
+    ReservationResponse:
+      type: object
+      required:
+        - reservation
+      properties:
+        reservation:
+          $ref: "#/components/schemas/Reservation"
+    InternalSessionResponse:
+      type: object
+      required:
+        - session
+      properties:
+        session:
+          type: object
+          required:
+            - id
+            - title
+            - speaker
+            - startTime
+            - endTime
+            - isLive
+            - event
+          properties:
+            id:
+              type: string
+              format: uuid
+            title:
+              type: string
+              example: Opening Keynote
+            speaker:
+              type: string
+              example: Alex Nguyen
+            startTime:
+              type: string
+              format: date-time
+            endTime:
+              type: string
+              format: date-time
+            isLive:
+              type: boolean
+            event:
+              type: object
+              required:
+                - id
+                - name
+                - startTime
+                - endTime
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                  example: Tech Summit Vietnam 2026
+                startTime:
+                  type: string
+                  format: date-time
+                endTime:
+                  type: string
+                  format: date-time
+  responses:
+    Unauthorized:
+      description: Authentication is missing or the JWT is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            code: UNAUTHORIZED
+            message: Authentication is required
+    Forbidden:
+      description: The caller is not an ORGANIZER.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            code: FORBIDDEN
+            message: Organizer role is required
+    ServiceUnauthorized:
+      description: The service token is missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            code: UNAUTHORIZED_SERVICE
+            message: Valid service token is required
+    ValidationFailed:
+      description: The request body or parameters do not satisfy the declared schema.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationError"
+          example:
+            type: validation
+            "on": body
+            property: /maxCapacity
+            message: Expected number to be greater or equal to 1
+            summary: string
+            expected: {}
+            found: {}
+            errors:
+              - {}
+paths:
+  /health:
+    get:
+      tags:
+        - health
+      summary: Report service and database readiness
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service and database are reachable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: ok
+                service: event-service
+                database: ok
+        "503":
+          description: Database is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: degraded
+                service: event-service
+                database: unavailable
+  /api/events:
+    get:
+      tags:
+        - events
+      summary: List events
+      description: Public. Returns events ordered by start time.
+      operationId: listEvents
+      responses:
+        "200":
+          description: Events ordered by start time.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventListResponse"
+              example:
+                events:
+                  - id: 00000000-0000-4000-8000-000000000001
+                    name: Tech Summit Vietnam 2026
+                    venue: Saigon Exhibition and Convention Center
+                    startTime: 2026-11-09T08:00:00.000Z
+                    endTime: 2026-11-09T08:00:00.000Z
+                    maxCapacity: 500
+                    reservedCount: 12
+                    createdAt: 2026-11-09T08:00:00.000Z
+                    rooms:
+                      - id: 00000000-0000-4000-8000-000000000002
+                        name: Main Hall
+                        capacity: 500
+                    sessions:
+                      - id: 00000000-0000-4000-8000-000000000003
+                        title: Opening Keynote
+                        speaker: Alex Nguyen
+                        startTime: 2026-11-09T08:00:00.000Z
+                        endTime: 2026-11-09T08:00:00.000Z
+                        isLive: true
+                    ticketTypes:
+                      - id: 44444444-4444-4444-8444-444444444444
+                        name: Standard
+                        price: 25
+                        quota: 500
+                        soldCount: 12
+                        available: 488
+    post:
+      tags:
+        - events
+      summary: "Create an event with optional rooms, sessions and ticket types"
+      description: "Requires the ORGANIZER role. `startTime` must be before `endTime` and must not be in the past, otherwise `422 INVALID_EVENT_TIME` is returned."
+      operationId: createEvent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: x-user-role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - ORGANIZER
+          description: Forwarded by the API Gateway after JWT verification. The service rejects other roles with 403.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEventRequest"
+            example:
+              name: string
+              venue: string
+              startTime: 2026-11-09T08:00:00.000Z
+              endTime: 2026-11-09T08:00:00.000Z
+              maxCapacity: 1
+              rooms:
+                - name: string
+                  capacity: 1
+              sessions:
+                - title: string
+                  speaker: string
+                  startTime: 2026-11-09T08:00:00.000Z
+                  endTime: 2026-11-09T08:00:00.000Z
+                  isLive: true
+              ticketTypes:
+                - name: string
+                  price: 0
+                  quota: 1
+      responses:
+        "201":
+          description: Event created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventResponse"
+              example:
+                event:
+                  id: 00000000-0000-4000-8000-000000000004
+                  name: Tech Summit Vietnam 2026
+                  venue: Saigon Exhibition and Convention Center
+                  startTime: 2026-11-09T08:00:00.000Z
+                  endTime: 2026-11-09T08:00:00.000Z
+                  maxCapacity: 500
+                  reservedCount: 12
+                  createdAt: 2026-11-09T08:00:00.000Z
+                  rooms:
+                    - id: 00000000-0000-4000-8000-000000000005
+                      name: Main Hall
+                      capacity: 500
+                  sessions:
+                    - id: 00000000-0000-4000-8000-000000000006
+                      title: Opening Keynote
+                      speaker: Alex Nguyen
+                      startTime: 2026-11-09T08:00:00.000Z
+                      endTime: 2026-11-09T08:00:00.000Z
+                      isLive: true
+                  ticketTypes:
+                    - id: 44444444-4444-4444-8444-444444444444
+                      name: Standard
+                      price: 25
+                      quota: 500
+                      soldCount: 12
+                      available: 488
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          description: The event or session time is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              examples:
+                invalidEventTime:
+                  value:
+                    code: INVALID_EVENT_TIME
+                    message: Start time must be before end time
+                invalidSessionTime:
+                  value:
+                    code: INVALID_SESSION_TIME
+                    message: Session start time must be before end time
+  "/api/events/{id}":
+    get:
+      tags:
+        - events
+      summary: "Get an event with rooms, sessions and ticket types"
+      operationId: getEvent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Event found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventResponse"
+              example:
+                event:
+                  id: 00000000-0000-4000-8000-000000000007
+                  name: Tech Summit Vietnam 2026
+                  venue: Saigon Exhibition and Convention Center
+                  startTime: 2026-11-09T08:00:00.000Z
+                  endTime: 2026-11-09T08:00:00.000Z
+                  maxCapacity: 500
+                  reservedCount: 12
+                  createdAt: 2026-11-09T08:00:00.000Z
+                  rooms:
+                    - id: 00000000-0000-4000-8000-000000000008
+                      name: Main Hall
+                      capacity: 500
+                  sessions:
+                    - id: 00000000-0000-4000-8000-000000000009
+                      title: Opening Keynote
+                      speaker: Alex Nguyen
+                      startTime: 2026-11-09T08:00:00.000Z
+                      endTime: 2026-11-09T08:00:00.000Z
+                      isLive: true
+                  ticketTypes:
+                    - id: 44444444-4444-4444-8444-444444444444
+                      name: Standard
+                      price: 25
+                      quota: 500
+                      soldCount: 12
+                      available: 488
+        "404":
+          description: The event does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: EVENT_NOT_FOUND
+                message: Event was not found
+    patch:
+      tags:
+        - events
+      summary: Update an event
+      description: Requires the ORGANIZER role. Capacity cannot be lowered below the number of reserved seats.
+      operationId: updateEvent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-user-role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - ORGANIZER
+          description: Forwarded by the API Gateway after JWT verification. The service rejects other roles with 403.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEventRequest"
+            example:
+              name: string
+              venue: string
+              startTime: 2026-11-09T08:00:00.000Z
+              endTime: 2026-11-09T08:00:00.000Z
+              maxCapacity: 1
+      responses:
+        "200":
+          description: Event updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventResponse"
+              example:
+                event:
+                  id: 00000000-0000-4000-8000-000000000010
+                  name: Tech Summit Vietnam 2026
+                  venue: Saigon Exhibition and Convention Center
+                  startTime: 2026-11-09T08:00:00.000Z
+                  endTime: 2026-11-09T08:00:00.000Z
+                  maxCapacity: 500
+                  reservedCount: 12
+                  createdAt: 2026-11-09T08:00:00.000Z
+                  rooms:
+                    - id: 00000000-0000-4000-8000-000000000011
+                      name: Main Hall
+                      capacity: 500
+                  sessions:
+                    - id: 00000000-0000-4000-8000-000000000012
+                      title: Opening Keynote
+                      speaker: Alex Nguyen
+                      startTime: 2026-11-09T08:00:00.000Z
+                      endTime: 2026-11-09T08:00:00.000Z
+                      isLive: true
+                  ticketTypes:
+                    - id: 44444444-4444-4444-8444-444444444444
+                      name: Standard
+                      price: 25
+                      quota: 500
+                      soldCount: 12
+                      available: 488
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The event does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: EVENT_NOT_FOUND
+                message: Event was not found
+        "409":
+          description: The new capacity is lower than the reserved seats.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: CAPACITY_BELOW_RESERVED
+                message: maxCapacity cannot be lower than the number of reserved seats
+        "422":
+          description: The event time is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: INVALID_EVENT_TIME
+                message: Start time must be before end time
+  "/api/events/{id}/rooms":
+    post:
+      tags:
+        - events
+      summary: Add a room to an event
+      operationId: addRoom
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-user-role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - ORGANIZER
+          description: Forwarded by the API Gateway after JWT verification. The service rejects other roles with 403.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoomRequest"
+            example:
+              name: string
+              capacity: 1
+      responses:
+        "201":
+          description: Room added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomResponse"
+              example:
+                room:
+                  id: 00000000-0000-4000-8000-000000000013
+                  name: Main Hall
+                  capacity: 500
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The event does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: EVENT_NOT_FOUND
+                message: Event was not found
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  "/api/events/{id}/sessions":
+    post:
+      tags:
+        - events
+      summary: Add a session to an event
+      operationId: addSession
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-user-role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - ORGANIZER
+          description: Forwarded by the API Gateway after JWT verification. The service rejects other roles with 403.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionRequest"
+            example:
+              title: string
+              speaker: string
+              startTime: 2026-11-09T08:00:00.000Z
+              endTime: 2026-11-09T08:00:00.000Z
+              isLive: true
+      responses:
+        "201":
+          description: Session added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+              example:
+                session:
+                  id: 00000000-0000-4000-8000-000000000014
+                  title: Opening Keynote
+                  speaker: Alex Nguyen
+                  startTime: 2026-11-09T08:00:00.000Z
+                  endTime: 2026-11-09T08:00:00.000Z
+                  isLive: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The event does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: EVENT_NOT_FOUND
+                message: Event was not found
+        "422":
+          description: The session time is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: INVALID_SESSION_TIME
+                message: Session start time must be before end time
+  "/api/events/{id}/ticket-types":
+    post:
+      tags:
+        - events
+      summary: Add a ticket type to an event
+      operationId: addTicketType
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-user-role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - ORGANIZER
+          description: Forwarded by the API Gateway after JWT verification. The service rejects other roles with 403.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TicketTypeRequest"
+            example:
+              name: string
+              price: 0
+              quota: 1
+      responses:
+        "201":
+          description: Ticket type added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketTypeResponse"
+              example:
+                ticketType:
+                  id: 00000000-0000-4000-8000-000000000015
+                  name: Standard
+                  price: 25
+                  quota: 500
+                  soldCount: 12
+                  available: 488
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The event does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: EVENT_NOT_FOUND
+                message: Event was not found
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /internal/reservations:
+    post:
+      tags:
+        - internal
+      summary: Atomically hold seats for an order
+      description: "Used by the Admission Service saga. The operation is idempotent per `operationId`: replaying the same payload returns the stored reservation, while a different payload returns `409 IDEMPOTENCY_CONFLICT`. Capacity is enforced with conditional updates on the event and ticket type inside one transaction, so concurrent callers cannot oversell."
+      operationId: createReservation
+      security:
+        - serviceToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReservationRequest"
+            example:
+              operationId: string
+              eventId: string
+              ticketTypeId: string
+              quantity: 1
+      responses:
+        "200":
+          description: Existing reservation replayed for the same operationId.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReservationResponse"
+              example:
+                reservation:
+                  id: 00000000-0000-4000-8000-000000000019
+                  operationId: 3f6f2f0e-9b2a-4c6d-8e1a-2b3c4d5e6f70
+                  eventId: 00000000-0000-4000-8000-000000000020
+                  ticketTypeId: 00000000-0000-4000-8000-000000000021
+                  quantity: 1
+                  status: CONFIRMED
+                  expiresAt: 2026-11-09T08:00:00.000Z
+                  createdAt: 2026-11-09T08:00:00.000Z
+                  unitPrice: 25
+        "201":
+          description: Seats held and reservation confirmed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReservationResponse"
+              example:
+                reservation:
+                  id: 00000000-0000-4000-8000-000000000016
+                  operationId: 3f6f2f0e-9b2a-4c6d-8e1a-2b3c4d5e6f70
+                  eventId: 00000000-0000-4000-8000-000000000017
+                  ticketTypeId: 00000000-0000-4000-8000-000000000018
+                  quantity: 1
+                  status: CONFIRMED
+                  expiresAt: 2026-11-09T08:00:00.000Z
+                  createdAt: 2026-11-09T08:00:00.000Z
+                  unitPrice: 25
+        "401":
+          $ref: "#/components/responses/ServiceUnauthorized"
+        "404":
+          description: The ticket type does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: TICKET_TYPE_NOT_FOUND
+                message: Ticket type was not found
+        "409":
+          description: Capacity is exhausted or the operationId conflicts with another payload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              examples:
+                soldOut:
+                  value:
+                    code: SOLD_OUT
+                    message: Ticket type or event capacity is exhausted
+                idempotencyConflict:
+                  value:
+                    code: IDEMPOTENCY_CONFLICT
+                    message: operationId reused with a different payload
+                ticketTypeEventMismatch:
+                  value:
+                    code: TICKET_TYPE_EVENT_MISMATCH
+                    message: Ticket type does not belong to the event
+                reservationReleased:
+                  value:
+                    code: RESERVATION_RELEASED
+                    message: Reservation was already released and cannot be reused
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  "/internal/reservations/{operationId}":
+    delete:
+      tags:
+        - internal
+      summary: Release a reservation and return its seats
+      description: Compensating action for the Admission saga. Releasing an already released reservation is idempotent and does not decrement the counters twice.
+      operationId: releaseReservation
+      security:
+        - serviceToken: []
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Reservation released.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReservationResponse"
+              example:
+                reservation:
+                  id: 00000000-0000-4000-8000-000000000022
+                  operationId: 3f6f2f0e-9b2a-4c6d-8e1a-2b3c4d5e6f70
+                  eventId: 00000000-0000-4000-8000-000000000023
+                  ticketTypeId: 00000000-0000-4000-8000-000000000024
+                  quantity: 1
+                  status: CONFIRMED
+                  expiresAt: 2026-11-09T08:00:00.000Z
+                  createdAt: 2026-11-09T08:00:00.000Z
+                  unitPrice: 25
+        "401":
+          $ref: "#/components/responses/ServiceUnauthorized"
+        "404":
+          description: The reservation does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: RESERVATION_NOT_FOUND
+                message: Reservation was not found
+  "/internal/events/{id}":
+    get:
+      tags:
+        - internal
+      summary: Read event metadata for another service
+      operationId: getInternalEvent
+      security:
+        - serviceToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Event found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventResponse"
+              example:
+                event:
+                  id: 00000000-0000-4000-8000-000000000025
+                  name: Tech Summit Vietnam 2026
+                  venue: Saigon Exhibition and Convention Center
+                  startTime: 2026-11-09T08:00:00.000Z
+                  endTime: 2026-11-09T08:00:00.000Z
+                  maxCapacity: 500
+                  reservedCount: 12
+                  createdAt: 2026-11-09T08:00:00.000Z
+                  rooms:
+                    - id: 00000000-0000-4000-8000-000000000026
+                      name: Main Hall
+                      capacity: 500
+                  sessions:
+                    - id: 00000000-0000-4000-8000-000000000027
+                      title: Opening Keynote
+                      speaker: Alex Nguyen
+                      startTime: 2026-11-09T08:00:00.000Z
+                      endTime: 2026-11-09T08:00:00.000Z
+                      isLive: true
+                  ticketTypes:
+                    - id: 44444444-4444-4444-8444-444444444444
+                      name: Standard
+                      price: 25
+                      quota: 500
+                      soldCount: 12
+                      available: 488
+        "401":
+          $ref: "#/components/responses/ServiceUnauthorized"
+        "404":
+          description: The event does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: EVENT_NOT_FOUND
+                message: Event was not found
+  "/internal/sessions/{id}":
+    get:
+      tags:
+        - internal
+      summary: Read session metadata and its live flag
+      operationId: getInternalSession
+      security:
+        - serviceToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Session found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalSessionResponse"
+              example:
+                session:
+                  id: 00000000-0000-4000-8000-000000000028
+                  title: Opening Keynote
+                  speaker: Alex Nguyen
+                  startTime: 2026-11-09T08:00:00.000Z
+                  endTime: 2026-11-09T08:00:00.000Z
+                  isLive: true
+                  event:
+                    id: 00000000-0000-4000-8000-000000000029
+                    name: Tech Summit Vietnam 2026
+                    startTime: 2026-11-09T08:00:00.000Z
+                    endTime: 2026-11-09T08:00:00.000Z
+        "401":
+          $ref: "#/components/responses/ServiceUnauthorized"
+        "404":
+          description: The session does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: SESSION_NOT_FOUND
+                message: Session was not found
