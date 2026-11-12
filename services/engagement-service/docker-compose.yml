@@ -1,0 +1,40 @@
+name: qevent-engagement
+
+services:
+  postgres-engagement:
+    image: postgres:16-alpine
+    container_name: qevent-db-engagement
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: qevent_engagement
+    ports:
+      - "5435:5432"
+    volumes:
+      - engagement_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d qevent_engagement"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  engagement-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qevent-engagement-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://postgres:password123@postgres-engagement:5432/qevent_engagement?schema=public"
+      ADMISSION_SERVICE_URL: "http://admission-service:3002"
+      EVENT_SERVICE_URL: "http://event-service:3001"
+      JWT_SECRET: "qevent_super_jwt_secret_key_2026"
+      INTERNAL_SERVICE_TOKEN: "qevent_internal_service_token_2026"
+      PORT: 3003
+    depends_on:
+      postgres-engagement:
+        condition: service_healthy
+
+volumes:
+  engagement_data:
