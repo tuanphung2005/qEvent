@@ -1,0 +1,35 @@
+{
+  "label": "admission-down",
+  "readTicketsMy": {
+    "min": 0.5,
+    "p50": 1054,
+    "p95": 2007.5,
+    "max": 2007.5,
+    "statuses": [
+      504,
+      503
+    ],
+    "ok": 0,
+    "total": 20
+  },
+  "checkin": {
+    "min": 0.5,
+    "p50": 0.5,
+    "p95": 0.6,
+    "max": 0.6,
+    "statuses": [
+      503
+    ],
+    "total": 6
+  },
+  "circuitBreakers": {
+    "event": "CLOSED",
+    "admission": "OPEN",
+    "engagement": "CLOSED"
+  },
+  "downstream": {
+    "event": "ok",
+    "admission": "unreachable",
+    "engagement": "ok"
+  }
+}

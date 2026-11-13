@@ -69,7 +69,7 @@ Kỹ năng Ponytail ép buộc agent tạo ra **thay đổi nhỏ nhất nhưng 
 - **`ultra`**: Phản biện yêu cầu ngay từ đầu. Chất vấn và từ chối các phần tính năng không cần thiết trước khi gõ dòng code nào.
 
 ### Quy Định Về Kiểm Thử & Chốt Phản Hồi
-- Mã nguồn có logic rẽ nhánh, vòng lặp, bảo mật hoặc tiền tệ **phải có một unit test nhỏ** trong `backend/test/` hoặc câu lệnh assert tự kiểm tra.
+- Mã nguồn có logic rẽ nhánh, vòng lặp, bảo mật hoặc tiền tệ **phải có một unit test nhỏ** trong `services/<service>/test/` hoặc `gateway/test/`, hay câu lệnh assert tự kiểm tra.
 - Nếu chấp nhận một lối tắt (shortcut), bắt buộc ghi chú theo cú pháp:
   ```typescript
   // shortcut: <giới hạn hiện tại>, <khi nào cần nâng cấp>
@@ -173,7 +173,7 @@ Quy trình bắt buộc:
 2. Áp dụng kỷ luật Ponytail (Full):
    - Tạo ra diff nhỏ nhất giải quyết triệt để nguyên nhân gốc rễ.
    - Tận dụng mã nguồn có sẵn, không thêm wrapper hay thư viện bên ngoài.
-   - Cập nhật hoặc bổ sung test case tương ứng trong `backend/test/`.
+   - Cập nhật hoặc bổ sung test case tương ứng trong `services/<service>/test/` hoặc `gateway/test/`.
 3. Kết thúc câu trả lời bằng 1-2 dòng nêu rõ những gì đã bỏ qua và rủi ro/trường hợp biên cần lưu ý.
 ```
 
@@ -231,5 +231,5 @@ Quy trình bắt buộc:
 2. Báo cáo:
    - Danh sách symbol và execution flow bị ảnh hưởng.
    - Phát hiện caller ngoài phạm vi hoặc tác dụng phụ không mong muốn.
-3. Xác nhận toàn bộ bộ test trong `backend/test/` đã chạy thành công mà không có hồi quy (regression).
+3. Xác nhận `bun run test` (gateway + 3 service) chạy thành công mà không có hồi quy (regression).
 ```

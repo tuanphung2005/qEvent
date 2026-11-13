@@ -1,0 +1,115 @@
+{
+  "measuredAt": "2026-11-13T17:06:05.612Z",
+  "scenario": "event-service down during order placement",
+  "ordersRequested": 5,
+  "placements": [
+    {
+      "orderId": "460106ae-c9d9-435c-8a8c-33df3c7d5829",
+      "status": 202,
+      "orderStatus": "PENDING_RECONCILIATION",
+      "latencyMs": 1024,
+      "key": "832a16dd-8097-4cad-8eb1-bd6c71f9ee56"
+    },
+    {
+      "orderId": "3a7d1854-cc70-4e6f-88b1-61206a86a82e",
+      "status": 202,
+      "orderStatus": "PENDING_RECONCILIATION",
+      "latencyMs": 1022.6,
+      "key": "3fa57789-9e7c-4b7a-b471-ef8197315145"
+    },
+    {
+      "orderId": "43e561e0-c894-4dfd-a63c-472c88d2bf8d",
+      "status": 202,
+      "orderStatus": "PENDING_RECONCILIATION",
+      "latencyMs": 1023.6,
+      "key": "7fe7f57d-baf6-4fc0-85d5-f48031a05c3e"
+    },
+    {
+      "orderId": "ab5dd68b-08af-49ac-8b62-75684925f7fe",
+      "status": 202,
+      "orderStatus": "PENDING_RECONCILIATION",
+      "latencyMs": 1019.7,
+      "key": "fb1d0119-2dd0-47a1-a702-089490f84893"
+    },
+    {
+      "orderId": "f64e6086-fca2-4c2f-9471-6c4614178dfb",
+      "status": 202,
+      "orderStatus": "PENDING_RECONCILIATION",
+      "latencyMs": 1019.9,
+      "key": "ede97236-0853-4049-83a4-66e207cfdab8"
+    }
+  ],
+  "placementSummary": {
+    "acknowledged202": 5,
+    "otherStatuses": [
+      202
+    ],
+    "p50LatencyMs": 1022.6,
+    "p95LatencyMs": 1024
+  },
+  "recovery": {
+    "eventHealthyAfterMs": 2070,
+    "confirmed": 5,
+    "orders": [
+      {
+        "orderId": "460106ae-c9d9-435c-8a8c-33df3c7d5829",
+        "status": "CONFIRMED",
+        "recoveryMs": 4905,
+        "tickets": 1,
+        "ticketIds": [
+          "42db5778-3e21-479d-b60e-0348fa723132"
+        ]
+      },
+      {
+        "orderId": "3a7d1854-cc70-4e6f-88b1-61206a86a82e",
+        "status": "CONFIRMED",
+        "recoveryMs": 4910,
+        "tickets": 1,
+        "ticketIds": [
+          "57c45471-2573-45af-9ab8-aab33a81eba1"
+        ]
+      },
+      {
+        "orderId": "43e561e0-c894-4dfd-a63c-472c88d2bf8d",
+        "status": "CONFIRMED",
+        "recoveryMs": 4918,
+        "tickets": 1,
+        "ticketIds": [
+          "bd428798-9e9d-48e5-a376-193205b613f2"
+        ]
+      },
+      {
+        "orderId": "ab5dd68b-08af-49ac-8b62-75684925f7fe",
+        "status": "CONFIRMED",
+        "recoveryMs": 4926,
+        "tickets": 1,
+        "ticketIds": [
+          "146ea854-a3b5-4936-9e53-349e177544fa"
+        ]
+      },
+      {
+        "orderId": "f64e6086-fca2-4c2f-9471-6c4614178dfb",
+        "status": "CONFIRMED",
+        "recoveryMs": 4932,
+        "tickets": 1,
+        "ticketIds": [
+          "98373691-a9f2-4ae8-9328-8ad00692a6b1"
+        ]
+      }
+    ],
+    "p50RecoveryMs": 4918,
+    "p95RecoveryMs": 4932
+  },
+  "integrity": {
+    "reservedCountBefore": 22,
+    "reservedCountAfter": 27,
+    "reservedDelta": 5,
+    "soldCountBefore": 22,
+    "soldCountAfter": 27,
+    "soldDelta": 5,
+    "expectedDelta": 5,
+    "noCapacityDrift": true,
+    "everyOrderHasOneTicket": true,
+    "duplicateTickets": false
+  }
+}

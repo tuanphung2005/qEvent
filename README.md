@@ -1,221 +1,221 @@
 # qEvent (QUICKEVENT) - Hệ Thống Quản Trị & Soát Vé Sự Kiện Tức Thời
 
-Hệ thống MVP giải quyết bài toán nghẽn soát vé, gian lận chụp màn hình và mất kết nối internet tại cổng sự kiện với cơ chế Dynamic QR (RSA-256 + TOTP 30s) và kiến trúc Hybrid Check-in (Online/Offline-First).
+Hệ thống giải quyết bài toán nghẽn soát vé, gian lận chụp màn hình và mất kết nối internet tại cổng sự kiện bằng Dynamic QR (RSA-256 + TOTP 30s) và kiến trúc kiểm tra Online/Offline.
+
+Repo chạy theo **microservices**: 3 service nghiệp vụ độc lập + 1 API Gateway. Monolith cũ đã được xoá khỏi working tree; vẫn xem/khôi phục được từ git history nếu cần đối chiếu.
 
 ---
 
-## 🏗️ Cấu Trúc Dự Án
+## 🏗️ Kiến Trúc & Cấu Trúc Dự Án
+
+```text
+Browser / Mobile
+      │  HTTP + WebSocket (chỉ một cổng công khai)
+      ▼
+api-gateway :8000          JWT, CORS, circuit breaker, reverse proxy
+      ├── event-service :3001        Event, Room, Session, TicketType, Reservation
+      ├── admission-service :3002    Auth, Order, Ticket, Check-in, QR
+      └── engagement-service :3003   Q&A, Poll, Quiz, WebSocket
+
+PostgreSQL riêng cho từng service:
+qevent_event · qevent_admission · qevent_engagement
+```
 
 ```text
 qEvent/
-├── backend/                      # ElysiaJS + Prisma + PostgreSQL (Bun Runtime)
-│   ├── prisma/
-│   │   ├── schema.prisma         # Schema PostgreSQL với các thực thể cốt lõi
-│   │   └── seed.ts               # Dữ liệu ban đầu (Organizer, Staff, Event, Ticket)
-│   ├── src/
-│   │   ├── config/keys.ts        # Thuật toán sinh khóa RSA & RFC 6238 TOTP
-│   │   ├── plugins/prisma.ts     # Prisma client plugin
-│   │   ├── services/ai.service.ts# Gemini client lazy + validate + single-flight
-│   │   ├── modules/
-│   │   │   ├── auth/             # POST /api/auth/login, GET /api/auth/me
-│   │   │   ├── tickets/          # My tickets, Dynamic QR token, Sandbox purchase
-│   │   │   ├── checkin/          # Cache route, Online verify, Offline sync
-│   │   │   ├── realtime/         # WebSocket /ws/qa, Q&A, polls, AI clustering
-│   │   │   ├── game/             # Quiz game engine (state machine, scoring)
-│   │   │   └── ai/               # POST /api/ai/generate-quiz (Gemini draft)
-│   │   └── index.ts              # Entrypoint máy chủ ElysiaJS
-│   └── test/                     # Bun test: crypto, flow, game, AI
-├── plans/                        # AI Integration Plan v2.2 (thiết kế + sprint)
-├── docker-compose.yml            # Khởi chạy PostgreSQL 16
-└── MVP.md                        # Tài liệu đặc tả kỹ thuật MVP
+├── gateway/                     # ElysiaJS API Gateway (Bun)
+├── services/
+│   ├── event-service/           # Event + reservation; prisma/migrations
+│   ├── admission-service/       # Auth/order/ticket/check-in; RSA keys
+│   └── engagement-service/      # Q&A/poll/quiz; WebSocket; prisma/migrations
+├── docs/
+│   ├── STAFF_WEB_CONSOLE_PLAN.md
+│   ├── STAFF_WEB_STARTER.md     # Hợp đồng API + hướng dẫn frontend
+│   ├── evidence/                # Raw JSON fault injection
+│   └── TRONG_ENGAGEMENT_SERVICE_DEFENSE_GUIDE.md
+├── plans/                       # Đặc tả & kế hoạch microservices
+├── postman/                     # Collection + environment chạy qua gateway
+├── scripts/                     # e2e, seed demo, fault injection
+├── docker-compose.yml           # Chạy toàn hệ thống bằng 1 lệnh
+├── DESIGN.md · PRODUCT.md · MVP.md
 ```
 
-> Frontend mobile (`app/`) đã bị xoá ở commit `0270a5d`; frontend hiện nằm ở repo riêng
-> (xem `plans/ai-integration/07-rollout.md`, Sprint 4).
+Nguyên tắc:
+
+- Service chỉ nói chuyện với nhau qua HTTP nội bộ, không join database của nhau.
+- Gateway xóa `x-user-id`/`x-user-role` do client gửi và chỉ tin JWT đã xác thực.
+- Service không publish port ra host; mọi request đi qua `http://localhost:8000`.
+- Mỗi service sở hữu migration riêng; container tự chạy `prisma migrate deploy` khi khởi động.
 
 ---
 
-## 🚀 Hướng Dẫn Cài Đặt & Khởi Chạy Chi Tiết
+## 🚀 Chạy Nhanh Bằng Docker Compose
 
-### 1. Yêu Cầu Tiền Đề (Prerequisites)
+### 1. Yêu cầu
 
-- **[Bun](https://bun.sh/)**: v1.1.0 trở lên (runtime chính cho backend, package manager & test runner).
-- **[Docker & Docker Compose](https://www.docker.com/)**: Để khởi chạy PostgreSQL 16 container.
-- **Node.js**: v18+ (cần thiết để chạy GitNexus code intelligence analyzer).
-- **Git**: Quản lý phiên bản mã nguồn.
+- [Docker Desktop](https://www.docker.com/) (Docker Compose v2)
+- [Bun](https://bun.sh/) v1.2+ nếu muốn chạy test/dev ngoài container
+- [Node.js](https://nodejs.org/) v18+ (GitNexus analyzer)
 
----
-
-### 2. Cấu Hình Môi Trường (.env)
-
-Tạo hoặc kiểm tra file `backend/.env` (được cấu hình mặc định cho môi trường phát triển local):
-
-```env
-# Kết nối PostgreSQL (trỏ vào localhost:5432 hoặc tên container)
-DATABASE_URL="postgresql://postgres:password123@localhost:5432/qevent?schema=public"
-
-# Khóa bí mật ký JWT (bắt buộc trong môi trường production)
-JWT_SECRET="qevent_super_secret_jwt_key_2026_production_grade"
-
-# Cổng lắng nghe của máy chủ backend
-PORT=3000
-
-# Google Gemini AI (Tùy chọn cho Live Q&A clustering và Quiz Generation)
-# Nếu không cung cấp, server vẫn hoạt động bình thường, endpoint AI trả 503 AI_NOT_CONFIGURED
-# GEMINI_API_KEY=AIzaSy...
-GEMINI_MODEL=gemini-flash-latest
-# GEMINI_TIMEOUT_MS=45000
-# GEMINI_MAX_OUTPUT_TOKENS=16384
-```
-
----
-
-### 3. Khởi Chạy Cơ Sở Dữ Liệu (PostgreSQL 16)
-
-Khởi chạy container PostgreSQL từ thư mục gốc của dự án:
+### 2. Khởi chạy
 
 ```bash
-# Khởi chạy PostgreSQL nền ngầm
-docker compose up -d postgres
+# Build và chạy 3 database + 3 service + gateway
+docker compose up -d --build
 
-# Kiểm tra trạng thái container và cổng kết nối 5432
+# Kiểm tra
 docker compose ps
+curl http://localhost:8000/health
 ```
 
-> **Lưu ý**: Cặp khóa mật mã học RSA 2048 (`private.pem`, `public.pem`) dùng để ký và xác thực Dynamic QR JWT sẽ được backend tự động khởi tạo trong thư mục `backend/keys/` ngay lần đầu khởi chạy nếu chưa tồn tại.
+`/health` trả `downstream` của cả 3 service và trạng thái circuit breaker.
 
----
-
-### 4. Cài Đặt & Thiết Lập Backend
-
-Di chuyển vào thư mục `backend` và thực hiện tuần tự các bước:
+### 3. Nạp dữ liệu demo (idempotent)
 
 ```bash
-# 1. Di chuyển vào thư mục backend
-cd backend
-
-# 2. Cài đặt các dependencies
-bun install
-
-# 3. Đồng bộ Prisma Schema vào cơ sở dữ liệu PostgreSQL
-bun run db:push
-
-# 4. Nạp dữ liệu mẫu ban đầu (Seeding Organizer, Staff, Event, Ticket)
-bun run db:seed
-
-# 5. Khởi chạy máy chủ phát triển (Hỗ trợ hot-reload qua Bun)
-bun run dev
+bun run seed        # event, admission, engagement
+bun run demo:seed   # order/ticket/check-in qua API, bật session live
 ```
 
-Máy chủ ElysiaJS sẽ lắng nghe tại: **`http://localhost:3000`**.
+Seed tạo sẵn:
 
----
+- Event `Tech Summit Vietnam 2026`, 1 session, 1 ticket type.
+- 5 tài khoản (organizer / 2 staff / 2 attendee), mật khẩu chung `password123`.
+- Q&A, poll và quiz mẫu cho session seed.
+- 3 order confirmed, 4 vé, 2 check-in để dashboard/bảng không trống.
 
-### 5. Kiểm Thử Hệ Thống (Unit & Integration Tests)
+`demo:seed` dùng `Idempotency-Key` cố định nên chạy lại không nhân đôi dữ liệu.
 
-Bộ test của `qEvent` được viết bằng Bun Test Suite (kiểm thử thuật toán RSA TOTP, quy trình soát vé online/offline, máy trạng thái game quiz, và AI fallback):
+### 4. Chạy từng service khi phát triển
 
 ```bash
-# Chạy toàn bộ test suite (yêu cầu cơ sở dữ liệu đã seed)
-bun test
+# Gateway
+cd gateway && bun install && bun run dev
 
-# Chạy riêng file test cụ thể
-bun test test/flow.test.ts
-bun test test/crypto.test.ts
+# Mỗi service (mở terminal riêng)
+cd services/event-service && bun install && bun run dev
+cd services/admission-service && bun install && bun run dev
+cd services/engagement-service && bun install && bun run dev
 ```
 
----
-
-### 6. Frontend Mobile (Expo / React Native)
-
-Thư mục `app/` đã được tách sang repository riêng ở commit `0270a5d` để tối ưu hóa chu kỳ phát hành mobile độc lập. 
-- Khi phát triển giao diện mobile, trỏ base URL của client về `http://<IP_MAY_TINH>:3000` (hoặc localhost qua emulator).
-- Xem chi tiết kiến trúc và lộ trình tại `plans/ai-integration/07-rollout.md` (Sprint 4).
+Copy `.env.example` trong từng thư mục thành `.env` và trỏ `DATABASE_URL` về cổng tương ứng (`5433`, `5434`, `5435`).
 
 ---
 
-### 7. Quy Trình Tạo Nhánh Mới & Quản Lý Mã Nguồn (Git Workflow)
+## 🔐 Biến Môi Trường & Bí Mật
 
-Để bảo đảm tính ổn định tuyệt đối của nhánh chính (`main`), mọi tính năng mới (`feat`) hoặc sửa lỗi (`fix`) **bắt buộc phải được thực hiện trên nhánh độc lập**:
+- Mỗi service có `.env.example`; không commit `.env` thật hay khóa RSA.
+- Khóa RSA của Admission được sinh tự động lần đầu và lưu trong volume `admission_keys`.
+- `JWT_SECRET` và `INTERNAL_SERVICE_TOKEN` phải giống nhau giữa gateway và các service.
+- Không đặt secret trong biến `VITE_*` khi làm web.
 
-#### Bước 1: Đồng bộ mã nguồn mới nhất từ nhánh `main`
+---
+
+## 🧪 Kiểm Thử
+
+| Phạm vi | Lệnh | Ghi chú |
+|---|---|---|
+| Gateway | `cd gateway && bun test` | Mock 3 service, JWT, circuit breaker, WS auth |
+| Event | `cd services/event-service && bun test` | Cần Postgres `localhost:5433` |
+| Admission | `cd services/admission-service && bun test` | Cần Postgres `localhost:5434` |
+| Engagement | `cd services/engagement-service && bun test` | Dùng in-memory Prisma, không cần DB |
+
+Chạy tất cả từ root:
+
 ```bash
-git checkout main
-git pull origin main
+bun run test       # gateway + 3 service
+bun run typecheck  # gateway + 3 service
 ```
 
-#### Bước 2: Tạo và chuyển sang nhánh mới
-Đặt tên nhánh theo chuẩn:
-- **Tính năng mới**: `feat/<tên-tính-năng>` (ví dụ: `feat/bulk-transfer`, `feat/offline-sync-v2`)
-- **Sửa lỗi**: `fix/<tên-lỗi>` (ví dụ: `fix/qr-clock-skew`, `fix/db-connection-leak`)
-- **Tái cấu trúc**: `refactor/<tên-mô-đun>`
+### Postman
+
+1. Import `postman/qEvent_Microservices.postman_collection.json`.
+2. Import `postman/qEvent_Local.postman_environment.json` và chọn environment này.
+3. Chạy folder **1. Auth** trước (token và id được lưu tự động), sau đó chạy các folder còn lại.
+
+Collection gồm 36 request phủ 3 service qua gateway, dùng `Authorization: Bearer <JWT>`.
+
+### E2E smoke qua Gateway
 
 ```bash
-git checkout -b feat/<tên-tính-năng>
+bun run e2e
 ```
 
-#### Bước 3: Phát triển với kỷ luật GitNexus & Ponytail
-1. **Phân tích tác động** trước khi sửa bất kỳ hàm/symbol nào:
-   `impact({ repo: "qEvent", target: "<tên_symbol>", direction: "upstream" })`
-2. **Áp dụng kỷ luật Ponytail**: Viết ít code nhất, không thêm abstraction thừa, tận dụng code có sẵn.
-3. **Chạy kiểm thử**: Đảm bảo toàn bộ test case đều pass:
-   ```bash
-   cd backend && bun test
-   ```
-4. **Kiểm tra sai khác**: Đảm bảo chỉ ảnh hưởng các symbol mong muốn so với `main`:
-   `detect_changes({ repo: "qEvent", scope: "compare", base_ref: "main" })`
+Script đăng ký một attendee mới, chạy order → QR → check-in → staff lists/stats → Q&A/poll/quiz → WebSocket auth, và fail nếu một bước bắt buộc sai. Cần `bun run seed` và `bun run demo:seed` trước.
 
-#### Bước 4: Commit và đẩy nhánh lên Remote
-Sử dụng chuẩn [Conventional Commits](https://www.conventionalcommits.org/):
+### Đo cô lập lỗi (dùng cho báo cáo)
+
 ```bash
-git add .
-git commit -m "feat(tickets): thêm API chuyển nhượng vé hàng loạt"
-git push -u origin feat/<tên-tính-năng>
+bun scripts/fault-injection.ts baseline
+docker compose stop engagement-service
+bun scripts/fault-injection.ts engagement-down
+docker compose start engagement-service
+docker compose stop admission-service
+bun scripts/fault-injection.ts admission-down
+docker compose start admission-service
 ```
-Sau đó tạo Pull Request (PR) vào `main` để tiến hành review và merge.
+
+Số liệu thực đo và cách đọc nằm trong `docs/TRONG_ENGAGEMENT_SERVICE_DEFENSE_GUIDE.md`.
+
+Hai thử nghiệm lỗi bắt buộc của luồng đặt vé (Event sập / mất response) có raw JSON trong `docs/evidence/`:
+
+```bash
+bun scripts/order-fault-experiment.ts > docs/evidence/order-fault.json
+bun scripts/lost-response-experiment.ts > docs/evidence/lost-response.json
+```
 
 ---
 
-## 🔑 Tài Khoản Thử Nghiệm Mẫu
+## 🔑 Tài Khoản Demo
 
-Tài khoản seed mẫu dùng cho API và kiểm thử (mật khẩu chung: `password123`):
+Mật khẩu chung: `password123`.
 
-| Vai trò | Email | Mật khẩu | Chức năng chính |
-| :--- | :--- | :--- | :--- |
-| **Khách tham dự (Attendee)** | `attendee@qevent.com` | `password123` | Xem vé, hiển thị Dynamic QR 30s, gửi câu hỏi Live Q&A |
-| **Nhân viên soát vé (Staff)** | `staff1@qevent.com` | `password123` | Quét vé Camera, nhận diện Online/Offline, đồng bộ vé |
-| **Ban tổ chức (Organizer)** | `organizer@qevent.com` | `password123` | Quản trị và giám sát soát vé, Sandbox purchase |
+| Vai trò | Email | Chức năng chính |
+| :--- | :--- | :--- |
+| **Attendee** | `attendee@qevent.com` | Xem vé, Dynamic QR 30s, hỏi đáp, vote, quiz |
+| **Attendee 2** | `attendee2@qevent.com` | Tài khoản attendee thứ hai để test nhiều người |
+| **Staff** | `staff1@qevent.com`, `staff2@qevent.com` | Quét/soát vé, sync offline, hỗ trợ Q&A |
+| **Organizer** | `organizer@qevent.com` | Quản lý event, vé, check-in, host Q&A/poll/quiz |
 
----
-
-## 🛡️ Đảm Bảo Tiêu Chuẩn Kỹ Thuật (Acceptance Criteria)
-
-1. **Dynamic QR Bảo mật**: Mã QR sinh chuỗi JWT ký số RS256 và mã TOTP 30s. Mã cũ sau 60s bị từ chối với màn hình Đỏ.
-2. **Kiểm soát Trùng lặp tức thì**: Quét lần 1 trả về màn hình **Xanh** (`#10B981`) + âm chuông "ting" + 1 nhịp rung nhẹ; quét lại lần 2 lập tức ra màn hình **Vàng** (`#F59E0B`) + 2 nhịp rung báo "VÉ ĐÃ QUÉT TRƯỚC ĐÓ".
-3. **Chống chụp/quay lén màn hình**: Tự động bật `expo-screen-capture` bảo vệ giao diện vé Dynamic QR.
-4. **Vận hành Ngoại tuyến (Offline-First)**: Tự động lưu cache và hàng đợi scan vào `expo-sqlite`. Khi có mạng trở lại, tự động đối soát và phân giải xung đột theo dấu thời gian `scannedAt`.
-5. **Chuẩn UI/UX Light Theme**: 100% tuân thủ `borderWidth: 0`, phân tầng thị giác bằng `bottom drop shadow` và bề mặt phẳng tương phản cao, không sử dụng hiệu ứng làm mờ (No Blur).
+Đăng ký attendee mới: `POST /api/auth/register` (role luôn là `ATTENDEE`; STAFF/ORGANIZER do seed hoặc admin tạo).
 
 ---
 
-## 🤖 Quy Trình Phát Triển Với AI Agent
+## 🛡️ Tiêu Chuẩn Kỹ Thuật
 
-Dự án này tích hợp sẵn bộ 3 công cụ phát triển chuyên sâu cho AI coding assistants (Antigravity, Claude, Cursor, Copilot). **Tất cả thành viên và agent phải tuân thủ nghiêm ngặt:**
+1. **Dynamic QR bảo mật**: JWT ký RS256 + TOTP 30s; token hết hạn bị từ chối.
+2. **Chống check-in trùng**: cập nhật có điều kiện trong transaction; hai lần quét đồng thời chỉ một lần thành công.
+3. **BR-6**: chỉ người đã check-in vào đúng event của session mới được Q&A/poll/quiz; `eventId` lấy từ Event Service và session phải `isLive`.
+4. **Lỗi hạ tầng đúng mã**: dependency không kết nối được trả `503`, quá hạn trả `504`; không bị biến thành `403 NOT_CHECKED_IN`.
+5. **Offline sync**: xử lý theo `scannedAt`, lần quét sớm nhất thắng kể cả khi đến muộn ở batch sau.
+6. **UI/UX**: light theme, `borderWidth: 0`, bottom drop shadow, không blur (xem `DESIGN.md`).
 
-1. **GitNexus (Code Intelligence & Safety)**:
-   - **Bắt buộc** chạy phân tích mức độ ảnh hưởng trước khi sửa bất kỳ symbol nào: `impact({ target: "symbolName", direction: "upstream" })`. Cảnh báo ngay nếu rủi ro HIGH/CRITICAL.
-   - **Bắt buộc** chạy `detect_changes()` trước khi tạo commit.
-   - Tìm kiếm luồng thực thi bằng `query` và `context` thay vì grep chuỗi thô.
-   - Cập nhật chỉ mục đồ thị mã nguồn: `node .gitnexus/run.cjs analyze`
+---
 
-2. **Ponytail (Minimalist Senior Dev Discipline)**:
-   - Nguyên tắc: Code ít nhất mà giải quyết trọn vẹn bài toán.
-   - Tận dụng tối đa thư viện có sẵn (Bun, Prisma, Elysia), cấm tuyệt đối viết boilerplate hoặc wrapper thừa thãi.
-   - Luôn kết thúc bằng 1-2 dòng nêu rõ những gì đã bỏ qua và rủi ro/giới hạn cần biết.
+## 🌿 Quy Trình Git
 
-3. **Impeccable (UI/UX Craft Floor - Khi làm Frontend/UI)**:
-   - Nạp ngữ cảnh UI: `.agent/skills/impeccable/scripts/impeccable.cmd context` (hoặc đọc trực tiếp `PRODUCT.md` và `DESIGN.md`).
-   - Ràng buộc bất biến: Light Theme, `borderWidth: 0`, bóng đổ đáy (bottom drop shadow), không blur/glassmorphism, phản hồi đa giác quan (âm thanh + rung haptic).
-   - Lệnh điều khiển: `/impeccable shape`, `/impeccable polish`, `/impeccable audit`, `/impeccable harden`.
+1. `git checkout main && git pull origin main`
+2. `git checkout -b feat/<tên-tính-năng>` hoặc `fix/<tên-lỗi>`
+3. Trước khi sửa symbol: chạy `impact` (GitNexus) để xem blast radius.
+4. Trước khi commit: `detect_changes` (GitNexus) và chạy test/typecheck.
+5. Commit theo Conventional Commits, mở PR vào `main`, cần 1 người review.
 
-👉 **Xem hướng dẫn chi tiết và mẫu câu nhắc sẵn dùng tại [PROMPTING.md](file:///d:/outsourced/qCheck/PROMPTING.md)**.
+### GitNexus & Agent workflow
+
+- **Bắt buộc** `impact({ target: "symbolName", direction: "upstream" })` trước khi sửa hàm/class.
+- **Bắt buộc** `detect_changes()` trước khi commit.
+- Dùng `query`/`context` thay cho grep chuỗi thô khi cần hiểu luồng.
+- Cập nhật index: `node .gitnexus/run.cjs analyze`.
+
+### Ponytail (kỷ luật code tối thiểu)
+
+- Code ít nhất mà giải quyết trọn vẹn bài toán.
+- Ưu tiên thư viện có sẵn (Bun, Prisma, Elysia); không thêm wrapper/abstraction thừa.
+
+### Impeccable (UI/UX)
+
+- Nạp ngữ cảnh: đọc `PRODUCT.md` và `DESIGN.md` trước khi làm UI.
+- Bất biến: light theme, không border, bottom drop shadow, không blur, tương phản ≥ 4.5:1.
+- Lệnh: `/impeccable shape`, `/impeccable polish`, `/impeccable audit`.
+
+Xem thêm `PROMPTING.md`, `docs/STAFF_WEB_CONSOLE_PLAN.md` và `docs/STAFF_WEB_STARTER.md` (hợp đồng API + cách chạy cho team frontend).

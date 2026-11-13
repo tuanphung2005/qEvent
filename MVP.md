@@ -1,5 +1,8 @@
 # ĐẶC TẢ KỸ THUẬT HỆ THỐNG qEvent (QUICKEVENT) - MVP
 
+> **Tài liệu lịch sử.** Kiến trúc hiện tại là microservices (`gateway/` + 3 service);
+> xem `README.md` và `docs/STAFF_WEB_STARTER.md`. Monolith cũ đã được xoá khỏi working tree (còn trong git history).
+
 Tài liệu đặc tả kiến trúc kỹ thuật và cẩm nang triển khai MVP (Technical Implementation Guide) cho ứng dụng **qEvent (QUICKEVENT)** – Hệ thống Quản trị & Soát vé Sự kiện Tức thời.
 Tài liệu được thiết kế riêng cho **Coding Agent (Gemini 3.8 Flash)** với techstack:
 - **Backend**: PostgreSQL + Prisma ORM + ElysiaJS (Bun).

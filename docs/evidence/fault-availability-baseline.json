@@ -1,0 +1,34 @@
+{
+  "label": "baseline",
+  "readTicketsMy": {
+    "min": 3.2,
+    "p50": 4.4,
+    "p95": 9.5,
+    "max": 9.5,
+    "statuses": [
+      200
+    ],
+    "ok": 20,
+    "total": 20
+  },
+  "checkin": {
+    "min": 2.2,
+    "p50": 2.8,
+    "p95": 4.4,
+    "max": 4.4,
+    "statuses": [
+      400
+    ],
+    "total": 6
+  },
+  "circuitBreakers": {
+    "event": "CLOSED",
+    "admission": "CLOSED",
+    "engagement": "CLOSED"
+  },
+  "downstream": {
+    "event": "ok",
+    "admission": "ok",
+    "engagement": "ok"
+  }
+}
