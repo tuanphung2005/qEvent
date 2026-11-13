@@ -1,0 +1,2729 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "qEvent Engagement Service",
+    "description": "Live Q&A, polls, and a Kahoot-style quiz engine. Interaction endpoints enforce BR-6: Event Service resolves the session's real event id and live flag, then Admission Service confirms the attendee checked in. Infrastructure failures return 503 (unreachable) or 504 (timeout), never 403. Errors use `{ code, message }` except request validation failures, which return the Elysia validation payload.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3003",
+      "description": "Direct service port (Docker network)"
+    },
+    {
+      "url": "http://localhost:8000",
+      "description": "API Gateway entry point"
+    }
+  ],
+  "tags": [
+    {
+      "name": "qa",
+      "description": "Live Q&A and upvoting"
+    },
+    {
+      "name": "polls",
+      "description": "Live interactive polls and voting"
+    },
+    {
+      "name": "game",
+      "description": "Kahoot-like live quiz engine"
+    },
+    {
+      "name": "stats",
+      "description": "Session dashboard counters"
+    },
+    {
+      "name": "health",
+      "description": "Health and readiness probe"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT verified by the API Gateway. For WebSocket handshakes use `?token=<jwt>` because browsers cannot set headers."
+      }
+    },
+    "schemas": {
+      "ErrorBody": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "SESSION_NOT_LIVE"
+          },
+          "message": {
+            "type": "string",
+            "example": "Session is not live yet"
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "required": [
+          "type",
+          "on",
+          "property",
+          "message"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "example": "validation"
+          },
+          "on": {
+            "type": "string",
+            "example": "body"
+          },
+          "property": {
+            "type": "string",
+            "example": "/content"
+          },
+          "message": {
+            "type": "string",
+            "example": "Expected string to have a length of at least 1"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "expected": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "found": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "service",
+          "database"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ]
+          },
+          "service": {
+            "type": "string",
+            "example": "engagement-service"
+          },
+          "database": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "unavailable"
+            ]
+          }
+        }
+      },
+      "QAQuestion": {
+        "type": "object",
+        "required": [
+          "id",
+          "sessionId",
+          "userId",
+          "content",
+          "upvotes",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "content": {
+            "type": "string",
+            "example": "How does the circuit breaker recover?"
+          },
+          "upvotes": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 4
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "QAQuestionListResponse": {
+        "type": "object",
+        "required": [
+          "sessionId",
+          "questions"
+        ],
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QAQuestion"
+            }
+          }
+        }
+      },
+      "CreateQuestionRequest": {
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
+      "CreateQuestionResponse": {
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "properties": {
+          "question": {
+            "$ref": "#/components/schemas/QAQuestion"
+          }
+        }
+      },
+      "VoteResponse": {
+        "type": "object",
+        "required": [
+          "questionId",
+          "upvotes",
+          "hasVoted"
+        ],
+        "properties": {
+          "questionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "upvotes": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 5
+          },
+          "hasVoted": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PollOption": {
+        "type": "object",
+        "required": [
+          "id",
+          "pollId",
+          "content",
+          "voteCount"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pollId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "content": {
+            "type": "string",
+            "example": "Very good"
+          },
+          "voteCount": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 12
+          }
+        }
+      },
+      "Poll": {
+        "type": "object",
+        "required": [
+          "id",
+          "sessionId",
+          "title",
+          "isActive",
+          "createdAt",
+          "options"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "example": "How was the keynote?"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PollOption"
+            }
+          }
+        }
+      },
+      "PollListResponse": {
+        "type": "object",
+        "required": [
+          "sessionId",
+          "polls"
+        ],
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "polls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Poll"
+            }
+          }
+        }
+      },
+      "PollResponse": {
+        "type": "object",
+        "required": [
+          "poll"
+        ],
+        "properties": {
+          "poll": {
+            "$ref": "#/components/schemas/Poll"
+          }
+        }
+      },
+      "PollVoteResponse": {
+        "type": "object",
+        "required": [
+          "pollId",
+          "optionId",
+          "voted"
+        ],
+        "properties": {
+          "pollId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "optionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "voted": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreatePollRequest": {
+        "type": "object",
+        "required": [
+          "title",
+          "options"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 2,
+            "maxItems": 10
+          }
+        }
+      },
+      "UpdatePollRequest": {
+        "type": "object",
+        "required": [
+          "isActive"
+        ],
+        "properties": {
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SessionStatsResponse": {
+        "type": "object",
+        "required": [
+          "sessionId",
+          "questions",
+          "activePoll",
+          "game"
+        ],
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "questions": {
+            "type": "object",
+            "required": [
+              "total",
+              "topQuestion"
+            ],
+            "properties": {
+              "total": {
+                "type": "integer",
+                "minimum": 0,
+                "example": 12
+              },
+              "topQuestion": {
+                "type": "object",
+                "nullable": true,
+                "required": [
+                  "id",
+                  "content",
+                  "upvotes"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "content": {
+                    "type": "string",
+                    "example": "How does the circuit breaker recover?"
+                  },
+                  "upvotes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 7
+                  }
+                }
+              }
+            }
+          },
+          "activePoll": {
+            "type": "object",
+            "nullable": true,
+            "required": [
+              "id",
+              "title",
+              "isActive",
+              "totalVotes"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string",
+                "example": "How was the keynote?"
+              },
+              "isActive": {
+                "type": "boolean"
+              },
+              "totalVotes": {
+                "type": "integer",
+                "minimum": 0,
+                "example": 31
+              }
+            }
+          },
+          "game": {
+            "type": "object",
+            "nullable": true,
+            "required": [
+              "status",
+              "currentQuestionIndex",
+              "totalQuestions"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "WAITING",
+                  "QUESTION_ACTIVE",
+                  "ROUND_REVEALED",
+                  "FINISHED"
+                ]
+              },
+              "currentQuestionIndex": {
+                "type": "integer",
+                "minimum": 0,
+                "example": 1
+              },
+              "totalQuestions": {
+                "type": "integer",
+                "minimum": 0,
+                "example": 3
+              }
+            }
+          }
+        }
+      },
+      "PollVoteRequest": {
+        "type": "object",
+        "required": [
+          "optionId"
+        ],
+        "properties": {
+          "optionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "GameQuestion": {
+        "type": "object",
+        "required": [
+          "id",
+          "orderNum",
+          "content",
+          "options"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "orderNum": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 0
+          },
+          "content": {
+            "type": "string",
+            "example": "Which algorithm prevents double check-in?"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "correctOption": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "timeLimitSec": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 300,
+            "example": 30
+          },
+          "questionStartedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "Game": {
+        "type": "object",
+        "required": [
+          "id",
+          "sessionId",
+          "status",
+          "currentQuestionIndex"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "WAITING",
+              "QUESTION_ACTIVE",
+              "ROUND_REVEALED",
+              "FINISHED"
+            ]
+          },
+          "currentQuestionIndex": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 0
+          },
+          "totalQuestions": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 3
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GameQuestion"
+            }
+          },
+          "currentQuestion": {
+            "$ref": "#/components/schemas/GameQuestion"
+          }
+        }
+      },
+      "GameResponse": {
+        "type": "object",
+        "required": [
+          "game"
+        ],
+        "properties": {
+          "game": {
+            "$ref": "#/components/schemas/Game"
+          }
+        }
+      },
+      "AddQuestionRequest": {
+        "type": "object",
+        "required": [
+          "content",
+          "options",
+          "correctOption",
+          "timeLimitSec"
+        ],
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 2,
+            "maxItems": 6
+          },
+          "correctOption": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "timeLimitSec": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 300
+          }
+        }
+      },
+      "QuizQuestionResponse": {
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "properties": {
+          "question": {
+            "$ref": "#/components/schemas/GameQuestion"
+          }
+        }
+      },
+      "StartGameResponse": {
+        "type": "object",
+        "required": [
+          "game",
+          "currentQuestion"
+        ],
+        "properties": {
+          "game": {
+            "$ref": "#/components/schemas/Game"
+          },
+          "currentQuestion": {
+            "$ref": "#/components/schemas/GameQuestion"
+          }
+        }
+      },
+      "RevealGameResponse": {
+        "type": "object",
+        "required": [
+          "game",
+          "correctOption"
+        ],
+        "properties": {
+          "game": {
+            "$ref": "#/components/schemas/Game"
+          },
+          "correctOption": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5
+          }
+        }
+      },
+      "AnswerRequest": {
+        "type": "object",
+        "required": [
+          "questionId",
+          "selectedOption"
+        ],
+        "properties": {
+          "questionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "selectedOption": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "userId": {
+            "type": "string",
+            "description": "Ignored; identity always comes from the JWT."
+          },
+          "responseTimeMs": {
+            "type": "integer",
+            "description": "Ignored; the server measures elapsed time."
+          }
+        }
+      },
+      "AnswerResponse": {
+        "type": "object",
+        "required": [
+          "isCorrect",
+          "score",
+          "responseTimeMs"
+        ],
+        "properties": {
+          "isCorrect": {
+            "type": "boolean"
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 750
+          },
+          "responseTimeMs": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 10000
+          }
+        }
+      },
+      "LeaderboardEntry": {
+        "type": "object",
+        "required": [
+          "rank",
+          "userId",
+          "totalScore",
+          "correctCount"
+        ],
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "totalScore": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 2750
+          },
+          "correctCount": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 3
+          }
+        }
+      },
+      "LeaderboardResponse": {
+        "type": "object",
+        "required": [
+          "gameId",
+          "leaderboard"
+        ],
+        "properties": {
+          "gameId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "leaderboard": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeaderboardEntry"
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Authentication is missing or the JWT is invalid.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorBody"
+            },
+            "example": {
+              "code": "UNAUTHORIZED",
+              "message": "Authentication is required"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "The caller is not a STAFF or ORGANIZER for the host-only action.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorBody"
+            },
+            "example": {
+              "code": "FORBIDDEN",
+              "message": "Only staff or organizer can perform this action"
+            }
+          }
+        }
+      },
+      "ValidationFailed": {
+        "description": "The request body or parameters do not satisfy the declared schema.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "example": {
+              "type": "validation",
+              "on": "body",
+              "property": "/content",
+              "message": "Expected string to have a length of at least 1",
+              "summary": "string",
+              "expected": {},
+              "found": {},
+              "errors": [
+                {}
+              ]
+            }
+          }
+        }
+      },
+      "UpstreamUnavailable": {
+        "description": "A dependency (Event Service or Admission Service) could not be reached. The client may retry with backoff.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorBody"
+            },
+            "example": {
+              "code": "EVENT_SERVICE_UNAVAILABLE",
+              "message": "Event Service is unavailable; try again later"
+            }
+          }
+        }
+      },
+      "UpstreamTimeout": {
+        "description": "A dependency did not answer within the internal timeout. The client may retry with backoff.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorBody"
+            },
+            "examples": {
+              "eventTimeout": {
+                "value": {
+                  "code": "EVENT_SERVICE_TIMEOUT",
+                  "message": "Event Service timed out; try again later"
+                }
+              },
+              "admissionTimeout": {
+                "value": {
+                  "code": "ADMISSION_SERVICE_TIMEOUT",
+                  "message": "Admission Service timed out; try again later"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Report service and database readiness",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Service and database are reachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "example": {
+                  "status": "ok",
+                  "service": "engagement-service",
+                  "database": "ok"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "example": {
+                  "status": "degraded",
+                  "service": "engagement-service",
+                  "database": "unavailable"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{sessionId}/questions": {
+      "get": {
+        "tags": [
+          "qa"
+        ],
+        "summary": "List questions for a session ordered by upvotes",
+        "operationId": "listQuestions",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Questions ordered by upvotes, then creation time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QAQuestionListResponse"
+                },
+                "example": {
+                  "sessionId": "00000000-0000-4000-8000-000000000001",
+                  "questions": [
+                    {
+                      "id": "00000000-0000-4000-8000-000000000002",
+                      "sessionId": "00000000-0000-4000-8000-000000000003",
+                      "userId": "00000000-0000-4000-8000-000000000004",
+                      "content": "How does the circuit breaker recover?",
+                      "upvotes": 4,
+                      "createdAt": "2026-11-14T08:00:00.000Z"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "qa"
+        ],
+        "summary": "Ask a question in a live session",
+        "description": "Requires BR-6: the session must be live and the caller must have checked in to the session's real event. The event id is resolved from Event Service, never accepted from the client.",
+        "operationId": "createQuestion",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateQuestionRequest"
+              },
+              "example": {
+                "content": "string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Question created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateQuestionResponse"
+                },
+                "example": {
+                  "question": {
+                    "id": "00000000-0000-4000-8000-000000000005",
+                    "sessionId": "00000000-0000-4000-8000-000000000006",
+                    "userId": "00000000-0000-4000-8000-000000000007",
+                    "content": "How does the circuit breaker recover?",
+                    "upvotes": 4,
+                    "createdAt": "2026-11-14T08:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The question content is empty.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "VALIDATION",
+                  "message": "content must not be empty"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Attendee access is denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "examples": {
+                  "notCheckedIn": {
+                    "value": {
+                      "code": "NOT_CHECKED_IN",
+                      "message": "Attendee has not checked in to this event"
+                    }
+                  },
+                  "sessionNotLive": {
+                    "value": {
+                      "code": "SESSION_NOT_LIVE",
+                      "message": "Session is not live yet"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The session does not exist in Event Service.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "SESSION_NOT_FOUND",
+                  "message": "Session was not found"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "503": {
+            "$ref": "#/components/responses/UpstreamUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/UpstreamTimeout"
+          }
+        }
+      }
+    },
+    "/api/questions/{questionId}/votes": {
+      "put": {
+        "tags": [
+          "qa"
+        ],
+        "summary": "Toggle an upvote on a question",
+        "description": "Requires BR-6 against the question's session. Calling it twice removes the vote.",
+        "operationId": "toggleQuestionVote",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "questionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vote toggled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoteResponse"
+                },
+                "example": {
+                  "questionId": "00000000-0000-4000-8000-000000000008",
+                  "upvotes": 5,
+                  "hasVoted": true
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "The attendee has not checked in to the session's event (BR-6).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "NOT_CHECKED_IN",
+                  "message": "Attendee has not checked in to this event"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The question does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "QUESTION_NOT_FOUND",
+                  "message": "Question was not found"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/UpstreamUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/UpstreamTimeout"
+          }
+        }
+      }
+    },
+    "/api/questions/{questionId}": {
+      "delete": {
+        "tags": [
+          "qa"
+        ],
+        "summary": "Delete a question (host only)",
+        "description": "Staff and organizers can remove an inappropriate question. Its votes are removed by cascade.",
+        "operationId": "deleteQuestion",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "questionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Question deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "The question does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "QUESTION_NOT_FOUND",
+                  "message": "Question was not found"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{sessionId}/polls": {
+      "get": {
+        "tags": [
+          "polls"
+        ],
+        "summary": "List polls for a session",
+        "operationId": "listPolls",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Polls ordered by creation time (newest first).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PollListResponse"
+                },
+                "example": {
+                  "sessionId": "00000000-0000-4000-8000-000000000009",
+                  "polls": [
+                    {
+                      "id": "00000000-0000-4000-8000-000000000010",
+                      "sessionId": "00000000-0000-4000-8000-000000000011",
+                      "title": "How was the keynote?",
+                      "isActive": true,
+                      "createdAt": "2026-11-14T08:00:00.000Z",
+                      "options": [
+                        {
+                          "id": "00000000-0000-4000-8000-000000000012",
+                          "pollId": "00000000-0000-4000-8000-000000000013",
+                          "content": "Very good",
+                          "voteCount": 12
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "polls"
+        ],
+        "summary": "Create a poll (host only)",
+        "operationId": "createPoll",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePollRequest"
+              },
+              "example": {
+                "title": "string",
+                "options": [
+                  "string"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Poll created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PollResponse"
+                },
+                "example": {
+                  "poll": {
+                    "id": "00000000-0000-4000-8000-000000000014",
+                    "sessionId": "00000000-0000-4000-8000-000000000015",
+                    "title": "How was the keynote?",
+                    "isActive": true,
+                    "createdAt": "2026-11-14T08:00:00.000Z",
+                    "options": [
+                      {
+                        "id": "00000000-0000-4000-8000-000000000016",
+                        "pollId": "00000000-0000-4000-8000-000000000017",
+                        "content": "Very good",
+                        "voteCount": 12
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The poll has fewer than 2 non-empty options.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "INVALID_OPTIONS",
+                  "message": "Poll must have at least 2 options"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          }
+        }
+      }
+    },
+    "/api/polls/{pollId}/vote": {
+      "post": {
+        "tags": [
+          "polls"
+        ],
+        "summary": "Cast, switch, or remove a poll vote",
+        "description": "Requires BR-6 against the poll's session. Voting on a closed poll returns 400.",
+        "operationId": "votePoll",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pollId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PollVoteRequest"
+              },
+              "example": {
+                "optionId": "00000000-0000-4000-8000-000000000018"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Vote applied (or removed when voting the same option twice).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PollVoteResponse"
+                },
+                "example": {
+                  "pollId": "00000000-0000-4000-8000-000000000019",
+                  "optionId": "00000000-0000-4000-8000-000000000020",
+                  "voted": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The poll is closed or the option is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "examples": {
+                  "inactive": {
+                    "value": {
+                      "code": "POLL_INACTIVE",
+                      "message": "Poll is closed for voting"
+                    }
+                  },
+                  "invalidOption": {
+                    "value": {
+                      "code": "INVALID_OPTION",
+                      "message": "Option does not belong to this poll"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "The attendee has not checked in to the session's event (BR-6).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "NOT_CHECKED_IN",
+                  "message": "Attendee has not checked in to this event"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The poll does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "POLL_NOT_FOUND",
+                  "message": "Poll was not found"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "503": {
+            "$ref": "#/components/responses/UpstreamUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/UpstreamTimeout"
+          }
+        }
+      }
+    },
+    "/api/polls/{pollId}": {
+      "patch": {
+        "tags": [
+          "polls"
+        ],
+        "summary": "Open or close a poll (host only)",
+        "operationId": "updatePoll",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pollId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePollRequest"
+              },
+              "example": {
+                "isActive": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Poll updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PollResponse"
+                },
+                "example": {
+                  "poll": {
+                    "id": "00000000-0000-4000-8000-000000000021",
+                    "sessionId": "00000000-0000-4000-8000-000000000022",
+                    "title": "How was the keynote?",
+                    "isActive": true,
+                    "createdAt": "2026-11-14T08:00:00.000Z",
+                    "options": [
+                      {
+                        "id": "00000000-0000-4000-8000-000000000023",
+                        "pollId": "00000000-0000-4000-8000-000000000024",
+                        "content": "Very good",
+                        "voteCount": 12
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "The poll does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "POLL_NOT_FOUND",
+                  "message": "Poll was not found"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          }
+        }
+      }
+    },
+    "/api/sessions/{sessionId}/game": {
+      "get": {
+        "tags": [
+          "game"
+        ],
+        "summary": "Read the game for a session",
+        "operationId": "getSessionGame",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Game summary.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameResponse"
+                },
+                "example": {
+                  "game": {
+                    "id": "00000000-0000-4000-8000-000000000028",
+                    "sessionId": "00000000-0000-4000-8000-000000000029",
+                    "status": "WAITING",
+                    "currentQuestionIndex": 0,
+                    "totalQuestions": 3,
+                    "questions": [
+                      {
+                        "id": "00000000-0000-4000-8000-000000000030",
+                        "orderNum": 0,
+                        "content": "Which algorithm prevents double check-in?",
+                        "options": [
+                          "string"
+                        ],
+                        "correctOption": 0,
+                        "timeLimitSec": 30,
+                        "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                      }
+                    ],
+                    "currentQuestion": {
+                      "id": "00000000-0000-4000-8000-000000000031",
+                      "orderNum": 0,
+                      "content": "Which algorithm prevents double check-in?",
+                      "options": [
+                        "string"
+                      ],
+                      "correctOption": 0,
+                      "timeLimitSec": 30,
+                      "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No game exists for this session.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "GAME_NOT_FOUND",
+                  "message": "No quiz game found for this session"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "game"
+        ],
+        "summary": "Create or return the session's quiz game (host only)",
+        "operationId": "createSessionGame",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Game already existed and is returned unchanged.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameResponse"
+                },
+                "example": {
+                  "game": {
+                    "id": "00000000-0000-4000-8000-000000000032",
+                    "sessionId": "00000000-0000-4000-8000-000000000033",
+                    "status": "WAITING",
+                    "currentQuestionIndex": 0,
+                    "totalQuestions": 3,
+                    "questions": [
+                      {
+                        "id": "00000000-0000-4000-8000-000000000034",
+                        "orderNum": 0,
+                        "content": "Which algorithm prevents double check-in?",
+                        "options": [
+                          "string"
+                        ],
+                        "correctOption": 0,
+                        "timeLimitSec": 30,
+                        "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                      }
+                    ],
+                    "currentQuestion": {
+                      "id": "00000000-0000-4000-8000-000000000035",
+                      "orderNum": 0,
+                      "content": "Which algorithm prevents double check-in?",
+                      "options": [
+                        "string"
+                      ],
+                      "correctOption": 0,
+                      "timeLimitSec": 30,
+                      "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Game created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameResponse"
+                },
+                "example": {
+                  "game": {
+                    "id": "00000000-0000-4000-8000-000000000036",
+                    "sessionId": "00000000-0000-4000-8000-000000000037",
+                    "status": "WAITING",
+                    "currentQuestionIndex": 0,
+                    "totalQuestions": 3,
+                    "questions": [
+                      {
+                        "id": "00000000-0000-4000-8000-000000000038",
+                        "orderNum": 0,
+                        "content": "Which algorithm prevents double check-in?",
+                        "options": [
+                          "string"
+                        ],
+                        "correctOption": 0,
+                        "timeLimitSec": 30,
+                        "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                      }
+                    ],
+                    "currentQuestion": {
+                      "id": "00000000-0000-4000-8000-000000000039",
+                      "orderNum": 0,
+                      "content": "Which algorithm prevents double check-in?",
+                      "options": [
+                        "string"
+                      ],
+                      "correctOption": 0,
+                      "timeLimitSec": 30,
+                      "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/api/game/{gameId}/question": {
+      "post": {
+        "tags": [
+          "game"
+        ],
+        "summary": "Add a question while the game is WAITING (host only)",
+        "operationId": "addGameQuestion",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddQuestionRequest"
+              },
+              "example": {
+                "content": "string",
+                "options": [
+                  "string"
+                ],
+                "correctOption": 0,
+                "timeLimitSec": 1
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Question added at the next order number.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizQuestionResponse"
+                },
+                "example": {
+                  "question": {
+                    "id": "00000000-0000-4000-8000-000000000040",
+                    "orderNum": 0,
+                    "content": "Which algorithm prevents double check-in?",
+                    "options": [
+                      "string"
+                    ],
+                    "correctOption": 0,
+                    "timeLimitSec": 30,
+                    "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The question payload is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "examples": {
+                  "options": {
+                    "value": {
+                      "code": "INVALID_OPTIONS",
+                      "message": "Question must have between 2 and 6 options"
+                    }
+                  },
+                  "correctOption": {
+                    "value": {
+                      "code": "INVALID_CORRECT_OPTION",
+                      "message": "correctOption must be an index between 0 and 5"
+                    }
+                  },
+                  "timeLimit": {
+                    "value": {
+                      "code": "INVALID_TIME_LIMIT",
+                      "message": "timeLimitSec must be between 1 and 300 seconds"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "The quiz game does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "GAME_NOT_FOUND",
+                  "message": "Quiz game was not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The game has already started.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "INVALID_GAME_STATE",
+                  "message": "Game status changed while adding question"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          }
+        }
+      }
+    },
+    "/api/game/{gameId}": {
+      "get": {
+        "tags": [
+          "game"
+        ],
+        "summary": "Read game state (hosts also see correct answers)",
+        "description": "Attendees never receive `correctOption` before ROUND_REVEALED; hosts receive the full question list.",
+        "operationId": "getGame",
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Game state for the caller's role.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameResponse"
+                },
+                "example": {
+                  "game": {
+                    "id": "00000000-0000-4000-8000-000000000041",
+                    "sessionId": "00000000-0000-4000-8000-000000000042",
+                    "status": "WAITING",
+                    "currentQuestionIndex": 0,
+                    "totalQuestions": 3,
+                    "questions": [
+                      {
+                        "id": "00000000-0000-4000-8000-000000000043",
+                        "orderNum": 0,
+                        "content": "Which algorithm prevents double check-in?",
+                        "options": [
+                          "string"
+                        ],
+                        "correctOption": 0,
+                        "timeLimitSec": 30,
+                        "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                      }
+                    ],
+                    "currentQuestion": {
+                      "id": "00000000-0000-4000-8000-000000000044",
+                      "orderNum": 0,
+                      "content": "Which algorithm prevents double check-in?",
+                      "options": [
+                        "string"
+                      ],
+                      "correctOption": 0,
+                      "timeLimitSec": 30,
+                      "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The quiz game does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "GAME_NOT_FOUND",
+                  "message": "Quiz game was not found"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/game/{gameId}/start": {
+      "post": {
+        "tags": [
+          "game"
+        ],
+        "summary": "Start the first question (host only, CAS)",
+        "operationId": "startGame",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Game started and the first question is active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartGameResponse"
+                },
+                "example": {
+                  "game": {
+                    "id": "00000000-0000-4000-8000-000000000045",
+                    "sessionId": "00000000-0000-4000-8000-000000000046",
+                    "status": "WAITING",
+                    "currentQuestionIndex": 0,
+                    "totalQuestions": 3,
+                    "questions": [
+                      {
+                        "id": "00000000-0000-4000-8000-000000000047",
+                        "orderNum": 0,
+                        "content": "Which algorithm prevents double check-in?",
+                        "options": [
+                          "string"
+                        ],
+                        "correctOption": 0,
+                        "timeLimitSec": 30,
+                        "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                      }
+                    ],
+                    "currentQuestion": {
+                      "id": "00000000-0000-4000-8000-000000000048",
+                      "orderNum": 0,
+                      "content": "Which algorithm prevents double check-in?",
+                      "options": [
+                        "string"
+                      ],
+                      "correctOption": 0,
+                      "timeLimitSec": 30,
+                      "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                    }
+                  },
+                  "currentQuestion": {
+                    "id": "00000000-0000-4000-8000-000000000049",
+                    "orderNum": 0,
+                    "content": "Which algorithm prevents double check-in?",
+                    "options": [
+                      "string"
+                    ],
+                    "correctOption": 0,
+                    "timeLimitSec": 30,
+                    "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The game has no questions.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "NO_QUESTIONS",
+                  "message": "Game must have at least one question to start"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "The quiz game does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "GAME_NOT_FOUND",
+                  "message": "Quiz game was not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The game is not WAITING, or another request won the transition.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "INVALID_GAME_STATE",
+                  "message": "Cannot start a game with status QUESTION_ACTIVE"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/game/{gameId}/reveal": {
+      "post": {
+        "tags": [
+          "game"
+        ],
+        "summary": "Reveal the correct answer (host only, CAS)",
+        "operationId": "revealGameAnswer",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Round revealed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevealGameResponse"
+                },
+                "example": {
+                  "game": {
+                    "id": "00000000-0000-4000-8000-000000000050",
+                    "sessionId": "00000000-0000-4000-8000-000000000051",
+                    "status": "WAITING",
+                    "currentQuestionIndex": 0,
+                    "totalQuestions": 3,
+                    "questions": [
+                      {
+                        "id": "00000000-0000-4000-8000-000000000052",
+                        "orderNum": 0,
+                        "content": "Which algorithm prevents double check-in?",
+                        "options": [
+                          "string"
+                        ],
+                        "correctOption": 0,
+                        "timeLimitSec": 30,
+                        "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                      }
+                    ],
+                    "currentQuestion": {
+                      "id": "00000000-0000-4000-8000-000000000053",
+                      "orderNum": 0,
+                      "content": "Which algorithm prevents double check-in?",
+                      "options": [
+                        "string"
+                      ],
+                      "correctOption": 0,
+                      "timeLimitSec": 30,
+                      "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                    }
+                  },
+                  "correctOption": 0
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "The quiz game does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "GAME_NOT_FOUND",
+                  "message": "Quiz game was not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The game is not in QUESTION_ACTIVE.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "INVALID_GAME_STATE",
+                  "message": "Cannot reveal answer when game is ROUND_REVEALED"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/game/{gameId}/next": {
+      "post": {
+        "tags": [
+          "game"
+        ],
+        "summary": "Advance to the next question (host only, CAS)",
+        "operationId": "nextGameQuestion",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Next question is active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartGameResponse"
+                },
+                "example": {
+                  "game": {
+                    "id": "00000000-0000-4000-8000-000000000054",
+                    "sessionId": "00000000-0000-4000-8000-000000000055",
+                    "status": "WAITING",
+                    "currentQuestionIndex": 0,
+                    "totalQuestions": 3,
+                    "questions": [
+                      {
+                        "id": "00000000-0000-4000-8000-000000000056",
+                        "orderNum": 0,
+                        "content": "Which algorithm prevents double check-in?",
+                        "options": [
+                          "string"
+                        ],
+                        "correctOption": 0,
+                        "timeLimitSec": 30,
+                        "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                      }
+                    ],
+                    "currentQuestion": {
+                      "id": "00000000-0000-4000-8000-000000000057",
+                      "orderNum": 0,
+                      "content": "Which algorithm prevents double check-in?",
+                      "options": [
+                        "string"
+                      ],
+                      "correctOption": 0,
+                      "timeLimitSec": 30,
+                      "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                    }
+                  },
+                  "currentQuestion": {
+                    "id": "00000000-0000-4000-8000-000000000058",
+                    "orderNum": 0,
+                    "content": "Which algorithm prevents double check-in?",
+                    "options": [
+                      "string"
+                    ],
+                    "correctOption": 0,
+                    "timeLimitSec": 30,
+                    "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "The quiz game does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "GAME_NOT_FOUND",
+                  "message": "Quiz game was not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The transition is not allowed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "examples": {
+                  "notRevealed": {
+                    "value": {
+                      "code": "INVALID_GAME_STATE",
+                      "message": "Must reveal round before advancing. Current status: QUESTION_ACTIVE"
+                    }
+                  },
+                  "noMore": {
+                    "value": {
+                      "code": "NO_MORE_QUESTIONS",
+                      "message": "No more questions available. Call /end to finish the game."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/game/{gameId}/end": {
+      "post": {
+        "tags": [
+          "game"
+        ],
+        "summary": "Finish the game (host only)",
+        "operationId": "endGame",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Game finished.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameResponse"
+                },
+                "example": {
+                  "game": {
+                    "id": "00000000-0000-4000-8000-000000000059",
+                    "sessionId": "00000000-0000-4000-8000-000000000060",
+                    "status": "WAITING",
+                    "currentQuestionIndex": 0,
+                    "totalQuestions": 3,
+                    "questions": [
+                      {
+                        "id": "00000000-0000-4000-8000-000000000061",
+                        "orderNum": 0,
+                        "content": "Which algorithm prevents double check-in?",
+                        "options": [
+                          "string"
+                        ],
+                        "correctOption": 0,
+                        "timeLimitSec": 30,
+                        "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                      }
+                    ],
+                    "currentQuestion": {
+                      "id": "00000000-0000-4000-8000-000000000062",
+                      "orderNum": 0,
+                      "content": "Which algorithm prevents double check-in?",
+                      "options": [
+                        "string"
+                      ],
+                      "correctOption": 0,
+                      "timeLimitSec": 30,
+                      "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "The quiz game does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "GAME_NOT_FOUND",
+                  "message": "Quiz game was not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The game is already finished.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "INVALID_GAME_STATE",
+                  "message": "Game is already finished"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/game/{gameId}/answer": {
+      "post": {
+        "tags": [
+          "game"
+        ],
+        "summary": "Submit an answer for the active question",
+        "description": "Requires BR-6. Identity comes from the JWT and timing from the server; `userId` and `responseTimeMs` in the body are ignored.",
+        "operationId": "submitGameAnswer",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerRequest"
+              },
+              "example": {
+                "questionId": "00000000-0000-4000-8000-000000000063",
+                "selectedOption": 0,
+                "userId": "string",
+                "responseTimeMs": 1
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Answer scored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerResponse"
+                },
+                "example": {
+                  "isCorrect": true,
+                  "score": 750,
+                  "responseTimeMs": 10000
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The answer cannot be accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "examples": {
+                  "closed": {
+                    "value": {
+                      "code": "ANSWER_WINDOW_CLOSED",
+                      "message": "Current question is not accepting answers"
+                    }
+                  },
+                  "late": {
+                    "value": {
+                      "code": "ANSWER_TOO_LATE",
+                      "message": "Time limit exceeded"
+                    }
+                  },
+                  "wrongQuestion": {
+                    "value": {
+                      "code": "NOT_CURRENT_QUESTION",
+                      "message": "Answers are only accepted for the currently active question"
+                    }
+                  },
+                  "invalidOption": {
+                    "value": {
+                      "code": "INVALID_OPTION",
+                      "message": "Selected option index is out of bounds"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "The attendee has not checked in to the session's event (BR-6).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "NOT_CHECKED_IN",
+                  "message": "Attendee has not checked in to this event"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The quiz game does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "GAME_NOT_FOUND",
+                  "message": "Quiz game was not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The answer was already submitted or the question has not started.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "ALREADY_ANSWERED",
+                  "message": "You have already submitted an answer for this question"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "503": {
+            "$ref": "#/components/responses/UpstreamUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/UpstreamTimeout"
+          }
+        }
+      }
+    },
+    "/api/game/{gameId}/leaderboard": {
+      "get": {
+        "tags": [
+          "game"
+        ],
+        "summary": "Read the game leaderboard",
+        "operationId": "getGameLeaderboard",
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Leaderboard ordered by total score.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeaderboardResponse"
+                },
+                "example": {
+                  "gameId": "00000000-0000-4000-8000-000000000064",
+                  "leaderboard": [
+                    {
+                      "rank": 1,
+                      "userId": "00000000-0000-4000-8000-000000000065",
+                      "totalScore": 2750,
+                      "correctCount": 3
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The quiz game does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                },
+                "example": {
+                  "code": "GAME_NOT_FOUND",
+                  "message": "Quiz game was not found"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{sessionId}/stats": {
+      "get": {
+        "tags": [
+          "stats"
+        ],
+        "summary": "Dashboard counters for a session (host only)",
+        "operationId": "getSessionStats",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Question, poll and game counters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionStatsResponse"
+                },
+                "example": {
+                  "sessionId": "00000000-0000-4000-8000-000000000025",
+                  "questions": {
+                    "total": 12,
+                    "topQuestion": {
+                      "id": "00000000-0000-4000-8000-000000000026",
+                      "content": "How does the circuit breaker recover?",
+                      "upvotes": 7
+                    }
+                  },
+                  "activePoll": {
+                    "id": "00000000-0000-4000-8000-000000000027",
+                    "title": "How was the keynote?",
+                    "isActive": true,
+                    "totalVotes": 31
+                  },
+                  "game": {
+                    "status": "WAITING",
+                    "currentQuestionIndex": 1,
+                    "totalQuestions": 3
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    }
+  }
+}

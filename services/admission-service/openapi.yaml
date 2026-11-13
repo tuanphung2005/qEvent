@@ -532,6 +532,352 @@ components:
           type: string
           format: uuid
           nullable: true
+    Attendee:
+      type: object
+      required:
+        - id
+        - email
+        - fullName
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+    AuthMeResponse:
+      type: object
+      required:
+        - user
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+    StaffOrder:
+      type: object
+      required:
+        - id
+        - attendee
+        - status
+        - quantity
+        - totalAmount
+        - failureCode
+        - createdAt
+        - updatedAt
+        - ticketsCount
+      properties:
+        id:
+          type: string
+          format: uuid
+        attendee:
+          $ref: "#/components/schemas/Attendee"
+        status:
+          type: string
+          enum:
+            - PENDING
+            - PENDING_RECONCILIATION
+            - COMPENSATING
+            - CONFIRMED
+            - FAILED
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 10
+        totalAmount:
+          type: number
+          example: 50
+        failureCode:
+          type: string
+          nullable: true
+          example: SOLD_OUT
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        ticketsCount:
+          type: integer
+          minimum: 0
+          example: 2
+    OrderListResponse:
+      type: object
+      required:
+        - orders
+        - nextCursor
+      properties:
+        orders:
+          type: array
+          items:
+            $ref: "#/components/schemas/StaffOrder"
+        nextCursor:
+          type: string
+          nullable: true
+    StaffTicket:
+      type: object
+      required:
+        - id
+        - eventId
+        - ticketTypeId
+        - orderId
+        - status
+        - orderStatus
+        - checkedInAt
+        - createdAt
+        - attendee
+      properties:
+        id:
+          type: string
+          format: uuid
+        eventId:
+          type: string
+          format: uuid
+        ticketTypeId:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - PENDING_PAYMENT
+            - PAID
+            - CHECKED_IN
+            - CANCELLED
+        orderStatus:
+          type: string
+          example: CONFIRMED
+        checkedInAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        attendee:
+          $ref: "#/components/schemas/Attendee"
+    StaffTicketListResponse:
+      type: object
+      required:
+        - tickets
+        - nextCursor
+      properties:
+        tickets:
+          type: array
+          items:
+            $ref: "#/components/schemas/StaffTicket"
+        nextCursor:
+          type: string
+          nullable: true
+    StaffOrderDetail:
+      type: object
+      required:
+        - id
+        - status
+        - quantity
+        - totalAmount
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - PENDING
+            - PENDING_RECONCILIATION
+            - COMPENSATING
+            - CONFIRMED
+            - FAILED
+        quantity:
+          type: integer
+          minimum: 1
+        totalAmount:
+          type: number
+          example: 50
+        createdAt:
+          type: string
+          format: date-time
+    CheckinLog:
+      type: object
+      required:
+        - id
+        - scannedBy
+        - scannedAt
+        - isOffline
+        - deviceId
+        - syncStatus
+      properties:
+        id:
+          type: string
+          format: uuid
+        scannedBy:
+          type: string
+          format: uuid
+        scannedAt:
+          type: string
+          format: date-time
+        isOffline:
+          type: boolean
+        deviceId:
+          type: string
+          nullable: true
+          example: gate-1
+        syncStatus:
+          type: string
+          enum:
+            - SYNCED
+            - CONFLICT
+    TicketDetailResponse:
+      type: object
+      required:
+        - ticket
+        - order
+        - checkinLogs
+      properties:
+        ticket:
+          $ref: "#/components/schemas/StaffTicket"
+        order:
+          $ref: "#/components/schemas/StaffOrderDetail"
+        checkinLogs:
+          type: array
+          items:
+            $ref: "#/components/schemas/CheckinLog"
+    CheckinFeedItem:
+      type: object
+      required:
+        - id
+        - ticketId
+        - scannedAt
+        - isOffline
+        - syncStatus
+        - deviceId
+        - attendee
+        - ticketStatus
+      properties:
+        id:
+          type: string
+          format: uuid
+        ticketId:
+          type: string
+          format: uuid
+        scannedAt:
+          type: string
+          format: date-time
+        isOffline:
+          type: boolean
+        syncStatus:
+          type: string
+          enum:
+            - SYNCED
+            - CONFLICT
+        deviceId:
+          type: string
+          nullable: true
+          example: gate-1
+        attendee:
+          $ref: "#/components/schemas/Attendee"
+        ticketStatus:
+          type: string
+          enum:
+            - PENDING_PAYMENT
+            - PAID
+            - CHECKED_IN
+            - CANCELLED
+    CheckinFeedResponse:
+      type: object
+      required:
+        - checkins
+        - nextCursor
+      properties:
+        checkins:
+          type: array
+          items:
+            $ref: "#/components/schemas/CheckinFeedItem"
+        nextCursor:
+          type: string
+          nullable: true
+    AdmissionStatsResponse:
+      type: object
+      required:
+        - eventId
+        - tickets
+        - orders
+        - byGate
+        - lastCheckinAt
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        tickets:
+          type: object
+          required:
+            - total
+            - checkedIn
+            - remaining
+          properties:
+            total:
+              type: integer
+              minimum: 0
+              example: 100
+            checkedIn:
+              type: integer
+              minimum: 0
+              example: 42
+            remaining:
+              type: integer
+              minimum: 0
+              example: 58
+        orders:
+          type: object
+          required:
+            - total
+            - confirmed
+            - pending
+            - failed
+            - soldTickets
+          properties:
+            total:
+              type: integer
+              minimum: 0
+              example: 80
+            confirmed:
+              type: integer
+              minimum: 0
+              example: 75
+            pending:
+              type: integer
+              minimum: 0
+              example: 3
+            failed:
+              type: integer
+              minimum: 0
+              example: 2
+            soldTickets:
+              type: integer
+              minimum: 0
+              example: 100
+        byGate:
+          type: array
+          items:
+            type: object
+            required:
+              - gate
+              - count
+            properties:
+              gate:
+                type: string
+                example: gate-1
+              count:
+                type: integer
+                minimum: 1
+                example: 30
+        lastCheckinAt:
+          type: string
+          format: date-time
+          nullable: true
   responses:
     Unauthorized:
       description: Authentication is missing or the JWT is invalid.
@@ -595,6 +941,30 @@ paths:
                 status: degraded
                 service: admission-service
                 database: unavailable
+  /api/auth/me:
+    get:
+      tags:
+        - auth
+      summary: Return the authenticated user
+      description: "Restores the staff web session after a reload. The role always comes from the database, not from client input."
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: The authenticated user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMeResponse"
+              example:
+                user:
+                  id: 00000000-0000-4000-8000-000000000004
+                  email: attendee@qevent.dev
+                  fullName: Nguyen Van A
+                  role: ATTENDEE
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/auth/register:
     post:
       tags:
@@ -679,6 +1049,86 @@ paths:
         "422":
           $ref: "#/components/responses/ValidationFailed"
   /api/orders:
+    get:
+      tags:
+        - orders
+      summary: List orders for an event (staff)
+      description: "Requires STAFF or ORGANIZER. Filters by status and searches by order id, attendee email or name. Cursor pagination."
+      operationId: listOrders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: eventId
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - PENDING
+              - PENDING_RECONCILIATION
+              - COMPENSATING
+              - CONFIRMED
+              - FAILED
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: "Orders ordered by creation time, newest first."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderListResponse"
+              example:
+                orders:
+                  - id: 00000000-0000-4000-8000-000000000005
+                    attendee:
+                      id: 00000000-0000-4000-8000-000000000006
+                      email: attendee@qevent.dev
+                      fullName: Nguyen Van A
+                    status: PENDING
+                    quantity: 1
+                    totalAmount: 50
+                    failureCode: SOLD_OUT
+                    createdAt: 2026-11-09T08:00:00.000Z
+                    updatedAt: 2026-11-09T08:00:00.000Z
+                    ticketsCount: 2
+                nextCursor: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller is not STAFF or ORGANIZER.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: FORBIDDEN
+                message: Staff or organizer role is required
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
     post:
       tags:
         - orders
@@ -713,7 +1163,7 @@ paths:
                 $ref: "#/components/schemas/OrderResponse"
               example:
                 order:
-                  id: 00000000-0000-4000-8000-000000000004
+                  id: 00000000-0000-4000-8000-000000000007
                   userId: 5f3b6e2a-1c4d-4a8e-9b7f-2d6c8a1e4b90
                   eventId: 7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60
                   ticketTypeId: 9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70
@@ -723,7 +1173,7 @@ paths:
                   failureCode: null
                   createdAt: 2026-11-09T08:00:00.000Z
                   tickets:
-                    - id: 00000000-0000-4000-8000-000000000005
+                    - id: 00000000-0000-4000-8000-000000000008
                       status: PAID
                       eventId: 7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60
                       ticketTypeId: 9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70
@@ -737,7 +1187,7 @@ paths:
                 $ref: "#/components/schemas/OrderResponse"
               example:
                 order:
-                  id: 00000000-0000-4000-8000-000000000006
+                  id: 00000000-0000-4000-8000-000000000009
                   userId: 5f3b6e2a-1c4d-4a8e-9b7f-2d6c8a1e4b90
                   eventId: 7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60
                   ticketTypeId: 9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70
@@ -815,7 +1265,7 @@ paths:
                 $ref: "#/components/schemas/OrderResponse"
               example:
                 order:
-                  id: 00000000-0000-4000-8000-000000000008
+                  id: 00000000-0000-4000-8000-000000000011
                   userId: 5f3b6e2a-1c4d-4a8e-9b7f-2d6c8a1e4b90
                   eventId: 7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60
                   ticketTypeId: 9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70
@@ -825,7 +1275,7 @@ paths:
                   failureCode: null
                   createdAt: 2026-11-09T08:00:00.000Z
                   tickets:
-                    - id: 00000000-0000-4000-8000-000000000009
+                    - id: 00000000-0000-4000-8000-000000000012
                       status: PAID
                       eventId: 7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60
                       ticketTypeId: 9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70
@@ -846,29 +1296,82 @@ paths:
     get:
       tags:
         - tickets
-      summary: "List the caller's tickets"
-      description: "Alias of `/api/tickets/my`. QR secrets are never returned."
-      operationId: listTickets
+      summary: List tickets for an event (staff)
+      description: "Requires STAFF or ORGANIZER. Filters by status and searches by ticket id, attendee email or name. Attendees must use `/api/tickets/my`."
+      operationId: listStaffTickets
       security:
         - bearerAuth: []
+      parameters:
+        - name: eventId
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - PENDING_PAYMENT
+              - PAID
+              - CHECKED_IN
+              - CANCELLED
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
       responses:
         "200":
-          description: Tickets owned by the authenticated user.
+          description: "Tickets ordered by creation time, newest first."
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TicketListResponse"
+                $ref: "#/components/schemas/StaffTicketListResponse"
               example:
                 tickets:
-                  - id: 00000000-0000-4000-8000-000000000010
+                  - id: 00000000-0000-4000-8000-000000000013
                     eventId: 7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60
                     ticketTypeId: 9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70
-                    status: PAID
+                    orderId: 00000000-0000-4000-8000-000000000014
+                    status: PENDING_PAYMENT
                     orderStatus: CONFIRMED
-                    checkedInAt: null
+                    checkedInAt: 2026-11-09T08:00:00.000Z
                     createdAt: 2026-11-09T08:00:00.000Z
+                    attendee:
+                      id: 00000000-0000-4000-8000-000000000015
+                      email: attendee@qevent.dev
+                      fullName: Nguyen Van A
+                nextCursor: string
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller is not STAFF or ORGANIZER.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: FORBIDDEN
+                message: Staff or organizer role is required
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
   /api/tickets/my:
     get:
       tags:
@@ -895,6 +1398,76 @@ paths:
                     createdAt: 2026-11-09T08:00:00.000Z
         "401":
           $ref: "#/components/responses/Unauthorized"
+  "/api/tickets/{id}":
+    get:
+      tags:
+        - tickets
+      summary: Get a ticket with its order and check-in logs (staff)
+      description: "Requires STAFF or ORGANIZER. QR secrets are never returned; use `/api/tickets/{id}/qr-token` to reveal a fresh token."
+      operationId: getStaffTicket
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Ticket detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketDetailResponse"
+              example:
+                ticket:
+                  id: 00000000-0000-4000-8000-000000000017
+                  eventId: 7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60
+                  ticketTypeId: 9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70
+                  orderId: 00000000-0000-4000-8000-000000000018
+                  status: PENDING_PAYMENT
+                  orderStatus: CONFIRMED
+                  checkedInAt: 2026-11-09T08:00:00.000Z
+                  createdAt: 2026-11-09T08:00:00.000Z
+                  attendee:
+                    id: 00000000-0000-4000-8000-000000000019
+                    email: attendee@qevent.dev
+                    fullName: Nguyen Van A
+                order:
+                  id: 00000000-0000-4000-8000-000000000020
+                  status: PENDING
+                  quantity: 1
+                  totalAmount: 50
+                  createdAt: 2026-11-09T08:00:00.000Z
+                checkinLogs:
+                  - id: 00000000-0000-4000-8000-000000000021
+                    scannedBy: 00000000-0000-4000-8000-000000000022
+                    scannedAt: 2026-11-09T08:00:00.000Z
+                    isOffline: true
+                    deviceId: gate-1
+                    syncStatus: SYNCED
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller is not STAFF or ORGANIZER.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: FORBIDDEN
+                message: Staff or organizer role is required
+        "404":
+          description: The ticket does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: TICKET_NOT_FOUND
+                message: Ticket was not found
   "/api/tickets/{id}/qr-token":
     get:
       tags:
@@ -960,6 +1533,86 @@ paths:
                     code: ORDER_NOT_CONFIRMED
                     message: Ticket order is not confirmed
   /api/checkins:
+    get:
+      tags:
+        - checkins
+      summary: List the check-in feed for an event (staff)
+      description: "Requires STAFF or ORGANIZER. Newest first; filter by `since` and gate (deviceId). Cursor pagination."
+      operationId: listCheckins
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: eventId
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: gate
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: "Check-in logs, newest first."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckinFeedResponse"
+              example:
+                checkins:
+                  - id: 00000000-0000-4000-8000-000000000023
+                    ticketId: 1b4d7f9a-3c6e-4a2b-8d5f-7e9c1a3b5d20
+                    scannedAt: 2026-11-09T08:00:00.000Z
+                    isOffline: true
+                    syncStatus: SYNCED
+                    deviceId: gate-1
+                    attendee:
+                      id: 00000000-0000-4000-8000-000000000024
+                      email: attendee@qevent.dev
+                      fullName: Nguyen Van A
+                    ticketStatus: PENDING_PAYMENT
+                nextCursor: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller is not STAFF or ORGANIZER.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: FORBIDDEN
+                message: Staff or organizer role is required
+        "422":
+          description: The since filter is not a valid ISO date-time.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: INVALID_SINCE
+                message: since must be an ISO date-time
     post:
       tags:
         - checkins
@@ -989,7 +1642,7 @@ paths:
                 status: CHECKIN_SUCCESS
                 code: CHECKIN_SUCCESS
                 ticket:
-                  id: 00000000-0000-4000-8000-000000000012
+                  id: 00000000-0000-4000-8000-000000000025
                   status: CHECKED_IN
                   checkedInAt: 2026-11-09T08:00:00.000Z
                   attendeeName: Nguyen Van A
@@ -1034,7 +1687,7 @@ paths:
                     code: ALREADY_CHECKED_IN
                     message: Ticket has already been checked in
                     ticket:
-                      id: 00000000-0000-4000-8000-000000000013
+                      id: 00000000-0000-4000-8000-000000000026
                       status: CHECKED_IN
                       checkedInAt: 2026-11-09T08:00:00.000Z
                       attendeeName: Nguyen Van A
@@ -1094,6 +1747,58 @@ paths:
               example:
                 code: FORBIDDEN
                 message: Staff role is required
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  /api/checkins/stats:
+    get:
+      tags:
+        - checkins
+      summary: Dashboard counters for an event (staff)
+      description: "Requires STAFF or ORGANIZER. `byGate` groups check-in logs by deviceId; scanners should send a stable value such as `gate-1`."
+      operationId: getCheckinStats
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: eventId
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: "Ticket, order and gate counters."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdmissionStatsResponse"
+              example:
+                eventId: 7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60
+                tickets:
+                  total: 100
+                  checkedIn: 42
+                  remaining: 58
+                orders:
+                  total: 80
+                  confirmed: 75
+                  pending: 3
+                  failed: 2
+                  soldTickets: 100
+                byGate:
+                  - gate: gate-1
+                    count: 30
+                lastCheckinAt: 2026-11-09T08:00:00.000Z
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller is not STAFF or ORGANIZER.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: FORBIDDEN
+                message: Staff or organizer role is required
         "422":
           $ref: "#/components/responses/ValidationFailed"
   /internal/tickets/verify-access:

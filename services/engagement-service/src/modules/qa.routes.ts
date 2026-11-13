@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import type { Deps } from "../deps";
-import { createJwtAuth, deriveCurrentUser } from "../lib/auth";
+import { createJwtAuth, deriveCurrentUser, isHostRole } from "../lib/auth";
+import { AccessError, requireSessionAccess } from "../lib/br6";
 import { fail } from "../lib/http";
 import { broadcaster } from "../lib/broadcast";
 
@@ -43,15 +44,13 @@ export function qaRoutes(deps: Deps, jwtSecret: string) {
           return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
         }
 
-        const eventId = body.eventId ?? params.sessionId;
-        const verification = await deps.admissionClient.verifyAccess(currentUser.id, eventId);
-        if (!verification.hasAccess) {
-          return fail(
-            set,
-            403,
-            "NOT_CHECKED_IN",
-            "Attendee has not checked in to this event"
-          );
+        try {
+          await requireSessionAccess(deps, currentUser.id, params.sessionId);
+        } catch (error) {
+          if (error instanceof AccessError) {
+            return fail(set, error.status, error.code, error.message);
+          }
+          throw error;
         }
 
         const question = await deps.prisma.qAQuestion.create({
@@ -75,13 +74,12 @@ export function qaRoutes(deps: Deps, jwtSecret: string) {
         params: t.Object({ sessionId: t.String({ minLength: 1 }) }),
         body: t.Object({
           content: t.String({ minLength: 1, maxLength: 500 }),
-          eventId: t.Optional(t.String()),
         }),
       }
     )
     .put(
       "/api/questions/:questionId/votes",
-      async ({ params, body, currentUser, set }) => {
+      async ({ params, currentUser, set }) => {
         if (!currentUser) {
           return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
         }
@@ -93,15 +91,13 @@ export function qaRoutes(deps: Deps, jwtSecret: string) {
           return fail(set, 404, "QUESTION_NOT_FOUND", "Question was not found");
         }
 
-        const eventId = (body as { eventId?: string })?.eventId ?? question.sessionId;
-        const verification = await deps.admissionClient.verifyAccess(currentUser.id, eventId);
-        if (!verification.hasAccess) {
-          return fail(
-            set,
-            403,
-            "NOT_CHECKED_IN",
-            "Attendee has not checked in to this event"
-          );
+        try {
+          await requireSessionAccess(deps, currentUser.id, question.sessionId);
+        } catch (error) {
+          if (error instanceof AccessError) {
+            return fail(set, error.status, error.code, error.message);
+          }
+          throw error;
         }
 
         const result = await deps.prisma.$transaction(async (tx) => {
@@ -152,7 +148,33 @@ export function qaRoutes(deps: Deps, jwtSecret: string) {
       },
       {
         params: t.Object({ questionId: t.String({ minLength: 1 }) }),
-        body: t.Optional(t.Object({ eventId: t.Optional(t.String()) })),
       }
+    )
+    .delete(
+      "/api/questions/:questionId",
+      async ({ params, currentUser, set }) => {
+        if (!currentUser) {
+          return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
+        }
+        if (!isHostRole(currentUser.role)) {
+          return fail(set, 403, "FORBIDDEN", "Only staff or organizer can delete questions");
+        }
+
+        const question = await deps.prisma.qAQuestion.findUnique({
+          where: { id: params.questionId },
+        });
+        if (!question) {
+          return fail(set, 404, "QUESTION_NOT_FOUND", "Question was not found");
+        }
+
+        await deps.prisma.qAQuestion.delete({ where: { id: question.id } });
+        broadcaster.broadcastQa(question.sessionId, {
+          type: "QUESTION_DELETED",
+          questionId: question.id,
+        });
+
+        set.status = 204;
+      },
+      { params: t.Object({ questionId: t.String({ minLength: 1 }) }) }
     );
 }

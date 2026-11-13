@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import type { Deps } from "../deps";
 import { createJwtAuth, deriveCurrentUser, isHostRole } from "../lib/auth";
+import { AccessError, requireSessionAccess } from "../lib/br6";
 import { fail } from "../lib/http";
 import { broadcaster } from "../lib/broadcast";
 
@@ -122,15 +123,13 @@ export function pollRoutes(deps: Deps, jwtSecret: string) {
           return fail(set, 400, "INVALID_OPTION", "Option does not belong to this poll");
         }
 
-        const eventId = body.eventId ?? poll.sessionId;
-        const verification = await deps.admissionClient.verifyAccess(currentUser.id, eventId);
-        if (!verification.hasAccess) {
-          return fail(
-            set,
-            403,
-            "NOT_CHECKED_IN",
-            "Attendee has not checked in to this event"
-          );
+        try {
+          await requireSessionAccess(deps, currentUser.id, poll.sessionId);
+        } catch (error) {
+          if (error instanceof AccessError) {
+            return fail(set, error.status, error.code, error.message);
+          }
+          throw error;
         }
 
         const result = await deps.prisma.$transaction(async (tx) => {
@@ -204,8 +203,44 @@ export function pollRoutes(deps: Deps, jwtSecret: string) {
         params: t.Object({ pollId: t.String({ minLength: 1 }) }),
         body: t.Object({
           optionId: t.String({ minLength: 1 }),
-          eventId: t.Optional(t.String()),
         }),
+      }
+    )
+    .patch(
+      "/api/polls/:pollId",
+      async ({ params, body, currentUser, set }) => {
+        if (!currentUser) {
+          return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
+        }
+        if (!isHostRole(currentUser.role)) {
+          return fail(set, 403, "FORBIDDEN", "Only staff or organizer can update polls");
+        }
+
+        const poll = await deps.prisma.poll.findUnique({
+          where: { id: params.pollId },
+          include: { options: true },
+        });
+        if (!poll) {
+          return fail(set, 404, "POLL_NOT_FOUND", "Poll was not found");
+        }
+
+        const updated = await deps.prisma.poll.update({
+          where: { id: poll.id },
+          data: { isActive: body.isActive },
+          include: { options: true },
+        });
+
+        broadcaster.broadcastQa(poll.sessionId, {
+          type: "POLL_UPDATED",
+          pollId: updated.id,
+          isActive: updated.isActive,
+        });
+
+        return { poll: updated };
+      },
+      {
+        params: t.Object({ pollId: t.String({ minLength: 1 }) }),
+        body: t.Object({ isActive: t.Boolean() }),
       }
     );
 }

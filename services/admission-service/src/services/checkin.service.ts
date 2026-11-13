@@ -182,6 +182,14 @@ export async function syncOffline(
         if (!current) return { kind: "ERROR" as const, reason: "TICKET_NOT_FOUND" };
 
         if (current.status === "CHECKED_IN") {
+          // Earliest physical scan wins, even when a later batch arrived first.
+          if (!current.checkedInAt || current.checkedInAt.getTime() > scannedAt.getTime()) {
+            await tx.ticket.updateMany({
+              where: { id: ticket.id, checkedInAt: { gt: scannedAt } },
+              data: { checkedInAt: scannedAt },
+            });
+          }
+
           const log = await tx.checkinLog.create({
             data: {
               ticketId: ticket.id,
@@ -205,7 +213,30 @@ export async function syncOffline(
           data: { status: "CHECKED_IN", checkedInAt: scannedAt },
         });
         if (updated.count === 0) {
-          return { kind: "CONFLICT" as const, logId: undefined };
+          // Another writer won the race. Re-read so an earlier offline scan can
+          // still replace a later check-in timestamp.
+          const latest = await tx.ticket.findUnique({ where: { id: ticket.id } });
+          if (latest?.status === "CHECKED_IN") {
+            if (!latest.checkedInAt || latest.checkedInAt.getTime() > scannedAt.getTime()) {
+              await tx.ticket.updateMany({
+                where: { id: ticket.id, checkedInAt: { gt: scannedAt } },
+                data: { checkedInAt: scannedAt },
+              });
+            }
+            const log = await tx.checkinLog.create({
+              data: {
+                ticketId: ticket.id,
+                scannedBy: user!.id,
+                scannedAt,
+                isOffline: true,
+                deviceId,
+                syncStatus: "CONFLICT",
+                scanKey,
+              },
+            });
+            return { kind: "CONFLICT" as const, logId: log.id };
+          }
+          return { kind: "ERROR" as const, reason: `INVALID_STATUS:${latest?.status}` };
         }
 
         const log = await tx.checkinLog.create({

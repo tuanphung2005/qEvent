@@ -1,10 +1,20 @@
 import crypto from "node:crypto";
+import { Prisma } from "@prisma/client";
 import type { Deps } from "../deps";
+import { pageResult } from "../lib/pagination";
 import { InfraError } from "../lib/resilient-fetch";
 import type { CurrentUser } from "../lib/auth";
 import type { ServiceResult } from "../lib/result";
 
 export type OrderInput = { eventId: string; ticketTypeId: string; quantity: number };
+
+export type OrderListQuery = {
+  eventId: string;
+  status?: string;
+  q?: string;
+  limit: number;
+  cursor?: string;
+};
 
 type OrderWithTickets = {
   id: string;
@@ -18,6 +28,7 @@ type OrderWithTickets = {
   totalAmount: number;
   failureCode: string | null;
   createdAt: Date;
+  updatedAt: Date;
   tickets: Array<{
     id: string;
     status: string;
@@ -53,6 +64,7 @@ export function serializeOrder(order: OrderWithTickets) {
     totalAmount: order.totalAmount,
     failureCode: order.failureCode,
     createdAt: order.createdAt,
+    updatedAt: order.updatedAt,
     tickets: order.tickets.map((ticket) => ({
       id: ticket.id,
       status: ticket.status,
@@ -179,6 +191,45 @@ function replay(log: ReplayLog, fingerprint: string): ServiceResult {
   }
 
   return { status: 202, body: { status: "PENDING" } };
+}
+
+export async function listOrders(deps: Deps, query: OrderListQuery) {
+  const where: Prisma.OrderWhereInput = { eventId: query.eventId };
+  if (query.status) where.status = query.status;
+  if (query.q) {
+    where.OR = [
+      { id: { contains: query.q } },
+      { user: { email: { contains: query.q, mode: "insensitive" } } },
+      { user: { fullName: { contains: query.q, mode: "insensitive" } } },
+    ];
+  }
+
+  const rows = await deps.prisma.order.findMany({
+    where,
+    include: {
+      user: { select: { id: true, email: true, fullName: true } },
+      tickets: { select: { id: true } },
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: query.limit + 1,
+    ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+  });
+
+  const { items, nextCursor } = pageResult(rows, query.limit);
+  return {
+    orders: items.map((order) => ({
+      id: order.id,
+      attendee: order.user,
+      status: order.status,
+      quantity: order.quantity,
+      totalAmount: order.totalAmount,
+      failureCode: order.failureCode,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      ticketsCount: order.tickets.length,
+    })),
+    nextCursor,
+  };
 }
 
 async function continueOrder(
@@ -356,10 +407,23 @@ async function complete(
 
 export async function reconcileOnce(deps: Deps, limit = 10): Promise<number> {
   const now = deps.now();
+  // `PENDING` is included only after a grace window: an order still being
+  // processed by its original request must not be reconciled concurrently.
+  // Without this, an order stranded by a crash between order creation and the
+  // reservation call would stay PENDING forever.
+  const stalePendingBefore = new Date(now.getTime() - deps.reconcileLeaseMs);
+
   const candidates = await deps.prisma.order.findMany({
     where: {
-      status: { in: ["PENDING_RECONCILIATION", "COMPENSATING"] },
-      OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }],
+      AND: [
+        {
+          OR: [
+            { status: { in: ["PENDING_RECONCILIATION", "COMPENSATING"] } },
+            { status: "PENDING", createdAt: { lt: stalePendingBefore } },
+          ],
+        },
+        { OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }] },
+      ],
     },
     orderBy: { createdAt: "asc" },
     take: limit,
@@ -384,7 +448,11 @@ export async function reconcileOnce(deps: Deps, limit = 10): Promise<number> {
     try {
       await reconcileOrder(deps, candidate);
     } catch {
-      // Lease expires and the next tick retries; no order or ticket is lost.
+      // The call has already returned/failed, so no work is in flight: release
+      // the lease immediately instead of waiting 30s for the next recovery.
+      await deps.prisma.order
+        .updateMany({ where: { id: candidate.id }, data: { leaseUntil: null } })
+        .catch(() => {});
     }
   }
   return processed;

@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import type { Deps } from "../deps";
 import { createJwtAuth, deriveCurrentUser, isHostRole } from "../lib/auth";
+import { AccessError, requireSessionAccess } from "../lib/br6";
 import { fail } from "../lib/http";
 import { broadcaster } from "../lib/broadcast";
 
@@ -597,16 +598,14 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
           return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
         }
 
-        // BR-6 check-in verification
-        const eventId = body.eventId ?? game.sessionId;
-        const verification = await deps.admissionClient.verifyAccess(currentUser.id, eventId);
-        if (!verification.hasAccess) {
-          return fail(
-            set,
-            403,
-            "NOT_CHECKED_IN",
-            "Attendee has not checked in to this event"
-          );
+        // BR-6: eventId is resolved from Event Service, never trusted from the body.
+        try {
+          await requireSessionAccess(deps, currentUser.id, game.sessionId);
+        } catch (error) {
+          if (error instanceof AccessError) {
+            return fail(set, error.status, error.code, error.message);
+          }
+          throw error;
         }
 
         if (game.status !== "QUESTION_ACTIVE") {
@@ -697,7 +696,7 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
         body: t.Object({
           questionId: t.String({ minLength: 1 }),
           selectedOption: t.Integer({ minimum: 0, maximum: 5 }),
-          eventId: t.Optional(t.String()),
+          // Accepted only so legacy clients do not crash; both fields are ignored.
           userId: t.Optional(t.String()),
           responseTimeMs: t.Optional(t.Integer()),
         }),

@@ -1,15 +1,153 @@
 {
   "info": {
-    "name": "qEvent Engagement Service & Microservices Collection",
-    "description": "Comprehensive Postman test suite for qEvent Engagement Service (Port 3003 / Gateway 8000), covering Q&A, Polls, and Kahoot Live Quiz Game engine.",
+    "name": "qEvent Microservices (Gateway)",
+    "description": "End-to-end requests for the three services through the API Gateway (http://localhost:8000). Import qEvent_Local.postman_environment.json, run the Auth folder first (tokens and ids are captured automatically), then run the remaining folders. Demo accounts come from the service seeds; run `docker compose up -d` first.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "Health",
+      "name": "1. Auth",
       "item": [
         {
-          "name": "1. GET /health (Engagement Service)",
+          "name": "Organizer login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('organizerToken', body.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{organizerEmail}}\",\n  \"password\": \"{{demoPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Staff login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('staffToken', body.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{staffEmail}}\",\n  \"password\": \"{{demoPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Attendee login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('attendeeToken', body.token);",
+                  "pm.collectionVariables.set('attendeeId', body.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{attendeeEmail}}\",\n  \"password\": \"{{demoPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Register a new attendee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('attendeeToken', body.token);",
+                  "pm.collectionVariables.set('attendeeId', body.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"attendee-{{$timestamp}}@qevent.test\",\n  \"password\": \"password123\",\n  \"fullName\": \"Postman Attendee\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Health",
+      "item": [
+        {
+          "name": "Gateway and downstream health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('all downstreams ok', () => {",
+                  "  const body = pm.response.json();",
+                  "  Object.values(body.downstream).forEach((v) => pm.expect(v).to.eql('ok'));",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -23,10 +161,318 @@
       ]
     },
     {
-      "name": "Live Q&A",
+      "name": "3. Events (Event Service)",
       "item": [
         {
-          "name": "2. GET /api/sessions/:sessionId/questions",
+          "name": "List events (captures ids)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "if (body.events.length > 0) {",
+                  "  const event = body.events[0];",
+                  "  pm.collectionVariables.set('eventId', event.id);",
+                  "  if (event.sessions.length > 0) pm.collectionVariables.set('sessionId', event.sessions[0].id);",
+                  "  if (event.ticketTypes.length > 0) pm.collectionVariables.set('ticketTypeId', event.ticketTypes[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events"]
+            }
+          }
+        },
+        {
+          "name": "Get event",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{eventId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{eventId}}"]
+            }
+          }
+        },
+        {
+          "name": "Create event (organizer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('eventId', body.event.id);",
+                  "if (body.event.sessions.length > 0) pm.collectionVariables.set('sessionId', body.event.sessions[0].id);",
+                  "if (body.event.ticketTypes.length > 0) pm.collectionVariables.set('ticketTypeId', body.event.ticketTypes[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{organizerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Summit {{$timestamp}}\",\n  \"venue\": \"Saigon Exhibition Center\",\n  \"startTime\": \"2030-01-01T09:00:00.000Z\",\n  \"endTime\": \"2030-01-01T17:00:00.000Z\",\n  \"maxCapacity\": 100,\n  \"sessions\": [\n    { \"title\": \"Opening Keynote\", \"speaker\": \"Alex Nguyen\", \"startTime\": \"2030-01-01T09:00:00.000Z\", \"endTime\": \"2030-01-01T10:00:00.000Z\", \"isLive\": true }\n  ],\n  \"ticketTypes\": [\n    { \"name\": \"Standard\", \"price\": 25, \"quota\": 100 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events"]
+            }
+          }
+        },
+        {
+          "name": "Update event capacity (organizer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 or 409 CAPACITY_BELOW_RESERVED', () => {",
+                  "  pm.expect([200, 409]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{organizerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"maxCapacity\": 120\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{eventId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{eventId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Orders, tickets and check-in (Admission Service)",
+      "item": [
+        {
+          "name": "Create order (attendee, idempotent)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('orderId', body.order.id);",
+                  "pm.collectionVariables.set('ticketId', body.order.tickets[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{attendeeToken}}" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"ticketTypeId\": \"{{ticketTypeId}}\",\n  \"quantity\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Get order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{attendeeToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "{{orderId}}"]
+            }
+          }
+        },
+        {
+          "name": "List my tickets",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('no qrSecret leaked', () => {",
+                  "  const body = pm.response.json();",
+                  "  body.tickets.forEach((t) => pm.expect(t.qrSecret).to.be.undefined);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{attendeeToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/tickets/my",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tickets", "my"]
+            }
+          }
+        },
+        {
+          "name": "Get dynamic QR token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('qrToken', pm.response.json().qrToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{attendeeToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/tickets/{{ticketId}}/qr-token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tickets", "{{ticketId}}", "qr-token"]
+            }
+          }
+        },
+        {
+          "name": "Check in (staff)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 CHECKIN_SUCCESS', () => {",
+                  "  pm.expect(pm.response.code).to.eql(201);",
+                  "  pm.expect(pm.response.json().code).to.eql('CHECKIN_SUCCESS');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{staffToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qrToken\": \"{{qrToken}}\",\n  \"deviceId\": \"gate:postman\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/checkins",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "checkins"]
+            }
+          }
+        },
+        {
+          "name": "Sync an offline scan (staff)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK with a per-scan result', () => {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "  pm.expect(pm.response.json().results[0].status).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{staffToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"logs\": [\n    { \"ticketId\": \"{{ticketId}}\", \"scannedAt\": \"{{$isoTimestamp}}\", \"deviceId\": \"gate:offline\" }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/checkins/sync-offline",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "checkins", "sync-offline"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Live Q&A (Engagement Service)",
+      "item": [
+        {
+          "name": "List questions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -38,17 +484,28 @@
           }
         },
         {
-          "name": "3. POST /api/sessions/:sessionId/questions (403 Not Checked In)",
+          "name": "Ask a question (checked-in attendee)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created (BR-6 passed)', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('questionId', pm.response.json().question.id);"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "x-user-id", "value": "unregistered-user-id" },
-              { "key": "x-user-role", "value": "ATTENDEE" }
+              { "key": "Authorization", "value": "Bearer {{attendeeToken}}" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"content\": \"Câu hỏi thử nghiệm khi chưa check-in\"\n}"
+              "raw": "{\n  \"content\": \"How does the circuit breaker recover?\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/questions",
@@ -58,34 +515,19 @@
           }
         },
         {
-          "name": "4. POST /api/sessions/:sessionId/questions (201 Checked In)",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "x-user-id", "value": "{{attendeeId}}" },
-              { "key": "x-user-role", "value": "ATTENDEE" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"content\": \"Microservices giúp qEvent giải quyết vấn đề nghẽn cổ chai ra sao?\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/questions",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "sessions", "{{sessionId}}", "questions"]
+          "name": "Toggle upvote (attendee)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
             }
-          }
-        },
-        {
-          "name": "5. PUT /api/questions/:questionId/votes (Toggle Upvote)",
+          ],
           "request": {
             "method": "PUT",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "x-user-id", "value": "{{attendeeId}}" },
-              { "key": "x-user-role", "value": "ATTENDEE" }
-            ],
+            "header": [{ "key": "Authorization", "value": "Bearer {{attendeeToken}}" }],
             "url": {
               "raw": "{{baseUrl}}/api/questions/{{questionId}}/votes",
               "host": ["{{baseUrl}}"],
@@ -96,10 +538,26 @@
       ]
     },
     {
-      "name": "Interactive Polls",
+      "name": "6. Polls (Engagement Service)",
       "item": [
         {
-          "name": "6. GET /api/sessions/:sessionId/polls",
+          "name": "List polls (captures ids)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "if (body.polls.length > 0) {",
+                  "  pm.collectionVariables.set('pollId', body.polls[0].id);",
+                  "  pm.collectionVariables.set('pollOptionId', body.polls[0].options[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -111,17 +569,30 @@
           }
         },
         {
-          "name": "7. POST /api/sessions/:sessionId/polls (Host creates Poll)",
+          "name": "Create poll (organizer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const poll = pm.response.json().poll;",
+                  "pm.collectionVariables.set('pollId', poll.id);",
+                  "pm.collectionVariables.set('pollOptionId', poll.options[0].id);"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "x-user-id", "value": "{{organizerId}}" },
-              { "key": "x-user-role", "value": "ORGANIZER" }
+              { "key": "Authorization", "value": "Bearer {{organizerToken}}" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Bạn đánh giá thế nào về kiến trúc Microservices qEvent?\",\n  \"options\": [\n    \"Rất linh hoạt và độc lập\",\n    \"Phức tạp khi gỡ lỗi phân tán\",\n    \"Cần tối ưu thêm độ trễ\"\n  ]\n}"
+              "raw": "{\n  \"title\": \"How was the keynote?\",\n  \"options\": [\"Very good\", \"Okay\", \"Needs work\"]\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/polls",
@@ -131,13 +602,21 @@
           }
         },
         {
-          "name": "8. POST /api/polls/:pollId/vote (Cast / Switch vote)",
+          "name": "Vote in poll (attendee)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "x-user-id", "value": "{{attendeeId}}" },
-              { "key": "x-user-role", "value": "ATTENDEE" }
+              { "key": "Authorization", "value": "Bearer {{attendeeToken}}" }
             ],
             "body": {
               "mode": "raw",
@@ -153,16 +632,25 @@
       ]
     },
     {
-      "name": "Kahoot Live Quiz Game",
+      "name": "7. Quiz game (Engagement Service)",
       "item": [
         {
-          "name": "9. POST /api/sessions/:sessionId/game (Create Game)",
+          "name": "Create or get session game (organizer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 or 201', () => pm.expect([200, 201]).to.include(pm.response.code));",
+                  "pm.collectionVariables.set('gameId', pm.response.json().game.id);"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "x-user-id", "value": "{{organizerId}}" },
-              { "key": "x-user-role", "value": "ORGANIZER" }
-            ],
+            "header": [{ "key": "Authorization", "value": "Bearer {{organizerToken}}" }],
             "url": {
               "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/game",
               "host": ["{{baseUrl}}"],
@@ -171,17 +659,30 @@
           }
         },
         {
-          "name": "10. POST /api/game/:gameId/question (Add Question)",
+          "name": "Add quiz question (organizer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created (or 409 if already started)', () => {",
+                  "  pm.expect([201, 409]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('quizQuestionId', pm.response.json().question.id);"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "x-user-id", "value": "{{organizerId}}" },
-              { "key": "x-user-role", "value": "ORGANIZER" }
+              { "key": "Authorization", "value": "Bearer {{organizerToken}}" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"content\": \"Thuật toán nào ngăn chặn check-in trùng?\",\n  \"options\": [\n    \"Two-Phase Locking\",\n    \"Compare-And-Set (CAS)\",\n    \"Eventual Consistency\",\n    \"DNS Round Robin\"\n  ],\n  \"correctOption\": 1,\n  \"timeLimitSec\": 20\n}"
+              "raw": "{\n  \"content\": \"Which algorithm prevents double check-in?\",\n  \"options\": [\"2PL\", \"CAS\", \"DNS round robin\"],\n  \"correctOption\": 1,\n  \"timeLimitSec\": 30\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/game/{{gameId}}/question",
@@ -191,28 +692,21 @@
           }
         },
         {
-          "name": "11. GET /api/game/:gameId (View Game Status)",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "x-user-id", "value": "{{organizerId}}" },
-              { "key": "x-user-role", "value": "ORGANIZER" }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/game/{{gameId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "game", "{{gameId}}"]
+          "name": "Start game (organizer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK (or 409 if already started)', () => pm.expect([200, 409]).to.include(pm.response.code));"
+                ]
+              }
             }
-          }
-        },
-        {
-          "name": "12. POST /api/game/:gameId/start (Start Game - CAS)",
+          ],
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "x-user-id", "value": "{{organizerId}}" },
-              { "key": "x-user-role", "value": "ORGANIZER" }
-            ],
+            "header": [{ "key": "Authorization", "value": "Bearer {{organizerToken}}" }],
             "url": {
               "raw": "{{baseUrl}}/api/game/{{gameId}}/start",
               "host": ["{{baseUrl}}"],
@@ -221,17 +715,53 @@
           }
         },
         {
-          "name": "13. POST /api/game/:gameId/answer (Submit Answer)",
+          "name": "Read game (host view)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const game = pm.response.json().game;",
+                  "const q = game.questions[game.currentQuestionIndex];",
+                  "if (q) pm.collectionVariables.set('quizQuestionId', q.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{organizerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/game/{{gameId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "game", "{{gameId}}"]
+            }
+          }
+        },
+        {
+          "name": "Submit answer (attendee)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK (or 409 already answered)', () => pm.expect([200, 409]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "x-user-id", "value": "{{attendeeId}}" },
-              { "key": "x-user-role", "value": "ATTENDEE" }
+              { "key": "Authorization", "value": "Bearer {{attendeeToken}}" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"questionId\": \"{{questionId}}\",\n  \"selectedOption\": 1\n}"
+              "raw": "{\n  \"questionId\": \"{{quizQuestionId}}\",\n  \"selectedOption\": 1\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/game/{{gameId}}/answer",
@@ -241,13 +771,21 @@
           }
         },
         {
-          "name": "14. POST /api/game/:gameId/reveal (Reveal Answer - CAS)",
+          "name": "Reveal answer (organizer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK (or 409 if not active)', () => pm.expect([200, 409]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "x-user-id", "value": "{{organizerId}}" },
-              { "key": "x-user-role", "value": "ORGANIZER" }
-            ],
+            "header": [{ "key": "Authorization", "value": "Bearer {{organizerToken}}" }],
             "url": {
               "raw": "{{baseUrl}}/api/game/{{gameId}}/reveal",
               "host": ["{{baseUrl}}"],
@@ -256,13 +794,44 @@
           }
         },
         {
-          "name": "15. POST /api/game/:gameId/end (End Game - CAS)",
+          "name": "Next question (organizer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK or 409 NO_MORE_QUESTIONS', () => pm.expect([200, 409]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "x-user-id", "value": "{{organizerId}}" },
-              { "key": "x-user-role", "value": "ORGANIZER" }
-            ],
+            "header": [{ "key": "Authorization", "value": "Bearer {{organizerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/game/{{gameId}}/next",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "game", "{{gameId}}", "next"]
+            }
+          }
+        },
+        {
+          "name": "End game (organizer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK (or 409 already finished)', () => pm.expect([200, 409]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{organizerToken}}" }],
             "url": {
               "raw": "{{baseUrl}}/api/game/{{gameId}}/end",
               "host": ["{{baseUrl}}"],
@@ -271,7 +840,16 @@
           }
         },
         {
-          "name": "16. GET /api/game/:gameId/leaderboard (Leaderboard)",
+          "name": "Leaderboard",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -283,6 +861,197 @@
           }
         }
       ]
+    },
+    {
+      "name": "8. Negative cases",
+      "item": [
+        {
+          "name": "Invalid JWT is rejected (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer invalid.token.here" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events"]
+            }
+          }
+        },
+        {
+          "name": "Register a fresh attendee (negative flow)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('negativeToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"negative-{{$timestamp}}@qevent.test\",\n  \"password\": \"password123\",\n  \"fullName\": \"Negative Attendee\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Ask before check-in (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 BR-6 denied', () => {",
+                  "  pm.expect(pm.response.code).to.eql(403);",
+                  "  pm.expect(['NOT_CHECKED_IN', 'SESSION_NOT_LIVE']).to.include(pm.response.json().code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{negativeToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"This must be rejected\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/questions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sessions", "{{sessionId}}", "questions"]
+            }
+          }
+        },
+        {
+          "name": "Create event with invalid time (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('422 INVALID_EVENT_TIME', () => pm.response.to.have.status(422));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{organizerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invalid time\",\n  \"venue\": \"Nowhere\",\n  \"startTime\": \"2030-01-02T09:00:00.000Z\",\n  \"endTime\": \"2030-01-01T09:00:00.000Z\",\n  \"maxCapacity\": 10\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events"]
+            }
+          }
+        },
+        {
+          "name": "Check in again (409 or 400 if QR expired)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('duplicate scan is refused', () => {",
+                  "  pm.expect([400, 409]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{staffToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qrToken\": \"{{qrToken}}\",\n  \"deviceId\": \"gate:postman\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/checkins",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "checkins"]
+            }
+          }
+        },
+        {
+          "name": "Toggle vote off (200, hasVoted=false)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK and unvoted', () => {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "  pm.expect(pm.response.json().hasVoted).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{attendeeToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/questions/{{questionId}}/votes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "questions", "{{questionId}}", "votes"]
+            }
+          }
+        }
+      ]
     }
+  ],
+  "variable": [
+    { "key": "organizerToken", "value": "" },
+    { "key": "staffToken", "value": "" },
+    { "key": "attendeeToken", "value": "" },
+    { "key": "negativeToken", "value": "" },
+    { "key": "eventId", "value": "" },
+    { "key": "sessionId", "value": "" },
+    { "key": "ticketTypeId", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "ticketId", "value": "" },
+    { "key": "qrToken", "value": "" },
+    { "key": "questionId", "value": "" },
+    { "key": "pollId", "value": "" },
+    { "key": "pollOptionId", "value": "" },
+    { "key": "gameId", "value": "" },
+    { "key": "quizQuestionId", "value": "" },
+    { "key": "attendeeId", "value": "" }
   ]
 }

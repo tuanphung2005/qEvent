@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { jwt } from "@elysiajs/jwt";
 import { ServiceCircuitBreakers, ServiceName } from "./circuit-breaker";
+import { extractWsToken } from "./ws-token";
 
 export interface GatewayConfig {
   port: number;
@@ -14,6 +15,8 @@ export interface GatewayConfig {
     errorThresholdPercentage?: number;
     resetTimeout?: number;
     volumeThreshold?: number;
+    rollingCountTimeout?: number;
+    rollingCountBuckets?: number;
   };
 }
 
@@ -47,7 +50,12 @@ export function createGatewayApp(customConfig?: Partial<GatewayConfig>) {
     ) {
       return { service: "admission", baseUrl: config.admissionServiceUrl };
     }
-    if (pathname.startsWith("/api/sessions") || pathname.startsWith("/api/polls") || pathname.startsWith("/api/questions")) {
+    if (
+      pathname.startsWith("/api/sessions") ||
+      pathname.startsWith("/api/polls") ||
+      pathname.startsWith("/api/questions") ||
+      pathname.startsWith("/api/game")
+    ) {
       return { service: "engagement", baseUrl: config.engagementServiceUrl };
     }
     return null;
@@ -96,7 +104,20 @@ export function createGatewayApp(customConfig?: Partial<GatewayConfig>) {
     // WebSocket proxy to engagement service
     .ws("/ws/*", {
       body: t.Any(),
-      open(ws) {
+      async open(ws) {
+        // Verify the JWT before opening any upstream connection. Anonymous
+        // clients must never be able to join a session, even read-only.
+        const data = ws.data as unknown as {
+          request: Request;
+          jwt?: { verify(token?: string): Promise<unknown> };
+        };
+        const token = extractWsToken(data.request);
+        const payload = token && data.jwt ? await data.jwt.verify(token) : false;
+        if (!payload || typeof payload !== "object") {
+          ws.close(4401, "UNAUTHORIZED");
+          return;
+        }
+
         const path = new URL(ws.data.request.url).pathname;
         const query = new URL(ws.data.request.url).search;
         const upstreamBase = config.engagementServiceUrl.replace(/^http/, "ws");
@@ -108,7 +129,8 @@ export function createGatewayApp(customConfig?: Partial<GatewayConfig>) {
           (ws.data as any).upstreamWs = upstream;
 
           upstream.onopen = () => {
-            console.log(`[Gateway WS] Upstream connected to ${upstreamUrl}`);
+            // Never log the full URL: it may contain the access token.
+            console.log(`[Gateway WS] Upstream connected for ${path}`);
             const queue: any[] = (ws.data as any).messageQueue || [];
             while (queue.length > 0) {
               const msg = queue.shift();
@@ -149,9 +171,20 @@ export function createGatewayApp(customConfig?: Partial<GatewayConfig>) {
     .all("/api/*", async ({ request, jwt, set }) => {
       const url = new URL(request.url);
       const target = getTargetService(url.pathname);
+      const startedAt = performance.now();
+      const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID();
 
       if (!target) {
         set.status = 404;
+        console.warn(
+          JSON.stringify({
+            requestId,
+            method: request.method,
+            path: url.pathname,
+            status: 404,
+            error: "ROUTE_NOT_FOUND",
+          })
+        );
         return {
           code: "ROUTE_NOT_FOUND",
           message: `No microservice mapped for path: ${url.pathname}`,
@@ -163,6 +196,7 @@ export function createGatewayApp(customConfig?: Partial<GatewayConfig>) {
       forwardedHeaders.delete("x-user-id");
       forwardedHeaders.delete("x-user-role");
       forwardedHeaders.delete("host");
+      forwardedHeaders.set("x-request-id", requestId);
 
       // Centralized JWT Verification
       const authHeader = request.headers.get("authorization");
@@ -172,6 +206,17 @@ export function createGatewayApp(customConfig?: Partial<GatewayConfig>) {
 
         if (!payload) {
           set.status = 401;
+          set.headers["x-request-id"] = requestId;
+          console.warn(
+            JSON.stringify({
+              requestId,
+              method: request.method,
+              path: url.pathname,
+              service: target.service,
+              status: 401,
+              durationMs: Math.round(performance.now() - startedAt),
+            })
+          );
           return {
             code: "UNAUTHORIZED",
             message: "Invalid or expired token",
@@ -198,7 +243,7 @@ export function createGatewayApp(customConfig?: Partial<GatewayConfig>) {
       const breaker = circuitBreakers.getBreaker(target.service);
 
       try {
-        const upstreamResponse = await breaker.fire(async () => {
+        const upstreamResponse = (await breaker.fire(async () => {
           return await fetch(targetUrl, {
             method,
             headers: forwardedHeaders,
@@ -207,24 +252,52 @@ export function createGatewayApp(customConfig?: Partial<GatewayConfig>) {
             // @ts-ignore
             duplex: hasBody ? "half" : undefined,
           });
-        });
+        })) as Response;
 
         // Forward response status, headers and body
         const responseHeaders = new Headers(upstreamResponse.headers);
         // Clean hop-by-hop headers
         responseHeaders.delete("transfer-encoding");
         responseHeaders.delete("connection");
+        responseHeaders.set("x-request-id", requestId);
 
         set.status = upstreamResponse.status;
+        console.log(
+          JSON.stringify({
+            requestId,
+            method,
+            path: url.pathname,
+            service: target.service,
+            status: upstreamResponse.status,
+            durationMs: Math.round(performance.now() - startedAt),
+          })
+        );
         return new Response(upstreamResponse.body, {
           status: upstreamResponse.status,
           headers: responseHeaders,
         });
       } catch (err: any) {
-        set.status = 503;
+        const timedOut =
+          err?.code === "ETIMEDOUT" || /timed out/i.test(String(err?.message ?? ""));
+        const status = timedOut ? 504 : 503;
+        set.status = status;
+        set.headers["x-request-id"] = requestId;
+        console.error(
+          JSON.stringify({
+            requestId,
+            method,
+            path: url.pathname,
+            service: target.service,
+            status,
+            durationMs: Math.round(performance.now() - startedAt),
+            error: err?.message || String(err),
+          })
+        );
         return {
-          code: "SERVICE_UNAVAILABLE",
-          message: "Downstream service unavailable (circuit open or timeout)",
+          code: timedOut ? "GATEWAY_TIMEOUT" : "SERVICE_UNAVAILABLE",
+          message: timedOut
+            ? "Downstream service timed out"
+            : "Downstream service unavailable (circuit open or unreachable)",
           service: target.service,
           circuitState: circuitBreakers.getState(target.service),
           error: err?.message || String(err),

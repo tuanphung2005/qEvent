@@ -173,14 +173,25 @@ export async function updateEvent(
     return invalidEventTime();
   }
 
-  if (input.maxCapacity !== undefined && input.maxCapacity < current.reservedCount) {
-    return {
-      status: 409,
-      body: {
-        code: "CAPACITY_BELOW_RESERVED",
-        message: "maxCapacity cannot be lower than the number of reserved seats",
-      },
-    };
+  if (input.maxCapacity !== undefined) {
+    // Check and write in one atomic statement. A read-then-write would race
+    // with a concurrent reservation and could leave maxCapacity < reservedCount.
+    const applied = await deps.prisma.$executeRaw`
+      UPDATE "Event"
+      SET "maxCapacity" = ${input.maxCapacity}
+      WHERE "id" = ${id}
+        AND "reservedCount" <= ${input.maxCapacity}
+    `;
+
+    if (applied === 0) {
+      return {
+        status: 409,
+        body: {
+          code: "CAPACITY_BELOW_RESERVED",
+          message: "maxCapacity cannot be lower than the number of reserved seats",
+        },
+      };
+    }
   }
 
   const event = await deps.prisma.event.update({
@@ -225,6 +236,92 @@ export async function addSession(
     data: { ...toSessionData(input), eventId },
   });
   return { status: 201, body: { session } };
+}
+
+export async function updateRoom(
+  deps: Deps,
+  eventId: string,
+  roomId: string,
+  input: Partial<RoomInput>
+): Promise<ServiceResult> {
+  const room = await deps.prisma.room.findFirst({ where: { id: roomId, eventId } });
+  if (!room) {
+    return { status: 404, body: { code: "ROOM_NOT_FOUND", message: "Room was not found" } };
+  }
+  const updated = await deps.prisma.room.update({ where: { id: room.id }, data: input });
+  return { status: 200, body: { room: updated } };
+}
+
+export async function updateSession(
+  deps: Deps,
+  eventId: string,
+  sessionId: string,
+  input: Partial<SessionInput>
+): Promise<ServiceResult> {
+  const session = await deps.prisma.session.findFirst({ where: { id: sessionId, eventId } });
+  if (!session) {
+    return {
+      status: 404,
+      body: { code: "SESSION_NOT_FOUND", message: "Session was not found" },
+    };
+  }
+
+  const startTime =
+    input.startTime === undefined ? session.startTime : parseTime(input.startTime);
+  const endTime = input.endTime === undefined ? session.endTime : parseTime(input.endTime);
+  if (!startTime || !endTime || startTime >= endTime) return invalidSessionTime();
+
+  const updated = await deps.prisma.session.update({
+    where: { id: session.id },
+    data: {
+      title: input.title,
+      speaker: input.speaker,
+      startTime,
+      endTime,
+      isLive: input.isLive,
+    },
+  });
+  return { status: 200, body: { session: updated } };
+}
+
+export async function updateTicketType(
+  deps: Deps,
+  eventId: string,
+  ticketTypeId: string,
+  input: Partial<TicketTypeInput>
+): Promise<ServiceResult> {
+  const ticketType = await deps.prisma.ticketType.findFirst({
+    where: { id: ticketTypeId, eventId },
+  });
+  if (!ticketType) {
+    return {
+      status: 404,
+      body: { code: "TICKET_TYPE_NOT_FOUND", message: "Ticket type was not found" },
+    };
+  }
+  if (input.quota !== undefined && input.quota < ticketType.soldCount) {
+    return {
+      status: 409,
+      body: {
+        code: "QUOTA_BELOW_SOLD",
+        message: "quota cannot be lower than the number of sold tickets",
+      },
+    };
+  }
+
+  const updated = await deps.prisma.ticketType.update({
+    where: { id: ticketType.id },
+    data: input,
+  });
+  return {
+    status: 200,
+    body: {
+      ticketType: {
+        ...updated,
+        available: updated.quota - updated.soldCount,
+      },
+    },
+  };
 }
 
 export async function addTicketType(

@@ -177,9 +177,11 @@ describe("ticket access", () => {
     expect(mine.data.tickets[0].id).toBe(ticket.id);
     expect(mine.data.tickets[0].qrSecret).toBeUndefined();
 
-    const alias = await call(app, "/api/tickets", { token: buyer.token });
-    expect(alias.status).toBe(200);
-    expect(alias.data.tickets).toHaveLength(1);
+    // `/api/tickets` is the staff list now; attendees must use `/api/tickets/my`.
+    const staffOnly = await call(app, `/api/tickets?eventId=${ticket.eventId}`, {
+      token: buyer.token,
+    });
+    expect(staffOnly.status).toBe(403);
   });
 
   it("only lets the owner or staff read a QR token", async () => {
@@ -253,6 +255,51 @@ describe("offline check-in sync", () => {
     expect(replay.status).toBe(200);
     expect(replay.data.duplicates).toBe(2);
     expect(replay.data.synced).toBe(0);
+  });
+
+  it("adopts an earlier scan that arrives in a later batch", async () => {
+    const buyer = await registerAttendee(app);
+    const staff = await registerStaff(app);
+    const { ticket } = await issueTicket(buyer.token);
+
+    const base = Date.now();
+
+    // A later scan reaches the server first (e.g. a gate that reconnected sooner).
+    const later = await call(app, "/api/checkins/sync-offline", {
+      method: "POST",
+      token: staff.token,
+      body: {
+        logs: [
+          {
+            ticketId: ticket.id,
+            scannedAt: new Date(base + 5_000).toISOString(),
+            deviceId: "gate-late",
+          },
+        ],
+      },
+    });
+    expect(later.status).toBe(200);
+    expect(later.data.synced).toBe(1);
+
+    // The physically earlier scan arrives afterwards and must win the timestamp.
+    const earlier = await call(app, "/api/checkins/sync-offline", {
+      method: "POST",
+      token: staff.token,
+      body: {
+        logs: [
+          {
+            ticketId: ticket.id,
+            scannedAt: new Date(base).toISOString(),
+            deviceId: "gate-early",
+          },
+        ],
+      },
+    });
+    expect(earlier.status).toBe(200);
+    expect(earlier.data.conflicts).toBe(1);
+
+    const stored = await prisma.ticket.findUniqueOrThrow({ where: { id: ticket.id } });
+    expect(stored.checkedInAt?.getTime()).toBe(base);
   });
 
   it("reports unknown tickets and rejects non-staff callers", async () => {

@@ -5,6 +5,7 @@ import { makeDeps, type Deps } from "./deps";
 import { qaRoutes } from "./modules/qa.routes";
 import { pollRoutes } from "./modules/poll.routes";
 import { gameRoutes } from "./modules/game.routes";
+import { statsRoutes } from "./modules/stats.routes";
 import { wsRoutes } from "./modules/ws.routes";
 
 export function createApp(overrides: Partial<Deps> = {}) {
@@ -29,7 +30,8 @@ export function createApp(overrides: Partial<Deps> = {}) {
     .use(qaRoutes(deps, deps.jwtSecret))
     .use(pollRoutes(deps, deps.jwtSecret))
     .use(gameRoutes(deps, deps.jwtSecret))
-    .use(wsRoutes(deps));
+    .use(statsRoutes(deps, deps.jwtSecret))
+    .use(wsRoutes(deps, deps.jwtSecret));
 
   return { app, deps };
 }

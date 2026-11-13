@@ -1,12 +1,32 @@
 import { Elysia, t } from "elysia";
 import bcrypt from "bcryptjs";
 import type { Deps } from "../deps";
-import { createJwtAuth } from "../lib/auth";
+import { createJwtAuth, deriveCurrentUser } from "../lib/auth";
 import { fail } from "../lib/http";
 
 export function authRoutes(deps: Deps, secret: string) {
   return new Elysia({ prefix: "/api/auth", tags: ["auth"] })
     .use(createJwtAuth(secret))
+    .derive(deriveCurrentUser)
+    .get("/me", async ({ currentUser, set }) => {
+      if (!currentUser) {
+        return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
+      }
+
+      const user = await deps.prisma.user.findUnique({ where: { id: currentUser.id } });
+      if (!user) {
+        return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
+      }
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          role: user.role,
+        },
+      };
+    })
     .post(
       "/register",
       async ({ body, jwtAuth, set }) => {

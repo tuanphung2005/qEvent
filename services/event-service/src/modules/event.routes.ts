@@ -9,6 +9,9 @@ import {
   getEvent,
   listEvents,
   updateEvent,
+  updateRoom,
+  updateSession,
+  updateTicketType,
 } from "../services/event.service";
 
 const time = t.String({ minLength: 1 });
@@ -50,6 +53,25 @@ const eventUpdateBody = t.Object({
 
 const idParams = t.Object({ id: t.String({ minLength: 1 }) });
 
+const roomUpdateBody = t.Object({
+  name: t.Optional(t.String({ minLength: 1 })),
+  capacity: t.Optional(t.Integer({ minimum: 1 })),
+});
+
+const sessionUpdateBody = t.Object({
+  title: t.Optional(t.String({ minLength: 1 })),
+  speaker: t.Optional(t.String({ minLength: 1 })),
+  startTime: t.Optional(time),
+  endTime: t.Optional(time),
+  isLive: t.Optional(t.Boolean()),
+});
+
+const ticketTypeUpdateBody = t.Object({
+  name: t.Optional(t.String({ minLength: 1 })),
+  price: t.Optional(t.Number({ minimum: 0 })),
+  quota: t.Optional(t.Integer({ minimum: 1 })),
+});
+
 export function eventRoutes(deps: Deps) {
   return new Elysia({ tags: ["events"] })
     .get("/api/events", async () => ({ events: await listEvents(deps) }))
@@ -83,6 +105,57 @@ export function eventRoutes(deps: Deps) {
         return result.body;
       },
       { body: eventUpdateBody, params: idParams }
+    )
+    .patch(
+      "/api/events/:id/rooms/:roomId",
+      async ({ body, headers, params, set }) => {
+        const denied = requireOrganizer(headers, set);
+        if (denied) return denied;
+        const result = await updateRoom(deps, params.id, params.roomId!, body);
+        set.status = result.status;
+        return result.body;
+      },
+      {
+        body: roomUpdateBody,
+        params: t.Object({
+          id: t.String({ minLength: 1 }),
+          roomId: t.String({ minLength: 1 }),
+        }),
+      }
+    )
+    .patch(
+      "/api/events/:id/sessions/:sessionId",
+      async ({ body, headers, params, set }) => {
+        const denied = requireOrganizer(headers, set);
+        if (denied) return denied;
+        const result = await updateSession(deps, params.id, params.sessionId!, body);
+        set.status = result.status;
+        return result.body;
+      },
+      {
+        body: sessionUpdateBody,
+        params: t.Object({
+          id: t.String({ minLength: 1 }),
+          sessionId: t.String({ minLength: 1 }),
+        }),
+      }
+    )
+    .patch(
+      "/api/events/:id/ticket-types/:ticketTypeId",
+      async ({ body, headers, params, set }) => {
+        const denied = requireOrganizer(headers, set);
+        if (denied) return denied;
+        const result = await updateTicketType(deps, params.id, params.ticketTypeId!, body);
+        set.status = result.status;
+        return result.body;
+      },
+      {
+        body: ticketTypeUpdateBody,
+        params: t.Object({
+          id: t.String({ minLength: 1 }),
+          ticketTypeId: t.String({ minLength: 1 }),
+        }),
+      }
     )
     .post(
       "/api/events/:id/rooms",

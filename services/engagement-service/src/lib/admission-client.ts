@@ -1,4 +1,4 @@
-import { resilientFetch } from "./resilient-fetch";
+import { InfraError, resilientFetch } from "./resilient-fetch";
 
 export type AccessVerification = {
   hasAccess: boolean;
@@ -17,7 +17,8 @@ export class HttpAdmissionClient implements AdmissionClient {
     private readonly baseUrl: string,
     private readonly serviceToken: string,
     private readonly timeoutMs: number = 1000,
-    private readonly ttlMs: number = 60_000
+    private readonly ttlMs: number = 60_000,
+    private readonly fetchImpl?: typeof fetch
   ) {}
 
   async verifyAccess(userId: string, eventId: string): Promise<AccessVerification> {
@@ -41,7 +42,9 @@ export class HttpAdmissionClient implements AdmissionClient {
             "x-service-token": this.serviceToken,
           },
         },
-        { timeoutMs: this.timeoutMs, retries: 1 }
+        // Single attempt: retries would exceed the gateway's request budget and
+        // turn a clean 503 into a gateway timeout.
+        { timeoutMs: this.timeoutMs, retries: 0, fetchImpl: this.fetchImpl }
       );
 
       if (status === 200 && body && typeof body === "object") {
@@ -53,13 +56,22 @@ export class HttpAdmissionClient implements AdmissionClient {
           ticketId: typeof payload.ticketId === "string" ? payload.ticketId : null,
         };
 
-        this.cache.set(cacheKey, { value: result, expiresAt: now + this.ttlMs });
+        // Only cache positive results. Caching "not checked in" would keep an
+        // attendee locked out for the whole TTL right after they check in.
+        if (result.hasAccess) {
+          this.cache.set(cacheKey, { value: result, expiresAt: now + this.ttlMs });
+        }
         return result;
       }
 
-      return { hasAccess: false, checkedIn: false };
-    } catch {
-      return { hasAccess: false, checkedIn: false };
+      // A non-200 response is an infrastructure/config failure, not proof that
+      // the attendee is absent: the endpoint reports denial as 200 + false.
+      throw new InfraError(`admission service responded ${status}`, status);
+    } catch (error) {
+      // Infrastructure failures must not be reported as "not checked in":
+      // the caller turns them into 503/504 instead of 403.
+      if (error instanceof InfraError) throw error;
+      throw new InfraError("admission service unreachable");
     }
   }
 

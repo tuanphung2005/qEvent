@@ -3,17 +3,18 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  const sessionId = "session-demo-1";
+  // Must match event-service/prisma/seed.ts so BR-6 can resolve the event.
+  const sessionId = "33333333-3333-4333-8333-333333333333";
 
-  // Clean existing demo data
-  await prisma.quizAnswer.deleteMany({});
-  await prisma.quizQuestion.deleteMany({});
-  await prisma.quizGame.deleteMany({});
-  await prisma.pollVote.deleteMany({});
-  await prisma.pollOption.deleteMany({});
-  await prisma.poll.deleteMany({});
-  await prisma.qAVote.deleteMany({});
-  await prisma.qAQuestion.deleteMany({});
+  // Reset only this demo session, never other sessions' data.
+  await prisma.quizAnswer.deleteMany({ where: { question: { game: { sessionId } } } });
+  await prisma.quizQuestion.deleteMany({ where: { game: { sessionId } } });
+  await prisma.quizGame.deleteMany({ where: { sessionId } });
+  await prisma.pollVote.deleteMany({ where: { option: { poll: { sessionId } } } });
+  await prisma.pollOption.deleteMany({ where: { poll: { sessionId } } });
+  await prisma.poll.deleteMany({ where: { sessionId } });
+  await prisma.qAVote.deleteMany({ where: { question: { sessionId } } });
+  await prisma.qAQuestion.deleteMany({ where: { sessionId } });
 
   // 1. Seed demo Q&A
   const q1 = await prisma.qAQuestion.create({

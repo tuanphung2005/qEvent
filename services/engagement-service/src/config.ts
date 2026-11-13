@@ -12,5 +12,7 @@ export const config = {
     requiredInProduction("INTERNAL_SERVICE_TOKEN") ?? "qevent_internal_service_token_dev",
   admissionServiceUrl: process.env.ADMISSION_SERVICE_URL ?? "http://localhost:3002",
   eventServiceUrl: process.env.EVENT_SERVICE_URL ?? "http://localhost:3001",
-  requestTimeoutMs: Number(process.env.INTERNAL_TIMEOUT_MS) || 2000,
+  // Must stay below the gateway's 2000ms circuit-breaker timeout so the
+  // service can return its own 503 instead of being cut off by the gateway.
+  requestTimeoutMs: Number(process.env.INTERNAL_TIMEOUT_MS) || 1000,
 };

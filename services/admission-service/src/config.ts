@@ -16,7 +16,8 @@ export const config = {
     requiredInProduction("INTERNAL_SERVICE_TOKEN") ?? "qevent_internal_service_token_dev",
   eventServiceUrl: process.env.EVENT_SERVICE_URL ?? "http://localhost:3001",
   keysDir: path.resolve(serviceRoot, process.env.KEYS_DIR ?? "keys"),
-  requestTimeoutMs: Number(process.env.INTERNAL_TIMEOUT_MS) || 2000,
+  // Must stay below the gateway's 2000ms timeout; see deps.ts.
+  requestTimeoutMs: Number(process.env.INTERNAL_TIMEOUT_MS) || 1000,
   reconcileIntervalMs: Number(process.env.RECONCILE_INTERVAL_MS) || 5000,
   reconcileLeaseMs: Number(process.env.RECONCILE_LEASE_MS) || 30_000,
   serviceRoot,

@@ -84,10 +84,10 @@ describe("auth", () => {
   });
 
   it("protects ticket and order routes without a valid JWT", async () => {
-    expect((await call(app, "/api/tickets")).status).toBe(401);
+    expect((await call(app, "/api/tickets/my")).status).toBe(401);
     expect((await call(app, "/api/orders/anything")).status).toBe(401);
     expect(
-      (await call(app, "/api/tickets", { token: "not-a-jwt" })).status
+      (await call(app, "/api/tickets/my", { token: "not-a-jwt" })).status
     ).toBe(401);
   });
 });

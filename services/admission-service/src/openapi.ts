@@ -199,6 +199,98 @@ const schemas: Record<string, JsonSchema> = {
     hasAccess: bool(),
     ticketId: str({ format: "uuid", nullable: true }),
   }),
+  Attendee: obj({
+    id: uuid,
+    email: str({ format: "email" }),
+    fullName: str(),
+  }),
+  AuthMeResponse: obj({ user: ref("User") }),
+  StaffOrder: obj({
+    id: uuid,
+    attendee: ref("Attendee"),
+    status: en("PENDING", "PENDING_RECONCILIATION", "COMPENSATING", "CONFIRMED", "FAILED"),
+    quantity: int({ minimum: 1, maximum: 10 }),
+    totalAmount: num({ example: 50 }),
+    failureCode: str({ nullable: true, example: "SOLD_OUT" }),
+    createdAt: dateTime,
+    updatedAt: dateTime,
+    ticketsCount: int({ minimum: 0, example: 2 }),
+  }),
+  OrderListResponse: obj({
+    orders: arr(ref("StaffOrder")),
+    nextCursor: str({ nullable: true }),
+  }),
+  StaffTicket: obj({
+    id: uuid,
+    eventId: uuid,
+    ticketTypeId: uuid,
+    orderId: uuid,
+    status: en("PENDING_PAYMENT", "PAID", "CHECKED_IN", "CANCELLED"),
+    orderStatus: str({ example: "CONFIRMED" }),
+    checkedInAt: nullableDateTime,
+    createdAt: dateTime,
+    attendee: ref("Attendee"),
+  }),
+  StaffTicketListResponse: obj({
+    tickets: arr(ref("StaffTicket")),
+    nextCursor: str({ nullable: true }),
+  }),
+  StaffOrderDetail: obj({
+    id: uuid,
+    status: en("PENDING", "PENDING_RECONCILIATION", "COMPENSATING", "CONFIRMED", "FAILED"),
+    quantity: int({ minimum: 1 }),
+    totalAmount: num({ example: 50 }),
+    createdAt: dateTime,
+  }),
+  CheckinLog: obj({
+    id: uuid,
+    scannedBy: uuid,
+    scannedAt: dateTime,
+    isOffline: bool(),
+    deviceId: str({ nullable: true, example: "gate-1" }),
+    syncStatus: en("SYNCED", "CONFLICT"),
+  }),
+  TicketDetailResponse: obj({
+    ticket: ref("StaffTicket"),
+    order: ref("StaffOrderDetail"),
+    checkinLogs: arr(ref("CheckinLog")),
+  }),
+  CheckinFeedItem: obj({
+    id: uuid,
+    ticketId: uuid,
+    scannedAt: dateTime,
+    isOffline: bool(),
+    syncStatus: en("SYNCED", "CONFLICT"),
+    deviceId: str({ nullable: true, example: "gate-1" }),
+    attendee: ref("Attendee"),
+    ticketStatus: en("PENDING_PAYMENT", "PAID", "CHECKED_IN", "CANCELLED"),
+  }),
+  CheckinFeedResponse: obj({
+    checkins: arr(ref("CheckinFeedItem")),
+    nextCursor: str({ nullable: true }),
+  }),
+  AdmissionStatsResponse: obj({
+    eventId: uuid,
+    tickets: obj({
+      total: int({ minimum: 0, example: 100 }),
+      checkedIn: int({ minimum: 0, example: 42 }),
+      remaining: int({ minimum: 0, example: 58 }),
+    }),
+    orders: obj({
+      total: int({ minimum: 0, example: 80 }),
+      confirmed: int({ minimum: 0, example: 75 }),
+      pending: int({ minimum: 0, example: 3 }),
+      failed: int({ minimum: 0, example: 2 }),
+      soldTickets: int({ minimum: 0, example: 100 }),
+    }),
+    byGate: arr(
+      obj({
+        gate: str({ example: "gate-1" }),
+        count: int({ minimum: 1, example: 30 }),
+      })
+    ),
+    lastCheckinAt: nullableDateTime,
+  }),
 };
 
 // ---------------------------------------------------------------- examples
@@ -457,7 +549,74 @@ const paths = {
       },
     },
   },
+  "/api/auth/me": {
+    get: {
+      tags: ["auth"],
+      summary: "Return the authenticated user",
+      description:
+        "Restores the staff web session after a reload. The role always comes from the database, not from client input.",
+      operationId: "getCurrentUser",
+      security: bearer,
+      responses: {
+        "200": ok("The authenticated user.", "AuthMeResponse"),
+        "401": unauthorized,
+      },
+    },
+  },
   "/api/orders": {
+    get: {
+      tags: ["orders"],
+      summary: "List orders for an event (staff)",
+      description:
+        "Requires STAFF or ORGANIZER. Filters by status and searches by order id, attendee email or name. Cursor pagination.",
+      operationId: "listOrders",
+      security: bearer,
+      parameters: [
+        {
+          name: "eventId",
+          in: "query",
+          required: true,
+          schema: { type: "string", minLength: 1 },
+        },
+        {
+          name: "status",
+          in: "query",
+          required: false,
+          schema: {
+            type: "string",
+            enum: ["PENDING", "PENDING_RECONCILIATION", "COMPENSATING", "CONFIRMED", "FAILED"],
+          },
+        },
+        {
+          name: "q",
+          in: "query",
+          required: false,
+          schema: { type: "string", maxLength: 100 },
+        },
+        {
+          name: "cursor",
+          in: "query",
+          required: false,
+          schema: { type: "string" },
+        },
+        {
+          name: "limit",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+        },
+      ],
+      responses: {
+        "200": ok("Orders ordered by creation time, newest first.", "OrderListResponse"),
+        "401": unauthorized,
+        "403": fail(
+          "The caller is not STAFF or ORGANIZER.",
+          "FORBIDDEN",
+          "Staff or organizer role is required"
+        ),
+        "422": validationFailed,
+      },
+    },
     post: {
       tags: ["orders"],
       summary: "Place a ticket order through the Event Service saga",
@@ -544,13 +703,55 @@ const paths = {
   "/api/tickets": {
     get: {
       tags: ["tickets"],
-      summary: "List the caller's tickets",
-      description: "Alias of `/api/tickets/my`. QR secrets are never returned.",
-      operationId: "listTickets",
+      summary: "List tickets for an event (staff)",
+      description:
+        "Requires STAFF or ORGANIZER. Filters by status and searches by ticket id, attendee email or name. Attendees must use `/api/tickets/my`.",
+      operationId: "listStaffTickets",
       security: bearer,
+      parameters: [
+        {
+          name: "eventId",
+          in: "query",
+          required: true,
+          schema: { type: "string", minLength: 1 },
+        },
+        {
+          name: "status",
+          in: "query",
+          required: false,
+          schema: {
+            type: "string",
+            enum: ["PENDING_PAYMENT", "PAID", "CHECKED_IN", "CANCELLED"],
+          },
+        },
+        {
+          name: "q",
+          in: "query",
+          required: false,
+          schema: { type: "string", maxLength: 100 },
+        },
+        {
+          name: "cursor",
+          in: "query",
+          required: false,
+          schema: { type: "string" },
+        },
+        {
+          name: "limit",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+        },
+      ],
       responses: {
-        "200": ok("Tickets owned by the authenticated user.", "TicketListResponse"),
+        "200": ok("Tickets ordered by creation time, newest first.", "StaffTicketListResponse"),
         "401": unauthorized,
+        "403": fail(
+          "The caller is not STAFF or ORGANIZER.",
+          "FORBIDDEN",
+          "Staff or organizer role is required"
+        ),
+        "422": validationFailed,
       },
     },
   },
@@ -565,6 +766,31 @@ const paths = {
           tickets: [checkedInTicket],
         }),
         "401": unauthorized,
+      },
+    },
+  },
+  "/api/tickets/{id}": {
+    get: {
+      tags: ["tickets"],
+      summary: "Get a ticket with its order and check-in logs (staff)",
+      description:
+        "Requires STAFF or ORGANIZER. QR secrets are never returned; use `/api/tickets/{id}/qr-token` to reveal a fresh token.",
+      operationId: "getStaffTicket",
+      security: bearer,
+      parameters: [idParameter],
+      responses: {
+        "200": ok("Ticket detail.", "TicketDetailResponse"),
+        "401": unauthorized,
+        "403": fail(
+          "The caller is not STAFF or ORGANIZER.",
+          "FORBIDDEN",
+          "Staff or organizer role is required"
+        ),
+        "404": fail(
+          "The ticket does not exist.",
+          "TICKET_NOT_FOUND",
+          "Ticket was not found"
+        ),
       },
     },
   },
@@ -608,6 +834,60 @@ const paths = {
     },
   },
   "/api/checkins": {
+    get: {
+      tags: ["checkins"],
+      summary: "List the check-in feed for an event (staff)",
+      description:
+        "Requires STAFF or ORGANIZER. Newest first; filter by `since` and gate (deviceId). Cursor pagination.",
+      operationId: "listCheckins",
+      security: bearer,
+      parameters: [
+        {
+          name: "eventId",
+          in: "query",
+          required: true,
+          schema: { type: "string", minLength: 1 },
+        },
+        {
+          name: "since",
+          in: "query",
+          required: false,
+          schema: { type: "string", format: "date-time" },
+        },
+        {
+          name: "gate",
+          in: "query",
+          required: false,
+          schema: { type: "string" },
+        },
+        {
+          name: "cursor",
+          in: "query",
+          required: false,
+          schema: { type: "string" },
+        },
+        {
+          name: "limit",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+        },
+      ],
+      responses: {
+        "200": ok("Check-in logs, newest first.", "CheckinFeedResponse"),
+        "401": unauthorized,
+        "403": fail(
+          "The caller is not STAFF or ORGANIZER.",
+          "FORBIDDEN",
+          "Staff or organizer role is required"
+        ),
+        "422": fail(
+          "The since filter is not a valid ISO date-time.",
+          "INVALID_SINCE",
+          "since must be an ISO date-time"
+        ),
+      },
+    },
     post: {
       tags: ["checkins"],
       summary: "Check in one ticket online",
@@ -653,6 +933,34 @@ const paths = {
               message: "Ticket order is not confirmed",
             },
           }
+        ),
+        "422": validationFailed,
+      },
+    },
+  },
+  "/api/checkins/stats": {
+    get: {
+      tags: ["checkins"],
+      summary: "Dashboard counters for an event (staff)",
+      description:
+        "Requires STAFF or ORGANIZER. `byGate` groups check-in logs by deviceId; scanners should send a stable value such as `gate-1`.",
+      operationId: "getCheckinStats",
+      security: bearer,
+      parameters: [
+        {
+          name: "eventId",
+          in: "query",
+          required: true,
+          schema: { type: "string", minLength: 1 },
+        },
+      ],
+      responses: {
+        "200": ok("Ticket, order and gate counters.", "AdmissionStatsResponse"),
+        "401": unauthorized,
+        "403": fail(
+          "The caller is not STAFF or ORGANIZER.",
+          "FORBIDDEN",
+          "Staff or organizer role is required"
         ),
         "422": validationFailed,
       },

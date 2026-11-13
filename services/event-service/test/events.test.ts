@@ -7,6 +7,7 @@ import {
   futureIso,
   makeTestApp,
   organizerHeaders,
+  prisma,
   serviceHeaders,
 } from "./helpers";
 
@@ -204,6 +205,37 @@ describe("event endpoints", () => {
 
     expect(result.status).toBe(409);
     expect(result.data.code).toBe("CAPACITY_BELOW_RESERVED");
+  });
+
+  it("keeps reservedCount <= maxCapacity under concurrent update and reservation", async () => {
+    const { app } = makeTestApp();
+    const { event, ticketType } = await createEventWithTicketType({ maxCapacity: 10, quota: 10 });
+
+    const [patch, reservation] = await Promise.all([
+      call(app, `/api/events/${event.id}`, {
+        method: "PATCH",
+        headers: organizerHeaders(),
+        body: { maxCapacity: 2 },
+      }),
+      call(app, "/internal/reservations", {
+        method: "POST",
+        headers: serviceHeaders(),
+        body: {
+          operationId: crypto.randomUUID(),
+          eventId: event.id,
+          ticketTypeId: ticketType.id,
+          quantity: 8,
+        },
+      }),
+    ]);
+
+    expect([200, 409]).toContain(patch.status);
+    expect([201, 409]).toContain(reservation.status);
+    // Exactly one side can win: lowering capacity or holding the seats.
+    expect([patch.status, reservation.status].filter((status) => status < 300)).toHaveLength(1);
+
+    const stored = await prisma.event.findUniqueOrThrow({ where: { id: event.id } });
+    expect(stored.reservedCount).toBeLessThanOrEqual(stored.maxCapacity);
   });
 
   it("adds a room, a session and a ticket type to an existing event", async () => {

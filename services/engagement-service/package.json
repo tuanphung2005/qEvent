@@ -9,7 +9,9 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
+    "db:seed": "bun prisma/seed.ts",
     "openapi": "bun scripts/export-openapi.ts",
+    "typecheck": "bunx tsc --noEmit",
     "test": "bun test"
   },
   "dependencies": {

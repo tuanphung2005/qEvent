@@ -368,6 +368,47 @@ components:
         maxCapacity:
           type: integer
           minimum: 1
+    UpdateRoomRequest:
+      type: object
+      required: []
+      properties:
+        name:
+          type: string
+          minLength: 1
+        capacity:
+          type: integer
+          minimum: 1
+    UpdateSessionRequest:
+      type: object
+      required: []
+      properties:
+        title:
+          type: string
+          minLength: 1
+        speaker:
+          type: string
+          minLength: 1
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        isLive:
+          type: boolean
+    UpdateTicketTypeRequest:
+      type: object
+      required: []
+      properties:
+        name:
+          type: string
+          minLength: 1
+        price:
+          type: number
+          minimum: 0
+        quota:
+          type: integer
+          minimum: 1
     ReservationRequest:
       type: object
       required:
@@ -860,6 +901,226 @@ paths:
               example:
                 code: INVALID_EVENT_TIME
                 message: Start time must be before end time
+  "/api/events/{id}/rooms/{roomId}":
+    patch:
+      tags:
+        - events
+      summary: Update a room
+      operationId: updateRoom
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-user-role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - ORGANIZER
+          description: Forwarded by the API Gateway after JWT verification. The service rejects other roles with 403.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRoomRequest"
+            example:
+              name: string
+              capacity: 1
+      responses:
+        "200":
+          description: Room updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomResponse"
+              example:
+                room:
+                  id: 00000000-0000-4000-8000-000000000016
+                  name: Main Hall
+                  capacity: 500
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The room does not belong to this event.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: ROOM_NOT_FOUND
+                message: Room was not found
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+  "/api/events/{id}/sessions/{sessionId}":
+    patch:
+      tags:
+        - events
+      summary: "Update a session, including its live flag"
+      description: "Partial update. When either time is supplied the merged start/end must still be valid. `isLive` toggles attendee interaction for that session."
+      operationId: updateSession
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-user-role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - ORGANIZER
+          description: Forwarded by the API Gateway after JWT verification. The service rejects other roles with 403.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSessionRequest"
+            example:
+              title: string
+              speaker: string
+              startTime: 2026-11-09T08:00:00.000Z
+              endTime: 2026-11-09T08:00:00.000Z
+              isLive: true
+      responses:
+        "200":
+          description: Session updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+              example:
+                session:
+                  id: 00000000-0000-4000-8000-000000000017
+                  title: Opening Keynote
+                  speaker: Alex Nguyen
+                  startTime: 2026-11-09T08:00:00.000Z
+                  endTime: 2026-11-09T08:00:00.000Z
+                  isLive: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The session does not belong to this event.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: SESSION_NOT_FOUND
+                message: Session was not found
+        "422":
+          description: The resulting session time is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: INVALID_SESSION_TIME
+                message: Session start time must be before end time
+  "/api/events/{id}/ticket-types/{ticketTypeId}":
+    patch:
+      tags:
+        - events
+      summary: Update a ticket type
+      description: "`quota` cannot be lower than the number of tickets already sold."
+      operationId: updateTicketType
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: ticketTypeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-user-role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - ORGANIZER
+          description: Forwarded by the API Gateway after JWT verification. The service rejects other roles with 403.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTicketTypeRequest"
+            example:
+              name: string
+              price: 0
+              quota: 1
+      responses:
+        "200":
+          description: Ticket type updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketTypeResponse"
+              example:
+                ticketType:
+                  id: 00000000-0000-4000-8000-000000000018
+                  name: Standard
+                  price: 25
+                  quota: 500
+                  soldCount: 12
+                  available: 488
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The ticket type does not belong to this event.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: TICKET_TYPE_NOT_FOUND
+                message: Ticket type was not found
+        "409":
+          description: The new quota is below the sold count.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: QUOTA_BELOW_SOLD
+                message: quota cannot be lower than the number of sold tickets
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
   "/api/events/{id}/rooms":
     post:
       tags:
@@ -1083,10 +1344,10 @@ paths:
                 $ref: "#/components/schemas/ReservationResponse"
               example:
                 reservation:
-                  id: 00000000-0000-4000-8000-000000000019
+                  id: 00000000-0000-4000-8000-000000000022
                   operationId: 3f6f2f0e-9b2a-4c6d-8e1a-2b3c4d5e6f70
-                  eventId: 00000000-0000-4000-8000-000000000020
-                  ticketTypeId: 00000000-0000-4000-8000-000000000021
+                  eventId: 00000000-0000-4000-8000-000000000023
+                  ticketTypeId: 00000000-0000-4000-8000-000000000024
                   quantity: 1
                   status: CONFIRMED
                   expiresAt: 2026-11-09T08:00:00.000Z
@@ -1100,10 +1361,10 @@ paths:
                 $ref: "#/components/schemas/ReservationResponse"
               example:
                 reservation:
-                  id: 00000000-0000-4000-8000-000000000016
+                  id: 00000000-0000-4000-8000-000000000019
                   operationId: 3f6f2f0e-9b2a-4c6d-8e1a-2b3c4d5e6f70
-                  eventId: 00000000-0000-4000-8000-000000000017
-                  ticketTypeId: 00000000-0000-4000-8000-000000000018
+                  eventId: 00000000-0000-4000-8000-000000000020
+                  ticketTypeId: 00000000-0000-4000-8000-000000000021
                   quantity: 1
                   status: CONFIRMED
                   expiresAt: 2026-11-09T08:00:00.000Z
@@ -1169,10 +1430,10 @@ paths:
                 $ref: "#/components/schemas/ReservationResponse"
               example:
                 reservation:
-                  id: 00000000-0000-4000-8000-000000000022
+                  id: 00000000-0000-4000-8000-000000000025
                   operationId: 3f6f2f0e-9b2a-4c6d-8e1a-2b3c4d5e6f70
-                  eventId: 00000000-0000-4000-8000-000000000023
-                  ticketTypeId: 00000000-0000-4000-8000-000000000024
+                  eventId: 00000000-0000-4000-8000-000000000026
+                  ticketTypeId: 00000000-0000-4000-8000-000000000027
                   quantity: 1
                   status: CONFIRMED
                   expiresAt: 2026-11-09T08:00:00.000Z
@@ -1213,7 +1474,7 @@ paths:
                 $ref: "#/components/schemas/EventResponse"
               example:
                 event:
-                  id: 00000000-0000-4000-8000-000000000025
+                  id: 00000000-0000-4000-8000-000000000028
                   name: Tech Summit Vietnam 2026
                   venue: Saigon Exhibition and Convention Center
                   startTime: 2026-11-09T08:00:00.000Z
@@ -1222,11 +1483,11 @@ paths:
                   reservedCount: 12
                   createdAt: 2026-11-09T08:00:00.000Z
                   rooms:
-                    - id: 00000000-0000-4000-8000-000000000026
+                    - id: 00000000-0000-4000-8000-000000000029
                       name: Main Hall
                       capacity: 500
                   sessions:
-                    - id: 00000000-0000-4000-8000-000000000027
+                    - id: 00000000-0000-4000-8000-000000000030
                       title: Opening Keynote
                       speaker: Alex Nguyen
                       startTime: 2026-11-09T08:00:00.000Z
@@ -1274,14 +1535,14 @@ paths:
                 $ref: "#/components/schemas/InternalSessionResponse"
               example:
                 session:
-                  id: 00000000-0000-4000-8000-000000000028
+                  id: 00000000-0000-4000-8000-000000000031
                   title: Opening Keynote
                   speaker: Alex Nguyen
                   startTime: 2026-11-09T08:00:00.000Z
                   endTime: 2026-11-09T08:00:00.000Z
                   isLive: true
                   event:
-                    id: 00000000-0000-4000-8000-000000000029
+                    id: 00000000-0000-4000-8000-000000000032
                     name: Tech Summit Vietnam 2026
                     startTime: 2026-11-09T08:00:00.000Z
                     endTime: 2026-11-09T08:00:00.000Z

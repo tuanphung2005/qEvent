@@ -8,23 +8,31 @@ const expectedOperations: Record<string, string[]> = {
   "/health": ["get"],
   "/api/auth/register": ["post"],
   "/api/auth/login": ["post"],
-  "/api/orders": ["post"],
+  "/api/auth/me": ["get"],
+  "/api/orders": ["get", "post"],
   "/api/orders/{id}": ["get"],
   "/api/tickets": ["get"],
   "/api/tickets/my": ["get"],
+  "/api/tickets/{id}": ["get"],
   "/api/tickets/{id}/qr-token": ["get"],
-  "/api/checkins": ["post"],
+  "/api/checkins": ["get", "post"],
+  "/api/checkins/stats": ["get"],
   "/api/checkins/sync-offline": ["post"],
   "/internal/tickets/verify-access": ["get"],
 };
 
 const protectedOperations: Array<[string, string, "bearerAuth" | "serviceToken"]> = [
+  ["/api/auth/me", "get", "bearerAuth"],
+  ["/api/orders", "get", "bearerAuth"],
   ["/api/orders", "post", "bearerAuth"],
   ["/api/orders/{id}", "get", "bearerAuth"],
   ["/api/tickets", "get", "bearerAuth"],
   ["/api/tickets/my", "get", "bearerAuth"],
+  ["/api/tickets/{id}", "get", "bearerAuth"],
   ["/api/tickets/{id}/qr-token", "get", "bearerAuth"],
+  ["/api/checkins", "get", "bearerAuth"],
   ["/api/checkins", "post", "bearerAuth"],
+  ["/api/checkins/stats", "get", "bearerAuth"],
   ["/api/checkins/sync-offline", "post", "bearerAuth"],
   ["/internal/tickets/verify-access", "get", "serviceToken"],
 ];
@@ -208,7 +216,7 @@ describe("openapi contract", () => {
   });
 
   it("matches the live error envelope", async () => {
-    const result = await call(app, "/api/tickets");
+    const result = await call(app, "/api/tickets/my");
     expect(result.status).toBe(401);
     for (const key of spec.components.schemas.ErrorBody.required) {
       expect(result.data).toHaveProperty(key);

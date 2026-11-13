@@ -1,8 +1,9 @@
 import { Elysia, t } from "elysia";
 import type { Deps } from "../deps";
-import { createJwtAuth, deriveCurrentUser } from "../lib/auth";
+import { createJwtAuth, deriveCurrentUser, isStaffOrOrganizer } from "../lib/auth";
 import { fail } from "../lib/http";
-import { placeOrder, serializeOrder } from "../services/order.service";
+import { pageSize } from "../lib/pagination";
+import { listOrders, placeOrder, serializeOrder } from "../services/order.service";
 
 export function orderRoutes(deps: Deps, secret: string) {
   return new Elysia({ prefix: "/api", tags: ["orders"] })
@@ -33,6 +34,35 @@ export function orderRoutes(deps: Deps, secret: string) {
         }),
       }
     )
+    .get(
+      "/orders",
+      async ({ query, currentUser, set }) => {
+        if (!currentUser) {
+          return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
+        }
+        if (!isStaffOrOrganizer(currentUser)) {
+          return fail(set, 403, "FORBIDDEN", "Staff or organizer role is required");
+        }
+
+        const result = await listOrders(deps, {
+          eventId: query.eventId,
+          status: query.status,
+          q: query.q,
+          cursor: query.cursor,
+          limit: pageSize(query),
+        });
+        return result;
+      },
+      {
+        query: t.Object({
+          eventId: t.String({ minLength: 1 }),
+          status: t.Optional(t.String({ minLength: 1 })),
+          q: t.Optional(t.String({ minLength: 1, maxLength: 100 })),
+          cursor: t.Optional(t.String({ minLength: 1 })),
+          limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
+        }),
+      }
+    )
     .get("/orders/:id", async ({ params, currentUser, set }) => {
       if (!currentUser) {
         return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
@@ -40,7 +70,10 @@ export function orderRoutes(deps: Deps, secret: string) {
 
       const order = await deps.prisma.order.findUnique({
         where: { id: params.id },
-        include: { tickets: true },
+        include: {
+          tickets: true,
+          user: { select: { id: true, email: true, fullName: true } },
+        },
       });
 
       if (!order) {
@@ -52,6 +85,9 @@ export function orderRoutes(deps: Deps, secret: string) {
         return fail(set, 404, "ORDER_NOT_FOUND", "Order was not found");
       }
 
-      return { order: serializeOrder(order) };
+      return {
+        order: serializeOrder(order),
+        ...(privileged ? { attendee: order.user } : {}),
+      };
     });
 }

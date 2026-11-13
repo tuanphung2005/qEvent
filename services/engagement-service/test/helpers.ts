@@ -2,6 +2,11 @@ import crypto from "node:crypto";
 import { createApp } from "../src/app";
 import type { Deps } from "../src/deps";
 import type { AdmissionClient, AccessVerification } from "../src/lib/admission-client";
+import {
+  SessionNotFoundError,
+  type EventClient,
+  type SessionAccessInfo,
+} from "../src/lib/event-client";
 
 export class FakeAdmissionClient implements AdmissionClient {
   private allowedUsers = new Set<string>();
@@ -23,6 +28,48 @@ export class FakeAdmissionClient implements AdmissionClient {
       checkedIn: has,
       ticketId: has ? `ticket-${userId}` : null,
     };
+  }
+}
+
+export class FakeEventClient implements EventClient {
+  private sessions = new Map<string, SessionAccessInfo>();
+  private failures = new Set<string>();
+  private missing = new Set<string>();
+
+  /** By default every session is live and maps to an event with the same id. */
+  constructor() {}
+
+  setSession(sessionId: string, eventId: string, isLive = true) {
+    this.sessions.set(sessionId, { sessionId, eventId, isLive });
+    this.failures.delete(sessionId);
+    return this;
+  }
+
+  removeSession(sessionId: string) {
+    this.sessions.delete(sessionId);
+    return this;
+  }
+
+  failWith(sessionId: string) {
+    this.failures.add(sessionId);
+    return this;
+  }
+
+  markMissing(sessionId: string) {
+    this.missing.add(sessionId);
+    return this;
+  }
+
+  async getSession(sessionId: string): Promise<SessionAccessInfo> {
+    if (this.missing.has(sessionId)) {
+      throw new SessionNotFoundError(sessionId);
+    }
+    if (this.failures.has(sessionId)) {
+      throw new Error("event service unreachable");
+    }
+    const configured = this.sessions.get(sessionId);
+    if (configured) return configured;
+    return { sessionId, eventId: sessionId, isLive: true };
   }
 }
 
@@ -78,6 +125,13 @@ export class InMemoryPrisma {
       if (!item) throw new Error("Question not found");
       if (args.data.upvotes?.increment) item.upvotes += args.data.upvotes.increment;
       if (args.data.upvotes?.decrement) item.upvotes -= args.data.upvotes.decrement;
+      return { ...item };
+    },
+    delete: async (args: any) => {
+      const idx = this.qAQuestions.findIndex((q) => q.id === args.where.id);
+      if (idx < 0) throw new Error("Question not found");
+      const item = this.qAQuestions.splice(idx, 1)[0];
+      this.qAVotes = this.qAVotes.filter((vote) => vote.questionId !== item.id);
       return { ...item };
     },
     deleteMany: async () => {
@@ -176,6 +230,13 @@ export class InMemoryPrisma {
       }
 
       return { ...poll, options: createdOptions };
+    },
+    update: async (args: any) => {
+      const poll = this.polls.find((item) => item.id === args.where.id);
+      if (!poll) throw new Error("Poll not found");
+      Object.assign(poll, args.data);
+      const options = this.pollOptions.filter((option) => option.pollId === poll.id);
+      return { ...poll, options };
     },
     deleteMany: async () => {
       const count = this.polls.length;
@@ -395,9 +456,12 @@ export function makeTestApp(overrides: Partial<Deps> = {}) {
   const inMemoryPrisma = new InMemoryPrisma();
   const fakeAdmissionClient = new FakeAdmissionClient();
 
+  const fakeEventClient = new FakeEventClient();
+
   const deps: Deps = {
     prisma: (overrides.prisma ?? (inMemoryPrisma as any)),
     admissionClient: overrides.admissionClient ?? fakeAdmissionClient,
+    eventClient: overrides.eventClient ?? fakeEventClient,
     now: overrides.now ?? (() => new Date()),
     jwtSecret: overrides.jwtSecret ?? "test_jwt_secret_key_12345",
     internalToken: overrides.internalToken ?? "test_internal_token",
@@ -405,7 +469,7 @@ export function makeTestApp(overrides: Partial<Deps> = {}) {
   };
 
   const { app } = createApp(deps);
-  return { app, deps, fakeAdmissionClient, inMemoryPrisma };
+  return { app, deps, fakeAdmissionClient, fakeEventClient, inMemoryPrisma };
 }
 
 type App = ReturnType<typeof makeTestApp>["app"];

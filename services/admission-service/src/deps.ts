@@ -24,6 +24,9 @@ export function makeDeps(overrides: Partial<Deps> = {}): Deps {
       overrides.eventClient ??
       new HttpEventClient(config.eventServiceUrl, internalToken, {
         timeoutMs: config.requestTimeoutMs,
+        // The gateway gives up at 2000ms. Fail fast here so the saga can still
+        // answer 202 PENDING instead of the client seeing a gateway timeout.
+        retries: 0,
       }),
     now: overrides.now ?? (() => new Date()),
     jwtSecret: overrides.jwtSecret ?? config.jwtSecret,

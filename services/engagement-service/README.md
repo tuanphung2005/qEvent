@@ -5,7 +5,7 @@ Thuộc phần việc của **Trọng** theo `plans/AI_MICROSERVICES_EXECUTION_P
 
 - Cổng nội bộ: `3003`
 - Database riêng: `qevent_engagement` (PostgreSQL 16, không foreign key xuyên service)
-- Giao tiếp liên service: Gọi HTTP nội bộ sang Admission Service (`PORT 3002`) để thực thi quy tắc **BR-6** (chỉ người đã check-in mới được tương tác).
+- Giao tiếp liên service: Gọi Event Service (`/internal/sessions/:id`) để lấy `eventId` + `isLive`, rồi gọi Admission Service (`/internal/tickets/verify-access`) để thực thi **BR-6** (chỉ người đã check-in vào đúng event và session đang live mới được tương tác).
 
 ## Trách nhiệm
 
@@ -42,9 +42,13 @@ Thuộc phần việc của **Trọng** theo `plans/AI_MICROSERVICES_EXECUTION_P
 ## Quy tắc nghiệp vụ cốt lõi
 
 1. **BR-6 (Kiểm soát check-in)**:
-   - Trước khi nhận câu hỏi Q&A, bình chọn Poll, hay câu trả lời Quiz, service gọi sang Admission Service:
-     `GET /internal/tickets/verify-access?userId=...&eventId=...`
-   - Kèm cơ chế cache in-memory TTL 60s để tránh làm nghẽn Admission Service.
+   - Trước khi nhận câu hỏi Q&A, bình chọn Poll, hay câu trả lời Quiz:
+     1. Gọi Event Service `GET /internal/sessions/:sessionId` để lấy `event.id` và `isLive`. `eventId` do client gửi trong body bị bỏ qua hoàn toàn.
+     2. Nếu session không tồn tại → `404 SESSION_NOT_FOUND`; chưa live → `403 SESSION_NOT_LIVE`.
+     3. Gọi Admission Service `GET /internal/tickets/verify-access?userId=...&eventId=...`; chưa check-in → `403 NOT_CHECKED_IN`.
+   - Cache in-memory TTL 60s **chỉ cho kết quả dương** (đã check-in). Kết quả âm không cache để người vừa check-in không bị khóa oan.
+   - Lỗi hạ tầng của Event/Admission trả `503 EVENT_SERVICE_UNAVAILABLE` / `503 ADMISSION_SERVICE_UNAVAILABLE`, không trả 403.
+   - Internal timeout 1000ms, không retry, để service kịp trả 503 trước timeout 2000ms của gateway.
 2. **State Machine Compare-And-Set (CAS)**:
    - Toàn bộ chuyển đổi trạng thái của ván đấu Quiz sử dụng câu lệnh nguyên tử `updateMany` với điều kiện `where.status`. Hai Host bấm Start/Next cùng lúc sẽ chỉ 1 request thắng (200), request còn lại nhận `409 INVALID_GAME_STATE`.
 3. **Chống gian lận tính điểm (Anti-Speed-Hack & Anti-Spoofing)**:
@@ -52,6 +56,7 @@ Thuộc phần việc của **Trọng** theo `plans/AI_MICROSERVICES_EXECUTION_P
    - Dung sai mạng: Cho phép trễ tối đa `2000ms` (`ANSWER_GRACE_MS`) sau khi hết giờ `timeLimitSec`. Quá thời gian này trả `400 ANSWER_TOO_LATE`.
    - Danh tính bất biến: Luôn lấy `userId` từ JWT token hoặc header `x-user-id` tin cậy từ API Gateway. Bỏ qua mọi trường `userId` client truyền trong body.
 4. **WebSocket an toàn**:
+   - Bắt buộc JWT: `ws://.../ws/qa?token=<jwt>` hoặc subprotocol `bearer,<jwt>`. Kết nối thiếu/sai token bị đóng với mã `4401`.
    - `/ws/qa`: Đồng bộ câu hỏi mới và số lượng upvote tức thì.
    - `/ws/game`: Đồng bộ trạng thái ván đấu. Cấm nhận đáp án qua WebSocket để đảm bảo xác thực và tính điểm chặt chẽ qua REST API.
 

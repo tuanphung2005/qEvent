@@ -7,10 +7,21 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "docker:restart": "docker compose restart",
-    "dev:docker": "docker compose up --build",
-    "dev:app": "bun --cwd app start",
-    "test": "bun --cwd backend test",
-    "db:push": "bun --cwd backend db:push",
-    "db:seed": "bun --cwd backend db:seed"
+    "seed": "bun run seed:event && bun run seed:admission && bun run seed:engagement",
+    "seed:event": "docker compose exec -T event-service bun run db:seed",
+    "seed:admission": "docker compose exec -T admission-service bun run db:seed",
+    "seed:engagement": "docker compose exec -T engagement-service bun run db:seed",
+    "demo:seed": "bun scripts/seed-demo-activity.ts",
+    "test": "bun run test:gateway && bun run test:event && bun run test:admission && bun run test:engagement",
+    "test:gateway": "bun --cwd gateway test",
+    "test:event": "bun --cwd services/event-service test",
+    "test:admission": "bun --cwd services/admission-service test",
+    "test:engagement": "bun --cwd services/engagement-service test",
+    "typecheck": "bun run typecheck:gateway && bun run typecheck:event && bun run typecheck:admission && bun run typecheck:engagement",
+    "typecheck:gateway": "bun --cwd gateway typecheck",
+    "typecheck:event": "bun --cwd services/event-service typecheck",
+    "typecheck:admission": "bun --cwd services/admission-service typecheck",
+    "typecheck:engagement": "bun --cwd services/engagement-service typecheck",
+    "e2e": "bun scripts/e2e-smoke.ts"
   }
 }

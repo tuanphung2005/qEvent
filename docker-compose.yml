@@ -1,39 +1,113 @@
 services:
-  postgres:
+  postgres-event:
     image: postgres:16-alpine
-    container_name: qevent-postgres
-    restart: always
+    container_name: qevent-db-event
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password123
-      POSTGRES_DB: qevent
+      POSTGRES_DB: qevent_event
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - event_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d qevent"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d qevent_event"]
       interval: 3s
       timeout: 3s
-      retries: 5
+      retries: 10
 
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: qevent-backend
+  postgres-admission:
+    image: postgres:16-alpine
+    container_name: qevent-db-admission
     restart: unless-stopped
-    ports:
-      - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://postgres:password123@postgres:5432/qevent?schema=public
-      JWT_SECRET: qevent_local_dev_jwt_secret_do_not_use_in_prod_2026
-      PORT: 3000
-      HOST: 0.0.0.0
-      SEED_DB: "true"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: qevent_admission
+    ports:
+      - "5434:5432"
+    volumes:
+      - admission_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d qevent_admission"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  postgres-engagement:
+    image: postgres:16-alpine
+    container_name: qevent-db-engagement
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: qevent_engagement
+    ports:
+      - "5435:5432"
+    volumes:
+      - engagement_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d qevent_engagement"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  event-service:
+    build:
+      context: ./services/event-service
+      dockerfile: Dockerfile
+    container_name: qevent-event-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://postgres:password123@postgres-event:5432/qevent_event?schema=public"
+      INTERNAL_SERVICE_TOKEN: "qevent_internal_service_token_2026"
+      PORT: 3001
     depends_on:
-      postgres:
+      postgres-event:
         condition: service_healthy
+
+  admission-service:
+    build:
+      context: ./services/admission-service
+      dockerfile: Dockerfile
+    container_name: qevent-admission-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://postgres:password123@postgres-admission:5432/qevent_admission?schema=public"
+      EVENT_SERVICE_URL: "http://event-service:3001"
+      JWT_SECRET: "qevent_super_jwt_secret_key_2026"
+      INTERNAL_SERVICE_TOKEN: "qevent_internal_service_token_2026"
+      KEYS_DIR: "/app/keys"
+      PORT: 3002
+    volumes:
+      - admission_keys:/app/keys
+    depends_on:
+      postgres-admission:
+        condition: service_healthy
+      event-service:
+        condition: service_started
+
+  engagement-service:
+    build:
+      context: ./services/engagement-service
+      dockerfile: Dockerfile
+    container_name: qevent-engagement-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://postgres:password123@postgres-engagement:5432/qevent_engagement?schema=public"
+      EVENT_SERVICE_URL: "http://event-service:3001"
+      ADMISSION_SERVICE_URL: "http://admission-service:3002"
+      JWT_SECRET: "qevent_super_jwt_secret_key_2026"
+      INTERNAL_SERVICE_TOKEN: "qevent_internal_service_token_2026"
+      PORT: 3003
+    depends_on:
+      postgres-engagement:
+        condition: service_healthy
+      event-service:
+        condition: service_started
+      admission-service:
+        condition: service_started
 
   api-gateway:
     build:
@@ -45,13 +119,20 @@ services:
       - "8000:8000"
     environment:
       PORT: 8000
-      JWT_SECRET: qevent_local_dev_jwt_secret_do_not_use_in_prod_2026
-      EVENT_SERVICE_URL: http://backend:3000
-      ADMISSION_SERVICE_URL: http://backend:3000
-      ENGAGEMENT_SERVICE_URL: http://backend:3000
+      JWT_SECRET: "qevent_super_jwt_secret_key_2026"
+      EVENT_SERVICE_URL: "http://event-service:3001"
+      ADMISSION_SERVICE_URL: "http://admission-service:3002"
+      ENGAGEMENT_SERVICE_URL: "http://engagement-service:3003"
     depends_on:
-      backend:
+      event-service:
+        condition: service_started
+      admission-service:
+        condition: service_started
+      engagement-service:
         condition: service_started
 
 volumes:
-  postgres_data:
+  event_data:
+  admission_data:
+  engagement_data:
+  admission_keys:

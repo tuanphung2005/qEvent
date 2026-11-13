@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, it } from "bun:test";
 import { InfraError } from "../src/lib/resilient-fetch";
 import { reconcileOnce } from "../src/services/order.service";
 import {
@@ -17,6 +17,18 @@ function orderBody(quantity = 1) {
 }
 
 describe("ticket ordering saga", () => {
+  // The test database is reused between runs. Park leftover in-flight orders so
+  // the reconciler's candidate counts stay deterministic.
+  beforeAll(async () => {
+    await prisma.order.updateMany({
+      where: {
+        status: { in: ["PENDING", "PENDING_RECONCILIATION", "COMPENSATING"] },
+        createdAt: { lt: new Date(Date.now() - 10 * 60_000) },
+      },
+      data: { status: "FAILED" },
+    });
+  });
+
   it("confirms the order and issues one ticket per unit", async () => {
     const fake = new FakeEventClient(() => ({ status: 201, body: { unitPrice: 25 } }));
     const { app } = makeTestApp({ eventClient: fake });
@@ -296,6 +308,75 @@ describe("ticket ordering saga", () => {
     });
     expect(await reconcileOnce(deps)).toBe(1);
     expect(fake.createCalls).toHaveLength(1);
+  });
+
+  it("reconciles an order stranded in PENDING after a crash", async () => {
+    const fake = new FakeEventClient();
+    const { deps } = makeTestApp({ eventClient: fake });
+    const user = await prisma.user.create({
+      data: {
+        email: `stranded-${crypto.randomUUID()}@test.local`,
+        passwordHash: "x",
+        fullName: "Stranded User",
+      },
+    });
+    const key = crypto.randomUUID();
+    const order = await prisma.order.create({
+      data: {
+        userId: user.id,
+        eventId: "event-stranded",
+        ticketTypeId: "ticket-type-stranded",
+        idempotencyKey: key,
+        operationId: crypto.randomUUID(),
+        status: "PENDING",
+        createdAt: new Date(Date.now() - 60_000),
+      },
+    });
+    await prisma.idempotencyLog.create({
+      data: { userId: user.id, key, fingerprint: "fp", orderId: order.id, status: "PENDING" },
+    });
+
+    expect(await reconcileOnce(deps)).toBe(1);
+
+    const confirmed = await prisma.order.findUniqueOrThrow({
+      where: { id: order.id },
+      include: { tickets: true, idempotency: true },
+    });
+    expect(confirmed.status).toBe("CONFIRMED");
+    expect(confirmed.tickets).toHaveLength(1);
+    expect(confirmed.idempotency?.status).toBe("COMPLETED");
+  });
+
+  it("does not reconcile a fresh PENDING order that is still being processed", async () => {
+    const fake = new FakeEventClient();
+    const { deps } = makeTestApp({ eventClient: fake });
+    const user = await prisma.user.create({
+      data: {
+        email: `fresh-${crypto.randomUUID()}@test.local`,
+        passwordHash: "x",
+        fullName: "Fresh User",
+      },
+    });
+    const order = await prisma.order.create({
+      data: {
+        userId: user.id,
+        eventId: "event-fresh",
+        ticketTypeId: "ticket-type-fresh",
+        idempotencyKey: crypto.randomUUID(),
+        operationId: crypto.randomUUID(),
+        status: "PENDING",
+        createdAt: new Date(Date.now() - 1_000),
+      },
+    });
+
+    await reconcileOnce(deps);
+
+    const stillPending = await prisma.order.findUniqueOrThrow({ where: { id: order.id } });
+    expect(stillPending.status).toBe("PENDING");
+    expect(fake.createCalls).toHaveLength(0);
+
+    // Cleanup so later tests do not see a stale candidate.
+    await prisma.order.update({ where: { id: order.id }, data: { status: "FAILED" } });
   });
 
   it("compensates a failed ticket issuance and marks the order failed", async () => {

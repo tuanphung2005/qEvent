@@ -125,6 +125,31 @@ const schemas: Record<string, JsonSchema> = {
       maxCapacity: int({ minimum: 1 }),
     },
   },
+  UpdateRoomRequest: obj(
+    {
+      name: str({ minLength: 1 }),
+      capacity: int({ minimum: 1 }),
+    },
+    []
+  ),
+  UpdateSessionRequest: obj(
+    {
+      title: str({ minLength: 1 }),
+      speaker: str({ minLength: 1 }),
+      startTime: dateTime,
+      endTime: dateTime,
+      isLive: bool(),
+    },
+    []
+  ),
+  UpdateTicketTypeRequest: obj(
+    {
+      name: str({ minLength: 1 }),
+      price: num({ minimum: 0 }),
+      quota: int({ minimum: 1 }),
+    },
+    []
+  ),
   ReservationRequest: obj({
     operationId: str({ minLength: 1 }),
     eventId: str({ minLength: 1 }),
@@ -479,6 +504,89 @@ const paths = {
         "401": unauthorized,
         "403": forbidden,
         "404": fail("The event does not exist.", "EVENT_NOT_FOUND", "Event was not found"),
+        "422": validationFailed,
+      },
+    },
+  },
+  "/api/events/{id}/rooms/{roomId}": {
+    patch: {
+      tags: ["events"],
+      summary: "Update a room",
+      operationId: "updateRoom",
+      security: bearer,
+      parameters: [
+        idParameter,
+        { name: "roomId", in: "path", required: true, schema: { type: "string" } },
+        organizerHeader,
+      ],
+      requestBody: body("UpdateRoomRequest"),
+      responses: {
+        "200": ok("Room updated.", "RoomResponse"),
+        "401": unauthorized,
+        "403": forbidden,
+        "404": fail("The room does not belong to this event.", "ROOM_NOT_FOUND", "Room was not found"),
+        "422": validationFailed,
+      },
+    },
+  },
+  "/api/events/{id}/sessions/{sessionId}": {
+    patch: {
+      tags: ["events"],
+      summary: "Update a session, including its live flag",
+      description:
+        "Partial update. When either time is supplied the merged start/end must still be valid. `isLive` toggles attendee interaction for that session.",
+      operationId: "updateSession",
+      security: bearer,
+      parameters: [
+        idParameter,
+        { name: "sessionId", in: "path", required: true, schema: { type: "string" } },
+        organizerHeader,
+      ],
+      requestBody: body("UpdateSessionRequest"),
+      responses: {
+        "200": ok("Session updated.", "SessionResponse"),
+        "401": unauthorized,
+        "403": forbidden,
+        "404": fail(
+          "The session does not belong to this event.",
+          "SESSION_NOT_FOUND",
+          "Session was not found"
+        ),
+        "422": fail(
+          "The resulting session time is invalid.",
+          "INVALID_SESSION_TIME",
+          "Session start time must be before end time"
+        ),
+      },
+    },
+  },
+  "/api/events/{id}/ticket-types/{ticketTypeId}": {
+    patch: {
+      tags: ["events"],
+      summary: "Update a ticket type",
+      description: "`quota` cannot be lower than the number of tickets already sold.",
+      operationId: "updateTicketType",
+      security: bearer,
+      parameters: [
+        idParameter,
+        { name: "ticketTypeId", in: "path", required: true, schema: { type: "string" } },
+        organizerHeader,
+      ],
+      requestBody: body("UpdateTicketTypeRequest"),
+      responses: {
+        "200": ok("Ticket type updated.", "TicketTypeResponse"),
+        "401": unauthorized,
+        "403": forbidden,
+        "404": fail(
+          "The ticket type does not belong to this event.",
+          "TICKET_TYPE_NOT_FOUND",
+          "Ticket type was not found"
+        ),
+        "409": fail(
+          "The new quota is below the sold count.",
+          "QUOTA_BELOW_SOLD",
+          "quota cannot be lower than the number of sold tickets"
+        ),
         "422": validationFailed,
       },
     },

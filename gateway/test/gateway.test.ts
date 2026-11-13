@@ -4,9 +4,10 @@ import { jwt } from "@elysiajs/jwt";
 import { createGatewayApp } from "../src/index";
 
 describe("API Gateway (bun test)", () => {
-  let mockEvent: Elysia;
-  let mockAdmission: Elysia;
-  let mockEngagement: Elysia;
+  // Elysia's generic route types are not worth threading through test doubles.
+  let mockEvent: any;
+  let mockAdmission: any;
+  let mockEngagement: any;
 
   let eventPort: number;
   let admissionPort: number;
@@ -41,6 +42,7 @@ describe("API Gateway (bun test)", () => {
     mockEngagement = new Elysia()
       .get("/health", () => ({ status: "ok" }))
       .get("/api/sessions/live", () => ({ live: true }))
+      .get("/api/game/abc", () => ({ game: { id: "abc" } }))
       .ws("/ws/test", {
         message(ws, msg) {
           ws.send(`echo:${msg}`);
@@ -58,6 +60,17 @@ describe("API Gateway (bun test)", () => {
     mockAdmission.stop();
     mockEngagement.stop();
   });
+
+  async function signToken(payload: Record<string, unknown>): Promise<string> {
+    let token = "";
+    const signer = new Elysia().use(jwt({ name: "jwt", secret: JWT_SECRET }));
+    signer.get("/token", async ({ jwt }: any) => {
+      token = await jwt.sign(payload);
+      return token;
+    });
+    await signer.handle(new Request("http://localhost/token"));
+    return token;
+  }
 
   function getTestApp(options?: any) {
     return createGatewayApp({
@@ -93,6 +106,7 @@ describe("API Gateway (bun test)", () => {
     const res = await app.handle(new Request("http://localhost:8000/api/events"));
 
     expect(res.status).toBe(200);
+    expect(res.headers.get("x-request-id")).toBeString();
     const body = (await res.json()) as any;
     expect(body.events[0].id).toBe("evt-1");
   });
@@ -216,19 +230,48 @@ describe("API Gateway (bun test)", () => {
     });
 
     const res = await app.handle(new Request("http://localhost:8000/api/sessions/slow"));
-    expect(res.status).toBe(503);
+    expect(res.status).toBe(504);
     const body = (await res.json()) as any;
-    expect(body.code).toBe("SERVICE_UNAVAILABLE");
+    expect(body.code).toBe("GATEWAY_TIMEOUT");
 
     slowService.stop();
+  });
+
+  it("routes /api/game/* to the engagement service", async () => {
+    const { app } = getTestApp();
+    const res = await app.handle(new Request("http://localhost:8000/api/game/abc"));
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as any).game.id).toBe("abc");
+  });
+
+  it("closes an anonymous WebSocket with 4401", async () => {
+    const { app } = getTestApp();
+    const gatewayServer = app.listen(0);
+    const gwPort = (gatewayServer.server as any).port;
+
+    const code = await new Promise<number>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("WS close timeout")), 3000);
+      const ws = new WebSocket(`ws://localhost:${gwPort}/ws/test`);
+      ws.onclose = (event) => {
+        clearTimeout(timer);
+        resolve(event.code);
+      };
+      ws.onerror = () => {};
+    });
+
+    expect(code).toBe(4401);
+    gatewayServer.stop();
   });
 
   it("WebSocket proxies and delivers messages to downstream service", async () => {
     const { app } = getTestApp();
     const gatewayServer = app.listen(0);
     const gwPort = (gatewayServer.server as any).port;
+    const token = await signToken({ sub: "tuan-123", role: "ORGANIZER" });
 
-    const wsClient = new WebSocket(`ws://localhost:${gwPort}/ws/test`);
+    const wsClient = new WebSocket(
+      `ws://localhost:${gwPort}/ws/test?token=${encodeURIComponent(token)}`
+    );
     const received: string[] = [];
 
     await new Promise<void>((resolve, reject) => {
