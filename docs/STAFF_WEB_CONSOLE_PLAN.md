@@ -173,6 +173,8 @@ flowchart LR
 
 ### 4.1. Cây route
 
+> Danh sách route **canonical** (tên param, quyền, người sở hữu) nằm ở `docs/STAFF_WEB_TEAM_SPLIT.md` §2. Cây dưới đây chỉ là hình dung tổng thể; nếu lệch thì bản trong team split thắng.
+
 ```text
 /login
 /                          -> redirect /dashboard
@@ -406,7 +408,7 @@ Nếu cần web hoạt động khi mạng chập chờn:
 
 ## 9. Design system cho web
 
-Áp dụng `DESIGN.md` và `PRODUCT.md`, không tự phát minh style.
+Áp dụng `DESIGN.md` và `PRODUCT.md`, không tự phát minh style. **Quy tắc UI chi tiết theo `impeccable` (mode Operate): `docs/STAFF_WEB_TEAM_SPLIT.md` §8** — token, bảng cấm, typography, layout, table, form, trạng thái, motion, a11y, copy, và checklist kiểm chứng trước khi mở PR.
 
 ### 9.1. Token
 
@@ -520,16 +522,17 @@ web/
 
 **Quy ước:**
 
-- Mỗi feature tự chứa `api.ts`, `pages/`, `components/`, `hooks/`, `types.ts`.
+- Mỗi feature tự chứa `routes.tsx` (export `routes` + `nav`), `api.ts`, `pages/`, `components/`, `hooks/`, `types.ts`, `mocks.ts`.
 - Không import chéo giữa các feature; dùng `components/ui` và `lib`.
 - Không đặt logic API trong component; dùng hook TanStack Query.
 - Không dùng `any`; nếu bất khả kháng, ghi lý do ngay tại chỗ.
+- Không sửa file dùng chung (`app/**`, `lib/**`, `components/ui/**`, `styles/**`, `package.json`); chi tiết ranh giới file: `docs/STAFF_WEB_TEAM_SPLIT.md` §3–§4.
 
 ---
 
 ## 11. Phân công 4 người
 
-> Mục 11 giữ nguyên phân công gốc để đối chiếu. Toàn bộ việc backend A1–A12 trong mục này đã hoàn tất ngày 2026-11-14; hiện chỉ còn phần UI.
+> Mục 11 giữ nguyên phân công gốc để đối chiếu. Toàn bộ việc backend A1–A12 trong mục này đã hoàn tất ngày 2026-11-14; hiện chỉ còn phần UI. **Bảng chia việc thực thi (ticket, file chạm, đường nối, UI rules): `docs/STAFF_WEB_TEAM_SPLIT.md`** — nếu hai tài liệu lệch nhau, bản team split thắng.
 
 Mỗi người ~20 ngày công (4 tuần). Mỗi người sở hữu **một service backend + một nhóm màn hình web**, để không ai chỉ làm UI hoặc chỉ làm backend.
 
