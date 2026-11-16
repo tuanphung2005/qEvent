@@ -46,3 +46,34 @@ axe), `e2e/scan.spec.ts` (mã rác → đỏ; tự mua 1 vé qua API rồi quét
 Test scan tự tạo vé nên chạy lại không cần seed lại. 1 fail duy nhất: axe `color-contrast` trên
 Badge trạng thái — `statusToneClass()` trong `lib/format/status-label.ts` (file nhóm 1) cho
 `bg-success/10 text-success` = 2.3:1; cần Tuấn đổi sang chữ đậm hơn.
+
+## Phân bổ thời gian
+
+Theo 20 ngày công ở `STAFF_WEB_TEAM_SPLIT.md` §6.3 (1 ngày = 8h):
+
+| Hạng mục | Kế hoạch | Trạng thái | Ghi chú |
+|---|---|---|---|
+| V1 `/orders` | 2.5 | xong | cursor + filter + search debounce 300ms |
+| V2 `/orders/:orderId` | 2 | xong | timeline 2 mốc (API thiếu `updatedAt`) |
+| V3 `/tickets` | 2.5 | xong | search mã/email/tên |
+| V4 `/tickets/:ticketId` | 2 | xong | còn ảnh QR (chờ dep) |
+| V5 `/checkins` | 3 | xong | `since` cắt có chủ đích |
+| V6 `/scan` | 5 | xong | còn test camera thiết bị thật |
+| V7 `/sync` | 1.5 | xong | |
+| V8 test + mocks | 1.5 | xong | 27 unit/component test |
+| E2E + axe + evidence | +1.5 | xong | 2 spec, 36 ảnh, 9/10 pass |
+
+### Thời gian còn lại trước khi merge
+
+| # | Việc | Ước lượng | Chờ ai |
+|---|---|---|---|
+| 1 | Contrast badge + AppShell (nested `main`, `aria-label` user menu) | 0.5 ngày | Tuấn |
+| 2 | Chạy lại e2e/axe 6 màn, mở scope axe về `main` | 0.5 ngày | Vũ |
+| 3 | Test camera + beep/rung trên điện thoại thật | 0.5 ngày | Vũ |
+| 4 | Ảnh QR thật sau khi có dep | 0.5 ngày | Tuấn |
+| 5 | Sticky header sau khi `table.tsx` cho phép | 0.25 ngày | Tuấn |
+| 6 | Banner offline toàn cục | 0.25 ngày | Tuấn |
+| 7 | Attendee + mốc timeline chi tiết đơn (field API) | 0.5 ngày | Tuấn |
+| | **Tổng** | **~2.5 ngày sau khi gỡ blocker** | |
+
+Ưu tiên: 1 → 2 → 3 → 4 → 5 → 6 → 7. Không mở thêm scope trước khi e2e xanh.
