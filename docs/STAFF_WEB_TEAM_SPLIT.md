@@ -94,7 +94,7 @@ web/package.json  bun.lock  vite.config.ts  tsconfig.json  biome.json
 web/index.html  Dockerfile  nginx.conf  .env.example
 web/src/main.tsx
 web/src/app/**                router, providers, AppShell, RequireRole, ErrorBoundary
-web/src/components/ui/**      UI kit (§6.0)
+web/src/components/ui/**      shadcn primitives (CLI; Tuấn hiệu chỉnh theo DESIGN.md) — không có component tự viết
 web/src/lib/api/**            client, errors, generated.ts, types.ts
 web/src/lib/query/**          keys.ts, client.ts
 web/src/lib/format/**         date, currency, ticket-code, status-label
@@ -159,8 +159,8 @@ export function useEventContext(): {
 
 - URL là nguồn sự thật duy nhất. Không ai tự lưu event vào context/store riêng.
 - Mọi màn hình hình thành từ chọn event. `/scan`, `/settings` không bắt buộc.
-- `EventSwitcher` nằm trong AppShell (Tuấn). Feature chỉ đọc `eventId` để build query.
-- Không có `eventId` → màn hình hiện `EmptyState` "Chọn sự kiện để xem dữ liệu", không tự gọi API `?eventId=undefined`.
+- bộ chọn sự kiện (Select) nằm trong AppShell (Tuấn). Feature chỉ đọc `eventId` để build query.
+- Không có `eventId` → màn hình hiện `Empty` "Chọn sự kiện để xem dữ liệu", không tự gọi API `?eventId=undefined`.
 
 ### 4.2. Route + nav tự gom — `features/<name>/routes.tsx`
 
@@ -313,9 +313,9 @@ openapi-typescript  openapi-fetch  @biomejs/biome  tailwindcss
 
 ### 5.2. PR1b — Kit + Shell + Auth (ngày 3–5)
 
-- UI kit tối thiểu **đóng băng API**: `Button`, `IconButton`, `Card`, `Input`, `Select`, `Textarea`, `Checkbox`, `Badge`, `Modal`, `Drawer`, `Table`, `Pagination`, `Tabs`, `EmptyState`, `ErrorState`, `Skeleton`, `Toast`, `ConfirmDialog`, `StatCard`, `EventSwitcher`, `PageHeader`, `FilterBar`.
+- UI kit shadcn qua CLI: `button`, `card`, `input`, `select`, `textarea`, `checkbox`, `label`, `badge`, `dialog`, `sheet`, `alert-dialog`, `table`, `pagination`, `tabs`, `skeleton`, `sonner`, `chart`, `field`, `empty`, `alert`, `separator`, `dropdown-menu`, `tooltip`, `sidebar`. Không có component tự viết; page ghép trực tiếp từ các primitive này.
 - `AuthProvider` + `RequireRole` + `LoginPage` + logout + 401 handler.
-- `AppShell`: sidebar/rail/bottom-nav theo breakpoint, EventSwitcher, realtime dot, user menu.
+- `AppShell`: sidebar/rail/bottom-nav theo breakpoint, bộ chọn sự kiện (Select), realtime dot, user menu.
 - `e2e/fixtures.ts`, `playwright.config.ts`, `test/setup.ts`, `test/msw/{server,fixtures}.ts`, CI workflow, Dockerfile + nginx.conf.
 
 **Điều kiện merge PR1:** `bun run lint && typecheck && test && build && e2e:smoke` xanh; app mở được, login organizer thật, thấy sidebar rỗng (nav do feature cung cấp) và `/dashboard` skeleton.
@@ -326,9 +326,18 @@ openapi-typescript  openapi-fetch  @biomejs/biome  tailwindcss
 
 ### 6.0. Luật dùng UI kit (áp cho cả 4)
 
-- Kit của Tuấn là **hợp đồng**, không phải gợi ý. Không copy-paste style, không override bằng `className` để đổi màu/bo góc/shadow.
-- Được phép: truyền `variant` có sẵn (`primary | secondary | ghost | danger`), `size` (`sm | md | lg`), `columns`, `loading`, `disabled`.
-- Cần variant mới → mở issue "UI kit: cần <variant> cho <màn hình>", Tuấn làm, merge riêng. Không tự fork component.
+- UI kit là **shadcn/ui** trong `src/components/ui/**`, cài bằng CLI — không tự viết primitive, không
+  wrapper riêng, không copy-paste style.
+  ```bash
+  bunx shadcn@latest add dialog sheet alert-dialog select table pagination tabs skeleton
+  ```
+- Không có tầng composition: header màn hình (h1 + meta + actions), stat card, banner lỗi, event switcher… là JSX ghép từ `Card`,
+  `Badge`, `Alert`, `Select`, `Button` ngay trong page/shell. Cần pattern lặp → thêm block bằng CLI hoặc
+  lặp vài dòng, không tạo component mới.
+- Hàm thuần (format, `statusToneClass`) ở `src/lib/**` — không render.
+- Được phép: dùng `variant` (`default | secondary | ghost | destructive | outline | link`), `size`
+  (`sm | default | lg | icon`), và các primitive có sẵn. Không `className` để đổi màu/bo góc/shadow.
+- Sửa `src/components/ui/**` phải qua Tuấn; giữ luật zero-border / 44px / shadow hướng xuống.
 - Không bao giờ `!important`, không `style={{}}` inline để né token.
 
 ### 6.1. Tuấn — Nền tảng, Dashboard, Tích hợp (20 ngày)
@@ -338,7 +347,7 @@ openapi-typescript  openapi-fetch  @biomejs/biome  tailwindcss
 | T1 | Scaffold + tooling + lint:design + lint:routes | `package.json`, `vite.config.ts`, `tsconfig.json`, `biome.json`, `scripts/**` | 3 |
 | T2 | API client, lỗi, generated, types, format, query keys, event context, routes | `lib/**` | 3 |
 | T3 | UI kit 23 component + test hành vi chính | `components/ui/**` | 5 |
-| T4 | AppShell, nav glob, EventSwitcher, RequireRole, ErrorBoundary, providers | `app/**` | 3 |
+| T4 | AppShell, nav glob, bộ chọn sự kiện (Select), RequireRole, ErrorBoundary, providers | `app/**` | 3 |
 | T5 | `/login`, `/settings` | `features/auth`, `features/settings` | 1.5 |
 | T6 | `/dashboard`: 3 service song song, degraded khi 503, chart check-in | `features/dashboard/**` | 2.5 |
 | T7 | E2E harness, fixtures, CI, Dockerfile, nginx, compose service `web` | `e2e/**`, `test/**`, CI, Docker | 2 |
@@ -351,9 +360,9 @@ openapi-typescript  openapi-fetch  @biomejs/biome  tailwindcss
 
 | ID | Việc | Ngày |
 |---|---|---|
-| E1 | `/events`: bảng + `FilterBar` (status, search debounce 300ms) + cursor | 3 |
+| E1 | `/events`: bảng + hàng lọc (Input + Select) (status, search debounce 300ms) + cursor | 3 |
 | E2 | `/events/new`: form nested rooms/sessions/ticketTypes, Zod, 422 theo field | 5 |
-| E3 | `/events/:eventId`: `PageHeader` + overview + counts + edit inline | 3 |
+| E3 | `/events/:eventId`: header màn hình (h1 + meta + actions) + overview + counts + edit inline | 3 |
 | E4 | tab Rooms: bảng + modal thêm/sửa + validate capacity | 2.5 |
 | E5 | tab Sessions: bảng + modal + toggle `isLive` có confirm | 3 |
 | E6 | tab Ticket Types: bảng + modal + cảnh báo quota > maxCapacity (không chặn) + 409 `QUOTA_BELOW_SOLD` | 2.5 |
@@ -451,7 +460,7 @@ Hệ quả trực tiếp: **không** chạy `impeccable bolder | colorize | deli
 
 Test trước khi merge: *một người quen dùng admin tool có tin được giao diện này ngay không, hay phải dừng lại ở từng component hơi lệch?* Lỗi thường gặp phải tránh: nút quá trang trí, form control không đồng bộ, animation vô nghĩa, font display trên label, affordance tự chế (scrollbar riêng, modal lạ, control không chuẩn), màu đậm trên trạng thái không active.
 
-### 8.3. Token — nguồn duy nhất `styles/tokens.css`
+### 8.3. Token — nguồn duy nhất `styles/globals.css`
 
 ```css
 :root {
@@ -473,7 +482,7 @@ Test trước khi merge: *một người quen dùng admin tool có tin được 
 }
 ```
 
-Tailwind theme map 1-1: `bg-app`, `bg-surface`, `text-ink`, `text-body`, `text-muted`, `bg-fill`, `rounded-card`, `rounded-control`, `rounded-pill`, `shadow-card`, `shadow-float`. **Cấm hex trong feature** — `bun run lint:design` fail CI.
+Tailwind theme map 1-1 (shadcn variables): `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `bg-secondary`, `text-primary`, `bg-success/10`, `text-warning`, `text-destructive`, `rounded-card`, `shadow-card`, `shadow-float`. **Cấm hex trong feature** — `bun run lint:design` fail CI.
 
 ### 8.4. Cấm tuyệt đối
 
@@ -495,7 +504,7 @@ Tailwind theme map 1-1: `bg-app`, `bg-surface`, `text-ink`, `text-body`, `text-m
 | 768–1279px | rail 72px (icon + tooltip) | full, padding 20px |
 | <768px | bottom nav 3–5 mục | padding 16px; bảng cuộn ngang trong container riêng |
 
-- Page pattern cố định: `PageHeader` (title + meta + actions bên phải) → `FilterBar` (nếu là list) → nội dung → `Pagination` ở chân.
+- Page pattern cố định: header màn hình (h1 + meta + actions) (title + meta + actions bên phải) → hàng lọc (Input + Select) (nếu là list) → nội dung → `Pagination` ở chân.
 - Nhịp dọc: 16px giữa card, 24px giữa section, 32px giữa nhóm chức năng.
 - Hai lớp nền: app `#F8FAFC`, content `#FFFFFF`. Sidebar và top bar là surface trắng + `shadow-subtle`, **không** tô màu thương hiệu.
 - Vùng bấm: ≥44px desktop, ≥48px tablet (scan/check-in). Khoảng cách giữa 2 target ≥8px.
@@ -508,7 +517,7 @@ Tailwind theme map 1-1: `bg-app`, `bg-surface`, `text-ink`, `text-body`, `text-m
 - Căn: text trái, số/money phải + `tabular-nums`, badge cột riêng.
 - Trạng thái = `Badge` pill (nền nhạt + chữ đậm semantic), không dùng màu chữ trần.
 - Cột ngày: `15/11 · 14:30` (không lặp năm nếu cùng năm).
-- Rỗng: `EmptyState` bên trong bảng (không render header trống).
+- Rỗng: `Empty` bên trong bảng (không render header trống).
 - Loading: 8 skeleton row đúng số cột. Error: 1 dòng trong bảng + nút "Thử lại".
 - Phân trang: cursor, `limit` 20, hiện "20 / 240". Search debounce 300ms, giữ từ khoá trên URL.
 - Cột đầu (mã vé/order) là mono và được copy bằng click — có feedback "Đã copy".
@@ -520,7 +529,7 @@ Tailwind theme map 1-1: `bg-app`, `bg-surface`, `text-ink`, `text-body`, `text-m
 - 12px giữa field cùng nhóm, 24px giữa nhóm; nhóm dài chia section có heading 16/600.
 - Validate khi blur + submit, không validate từng ký tự. Lỗi server 422 map về field theo `code`.
 - Nút submit cố định chân form khi form dài; disable khi `isPending`; **không** reset form sau lỗi 503.
-- Hành động phá huỷ (đóng poll, end quiz, xoá câu hỏi): `ConfirmDialog` nêu rõ hậu quả; không dùng `window.confirm`.
+- Hành động phá huỷ (đóng poll, end quiz, xoá câu hỏi): `AlertDialog` nêu rõ hậu quả; không dùng `window.confirm`.
 
 ### 8.9. Trạng thái bắt buộc (mỗi màn hình)
 
@@ -539,9 +548,9 @@ Tailwind theme map 1-1: `bg-app`, `bg-surface`, `text-ink`, `text-body`, `text-m
 ### 8.10. Overlay
 
 - Dùng `<dialog>` / portal, `position: fixed`; không nhét dropdown trong ancestor `overflow: hidden`.
-- `Modal`: scrim `rgba(15,23,42,.45)`, surface trắng radius 16, `shadow-float`, max-width 560px, focus trap, `Esc` đóng, focus trả về phần tử mở.
-- `Drawer`: dùng cho chi tiết nhanh trên desktop (order/ticket) khi không cần URL riêng.
-- `Toast`: góc dưới phải, 4s, tối đa 3 cái, chỉ cho kết quả hành động; lỗi field không dùng toast.
+- `Dialog` (shadcn): scrim `rgba(15,23,42,.45)`, surface trắng radius 16, `shadow-float`, max-width 560px, focus trap, `Esc` đóng, focus trả về phần tử mở.
+- `Sheet` (shadcn): dùng cho chi tiết nhanh trên desktop (order/ticket) khi không cần URL riêng.
+- Toast = `sonner` (`toast()`), góc dưới phải, 4s, tối đa 3 cái, chỉ cho kết quả hành động; lỗi field không dùng toast.
 
 ### 8.11. Motion
 
@@ -581,7 +590,7 @@ Tailwind theme map 1-1: `bg-app`, `bg-surface`, `text-ink`, `text-body`, `text-m
 
 - Tối đa 1 chart/dashboard; bar chart check-in theo giờ hoặc tỉ lệ đã soát.
 - Một màu nhấn cho dữ liệu, xám cho trục/lưới; semantic color chỉ khi trạng thái là chủ đề.
-- Không 3D, không gradient, không legend nếu ≤2 series; số cụ thể hiện trong `StatCard` phía trên.
+- Không 3D, không gradient, không legend nếu ≤2 series; số cụ thể hiện trong card số liệu phía trên.
 - Trục Y bắt đầu từ 0; nhãn ≤6 mốc; tooltip hiện số + giờ.
 
 ### 8.16. Kiểm chứng (mỗi feature, trước khi mở PR)

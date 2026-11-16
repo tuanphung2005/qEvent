@@ -162,7 +162,7 @@ flowchart LR
 ### 3.3. Quyết định quan trọng
 
 1. **Không dùng Next.js.** Web là SPA nội bộ sau gateway, không cần SSR/SEO. Vite đơn giản hơn, build nhanh hơn, ít khái niệm hơn.
-2. **Không dùng UI kit lớn.** Tự viết ~10 component theo `DESIGN.md` để giữ đúng "zero border / bottom shadow / no blur". UI kit thường kéo theo style xung đột.
+2. **Dùng shadcn/ui, không tự viết UI kit.** shadcn copy source vào `src/components/ui` (Radix + Tailwind 4) nên vẫn giữ được "zero border / bottom shadow / no blur" bằng token ở `globals.css` + patch nhỏ vào source (bỏ `border`/`ring`, control 44px, card radius 16). Không có tầng composition riêng: page ghép trực tiếp từ primitive.
 3. **Không dùng Zustand/Redux.** Server state do TanStack Query; auth do Context; bộ lọc nằm trên URL; offline queue nằm trong IndexedDB. Không cần global store.
 4. **Không gọi thẳng service.** Mọi request đi qua gateway để JWT, CORS, circuit breaker và logging tập trung.
 5. **Không lưu JWT trong `localStorage`.** Dùng memory + `sessionStorage` (xem mục 6).
@@ -447,15 +447,34 @@ Nếu cần web hoạt động khi mạng chập chờn:
 - Motion 150–200ms; tôn trọng `prefers-reduced-motion`.
 - Không dark mode.
 
-### 9.3. Component tối thiểu
+### 9.3. Component — shadcn/ui
 
-`Button`, `IconButton`, `Card`, `Input`, `Select`, `Textarea`, `Badge`, `Modal`, `Drawer`, `Table`, `Pagination`, `EmptyState`, `ErrorState`, `Skeleton`, `Toast`, `ConfirmDialog`, `Tabs`, `StatCard`, `EventSwitcher`.
+Toàn bộ UI lấy từ shadcn bằng CLI, không tự viết:
 
-Mỗi component có:
-- Props typed.
-- Trạng thái disabled/loading.
-- aria label.
-- Test component cho hành vi chính.
+```bash
+bunx shadcn@latest add button card input label textarea select checkbox badge dialog sheet \
+  alert-dialog table pagination tabs skeleton sonner chart field empty alert separator \
+  dropdown-menu tooltip sidebar
+```
+
+Ánh xạ màn hình → primitive:
+
+| Nhu cầu | shadcn |
+|---|---|
+| Nút thường / icon-only | `Button` (`variant`, `size="icon"`) |
+| Khối nội dung | `Card` + `CardHeader/Title/Description/Content/Footer` |
+| Form | `Field` + `Input` / `Textarea` / `Select` / `Checkbox` / `Label` |
+| Trạng thái | `Badge` (tone qua `statusToneClass`) |
+| Bảng + phân trang | `Table` + `Pagination` |
+| Modal / panel phụ / xác nhận | `Dialog` / `Sheet` / `AlertDialog` |
+| Danh sách rỗng / lỗi | `Empty` / `Alert` |
+| Loading | `Skeleton` (không spinner toàn trang) |
+| Thông báo hành động | `sonner` (`toast()`) |
+| Điều hướng | `Sidebar`, `Tabs`, `DropdownMenu`, `Tooltip` |
+| Dashboard | `Chart` (bọc recharts) |
+
+Quy tắc: không tạo wrapper/composition riêng; page ghép trực tiếp. Hàm thuần (format, map trạng thái →
+class) nằm trong `lib/**`. Sửa `src/components/ui/**` phải giữ zero-border, control ≥44px, shadow hướng xuống.
 
 ### 9.4. Layout
 
@@ -493,7 +512,7 @@ web/
 │   │   ├── providers.tsx
 │   │   ├── AppShell.tsx
 │   │   └── RequireRole.tsx
-│   ├── components/ui/          # Button, Card, Input, Table, Modal, ...
+│   ├── components/ui/          # shadcn primitives, xem §9.3
 │   ├── features/
 │   │   ├── auth/
 │   │   ├── dashboard/
@@ -540,7 +559,7 @@ Mỗi người ~20 ngày công (4 tuần). Mỗi người sở hữu **một ser
 
 | Người | Backend | Frontend | Test/Docs | Ngày |
 |---|---|---|---|---|
-| **Tuấn** (lead) | Gateway: CORS/CSP, rate limit login (optional), WebSocket auth, OpenAPI gateway (optional); sửa P1, P5, P8 | Foundation: scaffold, router, auth, RBAC, API client, design tokens, UI kit, AppShell, EventSwitcher, `/login`, `/dashboard`, `/settings` | E2E harness, CI, deploy, README web, demo script | 20 |
+| **Tuấn** (lead) | Gateway: CORS/CSP, rate limit login (optional), WebSocket auth, OpenAPI gateway (optional); sửa P1, P5, P8 | Foundation: scaffold, router, auth, RBAC, API client, design tokens, UI kit, AppShell, bộ chọn sự kiện (Select), `/login`, `/dashboard`, `/settings` | E2E harness, CI, deploy, README web, demo script | 20 |
 | **Thành** | Event: PATCH room/session/ticket type; bật/tắt `isLive`; OpenAPI + test; hỗ trợ P3 phần session | `/events`, `/events/new`, `/events/:id`, tabs Rooms/Sessions/Ticket Types; form + validation + cảnh báo capacity | Unit/component cho form; OpenAPI test; docs Event | 20 |
 | **Vũ** | Admission: `/auth/me`, list orders/tickets/checkins, ticket detail, stats; OpenAPI + test; sửa P6 | `/orders`, `/orders/:id`, `/tickets`, `/tickets/:id`, `/checkins`, `/scan`, `/sync` (MVP online); scanner + result screen | Test scan mapping, check-in stats; E2E scan; docs Admission | 20 |
 | **Trọng** | Engagement: session→event + isLive (P3), infra error 503 (P4), WS auth phía service (P5), moderate Q&A, close poll, stats; migration (P2); OpenAPI (P7); sửa P9 | `/engagement/:sessionId` + tabs Q&A/Polls/Quiz; realtime hook; quiz host controls | Test BR-6, WS auth, quiz state; E2E engagement; docs Engagement | 20 |
@@ -574,7 +593,7 @@ Nếu một người bị quá tải, cắt theo thứ tự ở mục 12 (offlin
 - `AuthProvider`, `RequireRole`, `LoginPage`.
 - `AppShell`: sidebar/bottom nav, event switcher, realtime status, user menu.
 - UI kit theo `DESIGN.md` (10–15 component).
-- `/dashboard`: gọi song song `GET /api/events/:id` (Event), `GET /api/checkins/stats?eventId=...` + `GET /api/orders?eventId=...` (Admission), `GET /api/sessions/:sessionId/stats` (Engagement); chọn session đang live đầu tiên, nếu không có thì session đầu tiên; StatCard + chart; trạng thái degraded khi 503.
+- `/dashboard`: gọi song song `GET /api/events/:id` (Event), `GET /api/checkins/stats?eventId=...` + `GET /api/orders?eventId=...` (Admission), `GET /api/sessions/:sessionId/stats` (Engagement); chọn session đang live đầu tiên, nếu không có thì session đầu tiên; card số liệu + chart; trạng thái degraded khi 503.
 - `/settings`: user info, logout, event mặc định.
 - E2E harness: Playwright config, global setup tạo dữ liệu qua API, seed test DB.
 - CI: lint, typecheck, unit, build, E2E smoke.
