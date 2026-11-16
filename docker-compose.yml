@@ -131,6 +131,18 @@ services:
       engagement-service:
         condition: service_started
 
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: qevent-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      api-gateway:
+        condition: service_started
+
 volumes:
   event_data:
   admission_data:
