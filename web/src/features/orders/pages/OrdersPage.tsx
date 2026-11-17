@@ -40,7 +40,22 @@ import { toast } from "sonner";
 import { type OrdersFilter, useOrders } from "../api";
 import { ORDER_STATUSES } from "../types";
 
-const COLUMNS = ["Mã đơn", "Khách", "Trạng thái", "SL", "Tổng tiền", "Cập nhật", ""];
+type Column = { key: string; label: string; className?: string };
+
+const COLUMNS: Column[] = [
+  { key: "id", label: "Mã đơn", className: "w-[15%]" },
+  { key: "attendee", label: "Khách", className: "w-[15%]" },
+  { key: "status", label: "Trạng thái", className: "w-[15%]" },
+  { key: "quantity", label: "SL", className: "w-[15%]" },
+  { key: "total", label: "Tổng tiền", className: "w-[15%]" },
+  { key: "updated", label: "Cập nhật", className: "w-[15%]" },
+  { key: "action", label: "", className: "w-[10%] text-right" },
+];
+
+function headClass(column: Column) {
+  return ["text-label uppercase text-muted-foreground", column.className].filter(Boolean).join(" ");
+}
+
 const SKELETON_ROWS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 async function copyId(id: string) {
@@ -253,11 +268,8 @@ export function OrdersPage() {
               <TableHeader>
                 <TableRow>
                   {COLUMNS.map((column) => (
-                    <TableHead
-                      key={column || "action"}
-                      className="text-label uppercase text-muted-foreground"
-                    >
-                      {column}
+                    <TableHead key={column.key} className={headClass(column)}>
+                      {column.label}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -267,7 +279,7 @@ export function OrdersPage() {
                   ? SKELETON_ROWS.map((row) => (
                       <TableRow key={`skeleton-${row}`}>
                         {COLUMNS.map((column) => (
-                          <TableCell key={column || "action"}>
+                          <TableCell key={column.key}>
                             <Skeleton className="h-4 w-full" />
                           </TableCell>
                         ))}
@@ -324,10 +336,8 @@ export function OrdersPage() {
                             {statusLabel(order.status)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right">{formatNumber(order.quantity)}</TableCell>
-                        <TableCell className="text-right">
-                          {formatMoney(order.totalAmount)}
-                        </TableCell>
+                        <TableCell>{formatNumber(order.quantity)}</TableCell>
+                        <TableCell>{formatMoney(order.totalAmount)}</TableCell>
                         <TableCell className="text-muted-foreground">
                           {formatDateShort(order.updatedAt)}
                         </TableCell>
