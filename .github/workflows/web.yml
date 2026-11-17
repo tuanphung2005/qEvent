@@ -77,7 +77,11 @@ jobs:
         working-directory: .
 
       - name: Seed database
-        run: bun run seed
+        run: |
+          docker compose exec -T event-service bunx prisma db push
+          docker compose exec -T admission-service bunx prisma db push
+          docker compose exec -T engagement-service bunx prisma db push
+          bun run seed
         working-directory: .
 
       - name: Install web dependencies
