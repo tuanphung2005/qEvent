@@ -65,7 +65,7 @@ export const initialGame: Game = {
 };
 
 let questions = [...initialQuestions];
-let polls = [...initialPolls];
+const polls = [...initialPolls];
 let game = { ...initialGame };
 
 export const handlers = [
@@ -163,7 +163,7 @@ export const handlers = [
     };
     const newQ = {
       id: `gq-${Date.now()}`,
-      orderNum: (game.questions?.length ?? 0),
+      orderNum: game.questions?.length ?? 0,
       content: body.content,
       options: body.options,
       correctOption: body.correctOption,

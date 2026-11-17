@@ -2,11 +2,7 @@ import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
 import { qk } from "@/lib/query/keys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type {
-  AddGameQuestionInput,
-  CreatePollInput,
-  CreateQuestionInput,
-} from "./types";
+import type { AddGameQuestionInput, CreatePollInput, CreateQuestionInput } from "./types";
 
 /**
  * G2: Q&A Queries and Mutations

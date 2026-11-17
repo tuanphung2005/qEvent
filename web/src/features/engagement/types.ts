@@ -8,15 +8,7 @@ import type {
   SessionStats,
 } from "@/lib/api/types";
 
-export type {
-  Game,
-  GameQuestion,
-  LeaderboardEntry,
-  Poll,
-  PollOption,
-  QAQuestion,
-  SessionStats,
-};
+export type { Game, GameQuestion, LeaderboardEntry, Poll, PollOption, QAQuestion, SessionStats };
 
 export type EngagementTab = "qa" | "polls" | "quiz";
 

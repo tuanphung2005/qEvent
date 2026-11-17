@@ -1,23 +1,12 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEventContext } from "@/lib/event-context";
-import { routes } from "@/lib/routes";
 import { useRealtime } from "@/lib/realtime/useRealtime";
-import {
-  Activity,
-  AlertTriangle,
-  CheckCircle2,
-  HelpCircle,
-  Radio,
-} from "lucide-react";
+import { routes } from "@/lib/routes";
+import { Activity, AlertTriangle, CheckCircle2, HelpCircle, Radio } from "lucide-react";
 import { useEffect } from "react";
 import { Link, Outlet, useLocation, useNavigate, useParams } from "react-router";
 
@@ -64,7 +53,8 @@ export function EngagementShell() {
           <EmptyHeader>
             <EmptyTitle>Chưa có phiên tương tác</EmptyTitle>
             <EmptyDescription>
-              Sự kiện này chưa có phiên thuyết trình nào được thiết lập. Hãy tạo phiên trong quản lý sự kiện.
+              Sự kiện này chưa có phiên thuyết trình nào được thiết lập. Hãy tạo phiên trong quản lý
+              sự kiện.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -136,7 +126,9 @@ export function EngagementShell() {
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-foreground">{activeSession.title}</span>
                 {activeSession.isLive ? (
-                  <Badge variant="default" className="bg-emerald-600">Đang diễn ra</Badge>
+                  <Badge variant="default" className="bg-emerald-600">
+                    Đang diễn ra
+                  </Badge>
                 ) : (
                   <Badge variant="secondary">Chưa bắt đầu</Badge>
                 )}

@@ -35,17 +35,29 @@ let QaPage: ComponentType;
 let PollsPage: ComponentType;
 let QuizPage: ComponentType;
 let AuthProvider: ComponentType<{ children: React.ReactNode }>;
+// biome-ignore lint/suspicious/noExplicitAny: dynamically loaded in beforeAll to preserve Request patch
 let QueryClientProvider: ComponentType<{ client: any; children: React.ReactNode }>;
+// biome-ignore lint/suspicious/noExplicitAny: dynamically loaded
 let createQueryClient: any;
+// biome-ignore lint/suspicious/noExplicitAny: dynamically loaded
 let eventFixture: any;
+// biome-ignore lint/suspicious/noExplicitAny: dynamically loaded
 let organizer: any;
+// biome-ignore lint/suspicious/noExplicitAny: dynamically loaded
 let sessionFixture: any;
+// biome-ignore lint/suspicious/noExplicitAny: dynamically loaded
 let render: any;
+// biome-ignore lint/suspicious/noExplicitAny: dynamically loaded
 let screen: any;
+// biome-ignore lint/suspicious/noExplicitAny: dynamically loaded
 let waitFor: any;
+// biome-ignore lint/suspicious/noExplicitAny: dynamically loaded
 let userEvent: any;
+// biome-ignore lint/suspicious/noExplicitAny: dynamically loaded
 let server: any;
+// biome-ignore lint/suspicious/noExplicitAny: dynamically loaded
 let http: any;
+// biome-ignore lint/suspicious/noExplicitAny: dynamically loaded
 let HttpResponse: any;
 
 beforeAll(async () => {
@@ -137,7 +149,9 @@ function renderPolls(sessionId = sessionFixture.id) {
   return render(
     <QueryClientProvider client={createTestClient()}>
       <AuthProvider>
-        <MemoryRouter initialEntries={[`/engagement/${sessionId}/polls?eventId=${eventFixture.id}`]}>
+        <MemoryRouter
+          initialEntries={[`/engagement/${sessionId}/polls?eventId=${eventFixture.id}`]}
+        >
           <Routes>
             <Route path="/engagement/:sessionId" element={<EngagementShell />}>
               <Route path="polls" element={<PollsPage />} />
@@ -225,9 +239,12 @@ describe("Quiz Game Feature (G4)", () => {
   it("hien thi Quiz Game dang o trang thai WAITING va danh sach cau hoi", async () => {
     const { container } = renderQuiz();
 
-    await waitFor(() => {
-      expect(container.querySelector('[data-slot="skeleton"]')).toBeNull();
-    }, { timeout: 4000 });
+    await waitFor(
+      () => {
+        expect(container.querySelector('[data-slot="skeleton"]')).toBeNull();
+      },
+      { timeout: 4000 },
+    );
 
     expect(screen.getByText(/Trò chơi Trắc nghiệm/)).toBeInTheDocument();
     expect(screen.getByText(/chuẩn bị/)).toBeInTheDocument();
@@ -239,9 +256,12 @@ describe("Quiz Game Feature (G4)", () => {
     const user = userEvent.setup();
     const { container } = renderQuiz();
 
-    await waitFor(() => {
-      expect(container.querySelector('[data-slot="skeleton"]')).toBeNull();
-    }, { timeout: 4000 });
+    await waitFor(
+      () => {
+        expect(container.querySelector('[data-slot="skeleton"]')).toBeNull();
+      },
+      { timeout: 4000 },
+    );
 
     const startButtons = screen.getAllByRole("button", { name: "Bắt đầu Game" });
     await user.click(startButtons[0]);

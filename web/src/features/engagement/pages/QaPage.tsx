@@ -11,19 +11,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth/auth-context";
-import { useDeleteQuestion, useQuestions, useToggleVote } from "../api";
-import type { QAQuestion } from "../types";
 import { ChevronUp, Clock, MessageSquare, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useOutletContext, useParams } from "react-router";
+import { useDeleteQuestion, useQuestions, useToggleVote } from "../api";
+import type { QAQuestion } from "../types";
 
 type OutletCtx = {
   activeSession: { id: string; title: string; isLive: boolean } | null;
@@ -91,17 +86,15 @@ export function QaPage() {
           <EmptyHeader>
             <EmptyTitle>Chưa có câu hỏi nào</EmptyTitle>
             <EmptyDescription>
-              Khán giả sẽ đặt câu hỏi tại đây khi phiên thuyết trình bắt đầu. Câu hỏi nhận được nhiều bình chọn nhất sẽ hiển thị lên đầu.
+              Khán giả sẽ đặt câu hỏi tại đây khi phiên thuyết trình bắt đầu. Câu hỏi nhận được
+              nhiều bình chọn nhất sẽ hiển thị lên đầu.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
         <div className="space-y-3">
           {sortedQuestions.map((q) => (
-            <Card
-              key={q.id}
-              className="group bg-card shadow-sm transition-all hover:shadow"
-            >
+            <Card key={q.id} className="group bg-card shadow-sm transition-all hover:shadow">
               <CardContent className="flex items-start gap-4 p-4">
                 {/* Upvote Button (≥44px touch target) */}
                 <Button
@@ -118,9 +111,7 @@ export function QaPage() {
 
                 {/* Content */}
                 <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium leading-relaxed text-foreground">
-                    {q.content}
-                  </p>
+                  <p className="text-sm font-medium leading-relaxed text-foreground">{q.content}</p>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Clock className="size-3.5" />
@@ -159,7 +150,8 @@ export function QaPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Xác nhận xoá câu hỏi?</AlertDialogTitle>
             <AlertDialogDescription>
-              Câu hỏi này sẽ bị gỡ bỏ khỏi bảng tương tác của phiên. Hành động này không thể hoàn tác.
+              Câu hỏi này sẽ bị gỡ bỏ khỏi bảng tương tác của phiên. Hành động này không thể hoàn
+              tác.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

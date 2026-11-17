@@ -10,19 +10,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth/auth-context";
-import { useCreatePoll, usePolls, useUpdatePoll } from "../api";
 import { Activity, Plus, Power, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useOutletContext, useParams } from "react-router";
+import { useCreatePoll, usePolls, useUpdatePoll } from "../api";
 
 type OutletCtx = {
   activeSession: { id: string; title: string; isLive: boolean } | null;
@@ -146,11 +141,11 @@ export function PollsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
+                    <span className="block text-sm font-medium text-foreground">
                       Các lựa chọn (2 - 10 lựa chọn)
-                    </label>
+                    </span>
                     {options.map((opt, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
+                      <div key={`poll-option-${idx + 1}`} className="flex items-center gap-2">
                         <Input
                           placeholder={`Lựa chọn ${idx + 1}`}
                           value={opt}
@@ -239,12 +234,16 @@ export function PollsPage() {
                         {poll.title}
                       </CardTitle>
                       {poll.isActive ? (
-                        <Badge variant="default" className="bg-emerald-600">Đang mở</Badge>
+                        <Badge variant="default" className="bg-emerald-600">
+                          Đang mở
+                        </Badge>
                       ) : (
                         <Badge variant="secondary">Đã đóng</Badge>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">Tổng số: {totalVotes} lượt bình chọn</p>
+                    <p className="text-xs text-muted-foreground">
+                      Tổng số: {totalVotes} lượt bình chọn
+                    </p>
                   </div>
 
                   {/* Host Toggle Open / Close Poll */}
@@ -269,7 +268,8 @@ export function PollsPage() {
 
                 <CardContent className="space-y-3 p-4 sm:p-6 pt-2">
                   {poll.options.map((opt) => {
-                    const percentage = totalVotes > 0 ? Math.round((opt.voteCount / totalVotes) * 100) : 0;
+                    const percentage =
+                      totalVotes > 0 ? Math.round((opt.voteCount / totalVotes) * 100) : 0;
 
                     return (
                       <div key={opt.id} className="space-y-1">

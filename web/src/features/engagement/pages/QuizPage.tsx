@@ -20,15 +20,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth/auth-context";
+import { CheckCircle2, ChevronRight, Eye, Play, Plus, Radio, Square, Trophy } from "lucide-react";
+import { useState } from "react";
+import { useOutletContext, useParams } from "react-router";
 import {
   useAddGameQuestion,
   useCreateSessionGame,
@@ -39,18 +37,6 @@ import {
   useSessionGame,
   useStartGame,
 } from "../api";
-import {
-  CheckCircle2,
-  ChevronRight,
-  Eye,
-  Play,
-  Plus,
-  Radio,
-  Square,
-  Trophy,
-} from "lucide-react";
-import { useState } from "react";
-import { useOutletContext, useParams } from "react-router";
 
 type OutletCtx = {
   activeSession: { id: string; title: string; isLive: boolean } | null;
@@ -188,7 +174,8 @@ export function QuizPage() {
               {game.status === "FINISHED" && <Badge variant="outline">Đã kết thúc</Badge>}
             </div>
             <p className="text-xs text-muted-foreground">
-              Tổng số {questions.length} câu hỏi • Câu hiện tại: {questions.length > 0 ? currentIdx + 1 : 0} / {questions.length}
+              Tổng số {questions.length} câu hỏi • Câu hiện tại:{" "}
+              {questions.length > 0 ? currentIdx + 1 : 0} / {questions.length}
             </p>
           </div>
 
@@ -215,9 +202,9 @@ export function QuizPage() {
 
                         <div className="space-y-4 py-4">
                           <div className="space-y-1.5">
-                            <label className="text-sm font-medium text-foreground">
+                            <span className="block text-sm font-medium text-foreground">
                               Nội dung câu hỏi
-                            </label>
+                            </span>
                             <Input
                               placeholder="Ví dụ: Công nghệ nào xử lý phân tán trong microservices?"
                               value={qContent}
@@ -228,11 +215,14 @@ export function QuizPage() {
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-sm font-medium text-foreground">
+                            <span className="block text-sm font-medium text-foreground">
                               Các lựa chọn (Tích chọn phương án đúng)
-                            </label>
+                            </span>
                             {qOptions.map((opt, idx) => (
-                              <div key={idx} className="flex items-center gap-2">
+                              <div
+                                key={`choice-${String.fromCharCode(65 + idx)}`}
+                                className="flex items-center gap-2"
+                              >
                                 <Button
                                   type="button"
                                   variant={correctIdx === idx ? "default" : "outline"}
@@ -353,7 +343,7 @@ export function QuizPage() {
 
                 return (
                   <div
-                    key={idx}
+                    key={`opt-${currentQ.id ?? "q"}-${idx}`}
                     className={`flex items-center gap-3 rounded-xl p-3.5 transition-colors ${
                       isRevealed && isCorrect
                         ? "bg-emerald-100 text-emerald-900 font-semibold"
@@ -435,7 +425,9 @@ export function QuizPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirmAction === "next" ? "Chuyển sang câu hỏi tiếp theo?" : "Kết thúc trò chơi Quiz?"}
+              {confirmAction === "next"
+                ? "Chuyển sang câu hỏi tiếp theo?"
+                : "Kết thúc trò chơi Quiz?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmAction === "next"
