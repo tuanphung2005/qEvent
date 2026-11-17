@@ -33,7 +33,7 @@ describe("HttpAdmissionClient", () => {
       return jsonResponse({ checkedIn: true, ticketId: "ticket-1" });
     }) as unknown as typeof fetch;
 
-    const client = new HttpAdmissionClient("http://admission", "token", 200, 60_000, fetchImpl);
+    const client = new HttpAdmissionClient("http://admission", "token", 200, 10, fetchImpl);
 
     const first = await client.verifyAccess("user-1", "event-1");
     const second = await client.verifyAccess("user-1", "event-1");
@@ -41,6 +41,12 @@ describe("HttpAdmissionClient", () => {
     expect(first.hasAccess).toBe(true);
     expect(second.ticketId).toBe("ticket-1");
     expect(calls).toBe(1);
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const afterExpiry = await client.verifyAccess("user-1", "event-1");
+    expect(afterExpiry.hasAccess).toBe(true);
+    expect(calls).toBe(2);
   });
 
   it("propagates infrastructure failures instead of reporting no access", async () => {

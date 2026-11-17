@@ -15,8 +15,9 @@ async function api<T>(path: string, token: string): Promise<T | null> {
 async function openOrders(page: Parameters<typeof signInWithToken>[0]) {
   const { staffToken } = await seedBase();
   const events = await api<{ events: Array<{ id: string }> }>("/api/events", staffToken);
-  test.skip(!events?.events.length, "Chưa có sự kiện trong DB seed — chạy `bun run seed`.");
-  if (!events?.events.length) return;
+  if (!events?.events.length) {
+    throw new Error("Chưa có sự kiện trong DB seed — chạy `bun run seed`.");
+  }
 
   const eventId = events.events[0].id;
   await signInWithToken(page, staffToken);

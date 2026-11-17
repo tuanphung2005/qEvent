@@ -88,8 +88,9 @@ test.describe("quét vé", () => {
   test("vé PAID: xanh, rồi vàng khi quét lại cùng vé", async ({ page }) => {
     const { staffToken, attendeeToken } = await seedBase();
     const events = await api<{ events: Array<{ id: string }> }>("/api/events", staffToken);
-    test.skip(!events?.events.length, "Chưa có sự kiện trong DB seed — chạy `bun run seed`.");
-    if (!events?.events.length) return;
+    if (!events?.events.length) {
+      throw new Error("Chưa có sự kiện trong DB seed — chạy `bun run seed`.");
+    }
 
     const eventId = events.events[0].id;
     await signInWithToken(page, staffToken);
@@ -105,8 +106,9 @@ test.describe("quét vé", () => {
     expect(serious).toEqual([]);
 
     const ticketId = await createPaidTicket(attendeeToken, staffToken, eventId);
-    test.skip(!ticketId, "Không tạo được vé PAID qua API — kiểm tra quota và saga.");
-    if (!ticketId) return;
+    if (!ticketId) {
+      throw new Error("Không tạo được vé PAID qua API — kiểm tra quota và saga.");
+    }
 
     // Fetch the 30s token right before scanning so the second scan stays inside its window.
     const qr = await api<{ qrToken: string }>(`/api/tickets/${ticketId}/qr-token`, staffToken);
