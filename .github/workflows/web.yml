@@ -78,9 +78,9 @@ jobs:
 
       - name: Seed database
         run: |
-          docker compose exec -T event-service bunx prisma db push
-          docker compose exec -T admission-service bunx prisma db push
-          docker compose exec -T engagement-service bunx prisma db push
+          docker compose exec -T event-service bunx prisma db push --skip-generate
+          docker compose exec -T admission-service bunx prisma db push --skip-generate
+          docker compose exec -T engagement-service bunx prisma db push --skip-generate
           bun run seed
         working-directory: .
 
