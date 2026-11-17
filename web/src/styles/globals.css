@@ -101,9 +101,10 @@
   --accent-foreground: #2563eb;
 
   --destructive: #dc2626;
-  --success: #10b981;
+  /* 700-shade greens/ambers: AA (4.5:1) as text on white and on their /10 tint. */
+  --success: #047857;
   --success-foreground: #ecfdf5;
-  --warning: #d97706;
+  --warning: #92400e;
   --warning-foreground: #fffbeb;
 
   --border: transparent;

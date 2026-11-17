@@ -130,9 +130,11 @@ export function LoginPage() {
           </CardContent>
         </Card>
 
-        <p className="mt-4 text-xs text-muted-foreground">
-          Demo: organizer@qevent.com · password123
-        </p>
+        {import.meta.env.DEV ? (
+          <p className="mt-4 text-xs text-muted-foreground">
+            Demo: organizer@qevent.com · password123
+          </p>
+        ) : null}
       </div>
     </main>
   );

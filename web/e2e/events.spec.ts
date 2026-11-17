@@ -1,6 +1,5 @@
-import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { seedBase, signInWithToken } from "./fixtures";
+import { scanA11y, seedBase, signInWithToken } from "./fixtures";
 
 function futureLocal(days: number, hour: number): string {
   const date = new Date();
@@ -62,8 +61,7 @@ test.describe("sự kiện", () => {
     await page.goto("/events");
     await expect(page.getByRole("table", { name: "Danh sách sự kiện" })).toBeVisible();
 
-    // AppShell nests <main> inside SidebarInset's <main>; scan feature content only.
-    const results = await new AxeBuilder({ page }).include("main main").analyze();
+    const results = await scanA11y(page);
     const serious = results.violations.filter(
       (violation) => violation.impact === "serious" || violation.impact === "critical",
     );

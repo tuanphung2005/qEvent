@@ -1,3 +1,4 @@
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,10 +22,21 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth/auth-context";
-import { CheckCircle2, ChevronRight, Eye, Play, Plus, Radio, Square, Trophy } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronRight,
+  Eye,
+  Play,
+  Plus,
+  Radio,
+  Square,
+  Trophy,
+} from "lucide-react";
 import { useState } from "react";
 import { useOutletContext, useParams } from "react-router";
 import {
@@ -112,9 +124,11 @@ export function QuizPage() {
 
   if (error) {
     return (
-      <div className="rounded-xl bg-destructive/10 p-4 text-center text-sm text-destructive">
-        Không thể tải thông tin Quiz game. Vui lòng thử lại sau.
-      </div>
+      <Alert variant="destructive">
+        <AlertTriangle />
+        <AlertTitle>Không tải được Quiz game</AlertTitle>
+        <AlertDescription>Thử lại sau ít phút hoặc tải lại trang.</AlertDescription>
+      </Alert>
     );
   }
 
@@ -162,12 +176,16 @@ export function QuizPage() {
               </CardTitle>
               {game.status === "WAITING" && <Badge variant="secondary">Đang chuẩn bị</Badge>}
               {game.status === "QUESTION_ACTIVE" && (
-                <Badge variant="default" className="bg-amber-600 animate-pulse">
+                <Badge variant="secondary" className="bg-warning/10 text-warning">
+                  <span
+                    className="size-2 animate-pulse rounded-full bg-warning"
+                    aria-hidden="true"
+                  />
                   Đang trả lời
                 </Badge>
               )}
               {game.status === "ROUND_REVEALED" && (
-                <Badge variant="default" className="bg-emerald-600">
+                <Badge variant="secondary" className="bg-success/10 text-success">
                   Đã công bố đáp án
                 </Badge>
               )}
@@ -201,18 +219,19 @@ export function QuizPage() {
                         </DialogHeader>
 
                         <div className="space-y-4 py-4">
-                          <div className="space-y-1.5">
-                            <span className="block text-sm font-medium text-foreground">
+                          <Field>
+                            <FieldLabel htmlFor="quiz-question-content">
                               Nội dung câu hỏi
-                            </span>
+                            </FieldLabel>
                             <Input
+                              id="quiz-question-content"
                               placeholder="Ví dụ: Công nghệ nào xử lý phân tán trong microservices?"
                               value={qContent}
                               onChange={(e) => setQContent(e.target.value)}
                               required
                               className="h-11"
                             />
-                          </div>
+                          </Field>
 
                           <div className="space-y-2">
                             <span className="block text-sm font-medium text-foreground">
@@ -228,11 +247,14 @@ export function QuizPage() {
                                   variant={correctIdx === idx ? "default" : "outline"}
                                   size="sm"
                                   className="h-11 w-11 shrink-0 font-bold"
+                                  aria-label={`Chọn ${String.fromCharCode(65 + idx)} là đáp án đúng`}
+                                  aria-pressed={correctIdx === idx}
                                   onClick={() => setCorrectIdx(idx)}
                                 >
                                   {String.fromCharCode(65 + idx)}
                                 </Button>
                                 <Input
+                                  aria-label={`Lựa chọn ${String.fromCharCode(65 + idx)}`}
                                   placeholder={`Lựa chọn ${String.fromCharCode(65 + idx)}`}
                                   value={opt}
                                   onChange={(e) => {
@@ -274,7 +296,7 @@ export function QuizPage() {
                   </Dialog>
 
                   <Button
-                    className="h-10 gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                    className="h-10 gap-1.5"
                     disabled={startMutation.isPending || questions.length === 0}
                     onClick={() => startMutation.mutate(game.id)}
                   >
@@ -286,7 +308,7 @@ export function QuizPage() {
 
               {game.status === "QUESTION_ACTIVE" && (
                 <Button
-                  className="h-10 gap-1.5 bg-primary"
+                  className="h-10 gap-1.5"
                   disabled={revealMutation.isPending}
                   onClick={() => revealMutation.mutate(game.id)}
                 >
@@ -299,7 +321,7 @@ export function QuizPage() {
                 <>
                   <Button
                     variant="default"
-                    className="h-10 gap-1.5 bg-primary"
+                    className="h-10 gap-1.5"
                     disabled={nextMutation.isPending}
                     onClick={() => setConfirmAction("next")}
                   >
@@ -333,7 +355,7 @@ export function QuizPage() {
                   Thời gian: {currentQ.timeLimitSec ?? 30}s
                 </span>
               </div>
-              <h3 className="text-base font-semibold text-foreground">{currentQ.content}</h3>
+              <h3 className="text-title text-foreground">{currentQ.content}</h3>
             </div>
 
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -346,7 +368,7 @@ export function QuizPage() {
                     key={`opt-${currentQ.id ?? "q"}-${idx}`}
                     className={`flex items-center gap-3 rounded-xl p-3.5 transition-colors ${
                       isRevealed && isCorrect
-                        ? "bg-emerald-100 text-emerald-900 font-semibold"
+                        ? "bg-success/10 font-semibold text-success"
                         : "bg-secondary text-foreground"
                     }`}
                   >
@@ -355,7 +377,7 @@ export function QuizPage() {
                     </span>
                     <span className="flex-1 text-sm">{opt}</span>
                     {isRevealed && isCorrect && (
-                      <CheckCircle2 className="size-5 shrink-0 text-emerald-600" />
+                      <CheckCircle2 className="size-5 shrink-0 text-success" />
                     )}
                   </div>
                 );
@@ -369,7 +391,7 @@ export function QuizPage() {
       <Card className="bg-card shadow-sm">
         <CardHeader className="p-4 sm:p-6 pb-2">
           <div className="flex items-center gap-2">
-            <Trophy className="size-5 text-amber-500" />
+            <Trophy className="size-5 text-warning" />
             <CardTitle className="text-base font-semibold text-foreground">
               Bảng xếp hạng trực tiếp
             </CardTitle>
@@ -391,12 +413,10 @@ export function QuizPage() {
                     <span
                       className={`flex size-8 items-center justify-center rounded-lg text-sm font-bold shadow-sm ${
                         item.rank === 1
-                          ? "bg-amber-400 text-amber-950"
-                          : item.rank === 2
-                            ? "bg-slate-300 text-slate-900"
-                            : item.rank === 3
-                              ? "bg-amber-600 text-amber-50"
-                              : "bg-background text-foreground"
+                          ? "bg-warning text-primary-foreground"
+                          : item.rank <= 3
+                            ? "bg-secondary text-secondary-foreground"
+                            : "bg-background text-foreground"
                       }`}
                     >
                       {item.rank}

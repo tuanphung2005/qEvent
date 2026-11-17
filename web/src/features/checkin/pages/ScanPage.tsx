@@ -25,8 +25,8 @@ import { type ScanFeedback, type ScanTone, describeCheckin } from "../scan-resul
 const FALLBACK_GATES = ["gate-1", "gate-2", "gate-3", "gate-4"];
 
 const TONE_SURFACE: Record<ScanTone, string> = {
-  success: "bg-success text-foreground",
-  warning: "bg-warning text-foreground",
+  success: "bg-success text-primary-foreground",
+  warning: "bg-warning text-primary-foreground",
   error: "bg-destructive text-primary-foreground",
   neutral: "bg-secondary text-foreground",
 };
@@ -317,10 +317,11 @@ export function ScanPage() {
             <ol className="flex flex-col">
               {history.map((item) => (
                 <li key={item.id}>
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
                     onClick={() => setResult(item.feedback)}
-                    className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left transition-colors hover:bg-secondary"
+                    className="h-auto w-full justify-start gap-3 rounded-lg px-2 py-3 text-left font-normal"
                   >
                     <span
                       className={`size-2.5 shrink-0 rounded-pill ${TONE_DOT[item.feedback.tone]}`}
@@ -333,7 +334,7 @@ export function ScanPage() {
                     <span className="ml-auto text-sm tabular-nums text-muted-foreground">
                       {formatTime(item.at)}
                     </span>
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ol>

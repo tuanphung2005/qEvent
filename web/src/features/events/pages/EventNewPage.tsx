@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/features/auth/auth-context";
 import { toApiError } from "@/lib/api/errors";
 import { routes } from "@/lib/routes";
@@ -367,7 +368,7 @@ export function EventNewPage() {
                     </Field>
                   </div>
                   <div className="mt-3 flex items-center justify-between gap-3">
-                    <label
+                    <Label
                       htmlFor={`session-${index}-live`}
                       className="flex h-11 items-center gap-2 text-sm text-foreground"
                     >
@@ -381,7 +382,7 @@ export function EventNewPage() {
                         }
                       />
                       Bật live ngay
-                    </label>
+                    </Label>
                     <Button
                       type="button"
                       variant="ghost"

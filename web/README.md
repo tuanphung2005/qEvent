@@ -25,7 +25,7 @@ Tài khoản demo: `organizer@qevent.com` / `staff1@qevent.com` / `attendee@qeve
 | `bun run build` | typecheck rồi build production |
 | `bun run typecheck` | `tsc --noEmit` |
 | `bun run lint` | Biome check |
-| `bun run lint:design` | chặn hex / border / blur / xám nhạt trong code mình viết |
+| `bun run lint:design` | chặn hex / border / blur / xám nhạt / màu Tailwind thô / HTML primitive trong code mình viết |
 | `bun run lint:routes` | chặn 2 feature khai báo cùng một route |
 | `bun run lint:encoding` | chặn chuỗi tiếng Việt bị lỗi double-encoding |
 | `bun run test` | Vitest + MSW |
@@ -73,6 +73,8 @@ bunx shadcn@latest add dialog sheet alert-dialog select table pagination tabs
   Feature không hex, không override màu/bo góc bằng `className`, không `!important`.
 - Sửa `src/components/ui/**` phải qua Tuấn; mọi thay đổi phải giữ luật zero-border / 44px / shadow hướng xuống.
 - `bun run lint:design` quét `features/**`, `app/**`; `src/components/ui/**` do CLI sinh nên được miễn.
+  Nó cũng chặn màu Tailwind thô (`emerald-600`, `amber-500`…) và HTML primitive (`<button>`, `<input>`…):
+  dùng token (`success`, `warning`, `destructive`…) và component shadcn (`Button`, `Input`, `Progress`…).
 
 Dev không cần gateway: mở `http://localhost:5173/login?mock=1` để chạy trên MSW fixtures
 (`features/*/mocks.ts`), hoặc `bun run evidence` để chụp lại ảnh 390/768/1440.

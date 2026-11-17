@@ -3,10 +3,11 @@ import type { paths } from "./generated";
 import { TOKEN_EXPIRED_EVENT, clearToken, readToken } from "./token";
 
 /**
- * One client, one base URL. In dev Vite proxies /api to the gateway; in
- * production Nginx serves the SPA and proxies /api on the same origin.
+ * One client. Same-origin by default (Vite dev proxy / Nginx in the compose
+ * stack); set VITE_API_BASE_URL only when the SPA is served from another origin.
  */
-export const api = createClient<paths>({ baseUrl: "" });
+const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "";
+export const api = createClient<paths>({ baseUrl });
 
 const authMiddleware: Middleware = {
   onRequest({ request }) {

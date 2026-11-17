@@ -1,3 +1,4 @@
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,7 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth/auth-context";
-import { ChevronUp, Clock, MessageSquare, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronUp, Clock, MessageSquare, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useOutletContext, useParams } from "react-router";
 import { useDeleteQuestion, useQuestions, useToggleVote } from "../api";
@@ -61,9 +62,11 @@ export function QaPage() {
 
   if (error) {
     return (
-      <div className="rounded-xl bg-destructive/10 p-4 text-center text-sm text-destructive">
-        Không thể tải danh sách câu hỏi. Vui lòng thử lại sau.
-      </div>
+      <Alert variant="destructive">
+        <AlertTriangle />
+        <AlertTitle>Không tải được danh sách câu hỏi</AlertTitle>
+        <AlertDescription>Thử lại sau ít phút hoặc tải lại trang.</AlertDescription>
+      </Alert>
     );
   }
 
@@ -73,7 +76,7 @@ export function QaPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MessageSquare className="size-5 text-primary" />
-          <h2 className="text-lg font-semibold text-foreground">Hỏi &amp; Đáp trực tiếp</h2>
+          <h2 className="text-title text-foreground">Hỏi &amp; Đáp trực tiếp</h2>
           <Badge variant="secondary" className="ml-1">
             {sortedQuestions.length} câu hỏi
           </Badge>
@@ -100,13 +103,13 @@ export function QaPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  aria-label={`Bình chọn câu hỏi (${q.upvotes} phiếu)`}
                   className="flex h-12 w-14 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg bg-secondary text-foreground hover:bg-primary hover:text-primary-foreground"
                   disabled={toggleVoteMutation.isPending}
                   onClick={() => toggleVoteMutation.mutate(q.id)}
                 >
-                  <ChevronUp className="size-4 shrink-0" />
+                  <ChevronUp className="size-4 shrink-0" aria-hidden="true" />
                   <span className="text-xs font-bold leading-none">{q.upvotes}</span>
+                  <span className="sr-only">phiếu bình chọn</span>
                 </Button>
 
                 {/* Content */}
@@ -157,7 +160,7 @@ export function QaPage() {
           <AlertDialogFooter>
             <AlertDialogCancel className="h-11">Huỷ</AlertDialogCancel>
             <AlertDialogAction
-              className="h-11 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="h-11 bg-destructive text-primary-foreground hover:bg-destructive/90"
               onClick={() => {
                 if (questionToDelete) {
                   deleteMutation.mutate(questionToDelete.id);

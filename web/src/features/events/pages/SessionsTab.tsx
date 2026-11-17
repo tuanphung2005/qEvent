@@ -24,6 +24,7 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -193,7 +194,7 @@ function SessionDialog({
               </Field>
             </div>
             {session ? null : (
-              <label
+              <Label
                 htmlFor="session-live"
                 className="flex h-11 items-center gap-2 text-sm text-foreground"
               >
@@ -205,7 +206,7 @@ function SessionDialog({
                   }
                 />
                 Bật live ngay
-              </label>
+              </Label>
             )}
           </FieldGroup>
           <DialogFooter className="mt-4">

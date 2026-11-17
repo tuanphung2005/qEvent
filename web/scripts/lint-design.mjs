@@ -28,6 +28,17 @@ const RULES = [
   { name: "backdrop-filter", pattern: /backdrop-filter\s*:/, message: "không backdrop-filter" },
   { name: "pale-grey", pattern: /#94a3b8|#cbd5e1|#9ca3af/i, message: "không dùng chữ xám nhạt" },
   { name: "outline", pattern: /\boutline\s*:/, message: "focus dùng box-shadow, không outline" },
+  {
+    name: "raw-palette",
+    pattern:
+      /\b(?:bg|text|border|ring|from|to|via|fill|stroke|divide)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|white|black)\b/,
+    message: "dùng token ngữ nghĩa (success/warning/destructive/...), không màu Tailwind thô",
+  },
+  {
+    name: "raw-primitive",
+    pattern: /<(?:button|input|select|textarea|table|dialog|label)\b/,
+    message: "dùng primitive shadcn (Button/Input/Select/Textarea/Table/Dialog/Label)",
+  },
 ];
 
 function* walk(dir) {
@@ -72,7 +83,9 @@ for (const target of TARGETS) {
 }
 
 if (findings.length === 0) {
-  console.log("lint:design ✓ không có hex / border / blur / xám nhạt trong features và components");
+  console.log(
+    "lint:design ✓ không có hex / border / blur / xám nhạt / màu thô / HTML primitive trong features và components",
+  );
   process.exit(0);
 }
 

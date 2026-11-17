@@ -309,14 +309,16 @@ export function OrdersPage() {
                   ? orders.map((order) => (
                       <TableRow key={order.id}>
                         <TableCell>
-                          <button
+                          <Button
                             type="button"
+                            variant="link"
+                            size="sm"
                             onClick={() => void copyId(order.id)}
                             aria-label={`Copy mã đơn ${order.id}`}
-                            className="font-mono text-sm font-semibold text-primary hover:underline"
+                            className="h-auto p-0 font-mono font-semibold"
                           >
                             {truncateId(order.id)}
-                          </button>
+                          </Button>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col">

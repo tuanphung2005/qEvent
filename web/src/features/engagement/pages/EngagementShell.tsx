@@ -67,7 +67,7 @@ export function EngagementShell() {
       {/* Top Header & Session Selector */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Tương tác trực tiếp</h1>
+          <h1 className="text-display text-foreground">Tương tác trực tiếp</h1>
           <p className="text-sm text-muted-foreground">
             Quản lý Q&amp;A, Khảo sát và Quiz theo thời gian thực
           </p>
@@ -76,20 +76,20 @@ export function EngagementShell() {
         {/* Realtime Status Banner */}
         <div className="flex items-center gap-2">
           {realtimeStatus === "open" && (
-            <Badge variant="outline" className="h-9 gap-1.5 bg-emerald-50 text-emerald-700">
-              <CheckCircle2 className="size-4 text-emerald-600" />
+            <Badge variant="secondary" className="h-9 gap-1.5 bg-success/10 text-success">
+              <CheckCircle2 className="size-4" />
               <span>Realtime đã kết nối</span>
             </Badge>
           )}
           {(realtimeStatus === "connecting" || realtimeStatus === "reconnecting") && (
-            <Badge variant="outline" className="h-9 gap-1.5 bg-amber-50 text-amber-700">
-              <Radio className="size-4 animate-pulse text-amber-600" />
+            <Badge variant="secondary" className="h-9 gap-1.5 bg-warning/10 text-warning">
+              <Radio className="size-4 animate-pulse" />
               <span>Đang kết nối lại...</span>
             </Badge>
           )}
           {(realtimeStatus === "fallback" || realtimeStatus === "offline") && (
-            <Badge variant="outline" className="h-9 gap-1.5 bg-rose-50 text-rose-700">
-              <AlertTriangle className="size-4 text-rose-600" />
+            <Badge variant="secondary" className="h-9 gap-1.5 bg-destructive/10 text-destructive">
+              <AlertTriangle className="size-4" />
               <span>Chuyển sang Polling</span>
             </Badge>
           )}
@@ -110,7 +110,7 @@ export function EngagementShell() {
               asChild
             >
               <Link to={routes.engagement(s.id, currentTab)}>
-                {s.isLive && <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />}
+                {s.isLive && <span className="size-2 rounded-full bg-success animate-pulse" />}
                 <span className="truncate max-w-[200px]">{s.title}</span>
               </Link>
             </Button>
@@ -126,7 +126,7 @@ export function EngagementShell() {
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-foreground">{activeSession.title}</span>
                 {activeSession.isLive ? (
-                  <Badge variant="default" className="bg-emerald-600">
+                  <Badge variant="secondary" className="bg-success/10 text-success">
                     Đang diễn ra
                   </Badge>
                 ) : (

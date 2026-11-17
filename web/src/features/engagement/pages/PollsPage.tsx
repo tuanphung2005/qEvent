@@ -1,3 +1,4 @@
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,10 +12,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth/auth-context";
-import { Activity, Plus, Power, Trash2 } from "lucide-react";
+import { Activity, AlertTriangle, Plus, Power, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useOutletContext, useParams } from "react-router";
 import { useCreatePoll, usePolls, useUpdatePoll } from "../api";
@@ -90,9 +93,11 @@ export function PollsPage() {
 
   if (error) {
     return (
-      <div className="rounded-xl bg-destructive/10 p-4 text-center text-sm text-destructive">
-        Không thể tải danh sách khảo sát. Vui lòng thử lại sau.
-      </div>
+      <Alert variant="destructive">
+        <AlertTriangle />
+        <AlertTitle>Không tải được danh sách khảo sát</AlertTitle>
+        <AlertDescription>Thử lại sau ít phút hoặc tải lại trang.</AlertDescription>
+      </Alert>
     );
   }
 
@@ -102,7 +107,7 @@ export function PollsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Activity className="size-5 text-primary" />
-          <h2 className="text-lg font-semibold text-foreground">Khảo sát &amp; Bình chọn</h2>
+          <h2 className="text-title text-foreground">Khảo sát &amp; Bình chọn</h2>
           <Badge variant="secondary" className="ml-1">
             {polls.length} khảo sát
           </Badge>
@@ -126,10 +131,8 @@ export function PollsPage() {
                 </DialogHeader>
 
                 <div className="space-y-4 py-4">
-                  <div className="space-y-1.5">
-                    <label htmlFor="poll-title" className="text-sm font-medium text-foreground">
-                      Nội dung khảo sát
-                    </label>
+                  <Field>
+                    <FieldLabel htmlFor="poll-title">Nội dung khảo sát</FieldLabel>
                     <Input
                       id="poll-title"
                       placeholder="Ví dụ: Bạn thấy bài diễn thuyết hôm nay thế nào?"
@@ -138,7 +141,7 @@ export function PollsPage() {
                       required
                       className="h-11"
                     />
-                  </div>
+                  </Field>
 
                   <div className="space-y-2">
                     <span className="block text-sm font-medium text-foreground">
@@ -147,6 +150,7 @@ export function PollsPage() {
                     {options.map((opt, idx) => (
                       <div key={`poll-option-${idx + 1}`} className="flex items-center gap-2">
                         <Input
+                          aria-label={`Lựa chọn ${idx + 1}`}
                           placeholder={`Lựa chọn ${idx + 1}`}
                           value={opt}
                           onChange={(e) => handleOptionChange(idx, e.target.value)}
@@ -234,7 +238,7 @@ export function PollsPage() {
                         {poll.title}
                       </CardTitle>
                       {poll.isActive ? (
-                        <Badge variant="default" className="bg-emerald-600">
+                        <Badge variant="secondary" className="bg-success/10 text-success">
                           Đang mở
                         </Badge>
                       ) : (
@@ -279,13 +283,12 @@ export function PollsPage() {
                             {opt.voteCount} phiếu ({percentage}%)
                           </span>
                         </div>
-                        {/* Progress bar container (surface separation without border) */}
-                        <div className="h-3 w-full overflow-hidden rounded-full bg-secondary">
-                          <div
-                            className="h-full bg-primary transition-all duration-500 ease-out"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
+                        {/* Progress: shadcn Progress, surface separation without border */}
+                        <Progress
+                          value={percentage}
+                          aria-label={`${opt.content}: ${percentage}%`}
+                          className="h-3"
+                        />
                       </div>
                     );
                   })}

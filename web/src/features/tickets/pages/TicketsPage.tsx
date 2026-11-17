@@ -298,14 +298,16 @@ export function TicketsPage() {
                   ? tickets.map((ticket) => (
                       <TableRow key={ticket.id}>
                         <TableCell>
-                          <button
+                          <Button
                             type="button"
+                            variant="link"
+                            size="sm"
                             onClick={() => void copyId(ticket.id)}
                             aria-label={`Copy mã vé ${ticket.id}`}
-                            className="font-mono text-sm font-semibold text-primary hover:underline"
+                            className="h-auto p-0 font-mono font-semibold"
                           >
                             {formatTicketCode(ticket.id)}
-                          </button>
+                          </Button>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col">

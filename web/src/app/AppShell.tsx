@@ -152,18 +152,18 @@ export function AppShell() {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={`Tài khoản ${user.fullName}`}
-                    className="flex h-11 items-center gap-2 rounded-lg px-2 text-left transition-colors hover:bg-secondary focus-visible:ring-3 focus-visible:ring-ring/50"
-                  >
-                    <span className="flex size-8 items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-foreground">
+                  <Button variant="ghost" className="h-11 gap-2 px-2">
+                    <span
+                      aria-hidden="true"
+                      className="flex size-8 items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-foreground"
+                    >
                       {user.fullName.slice(0, 1).toUpperCase()}
                     </span>
                     <span className="hidden max-w-[160px] truncate text-sm font-semibold text-foreground sm:block">
                       {user.fullName}
                     </span>
-                  </button>
+                    <span className="sr-only">Tài khoản</span>
+                  </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-60">
                   <DropdownMenuLabel className="flex flex-col gap-1">
@@ -199,11 +199,12 @@ export function AppShell() {
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6 pb-24 md:px-5 md:pb-6 lg:px-6">
+        {/* SidebarInset already renders the page's single <main> landmark. */}
+        <div className="flex-1 px-4 py-6 pb-24 md:px-5 md:pb-6 lg:px-6">
           <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6">
             <Outlet />
           </div>
-        </main>
+        </div>
 
         {items.length > 0 ? (
           <nav

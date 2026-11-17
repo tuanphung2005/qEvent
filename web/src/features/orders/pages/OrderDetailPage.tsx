@@ -131,14 +131,16 @@ export function OrderDetailPage() {
         <div className="flex min-w-0 flex-col gap-1">
           <h1 className="text-display text-foreground">Chi tiết đơn</h1>
           <div className="flex flex-wrap items-center gap-3">
-            <button
+            <Button
               type="button"
+              variant="link"
+              size="sm"
               onClick={() => void copyId(order.id)}
               aria-label={`Copy mã đơn ${order.id}`}
-              className="font-mono text-sm font-semibold text-primary hover:underline"
+              className="h-auto p-0 font-mono font-semibold"
             >
               {order.id}
-            </button>
+            </Button>
             <Badge variant="secondary" className={statusToneClass(statusTone(order.status))}>
               {statusLabel(order.status)}
             </Badge>

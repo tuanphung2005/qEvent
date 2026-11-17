@@ -1,6 +1,5 @@
-import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { seedBase, signInWithToken } from "./fixtures";
+import { scanA11y, seedBase, signInWithToken } from "./fixtures";
 
 const API_BASE = process.env.E2E_API_BASE ?? "http://localhost:8000";
 
@@ -97,9 +96,7 @@ test.describe("quét vé", () => {
     await page.goto("/scan");
     await expect(page.getByRole("heading", { name: "Quét vé" })).toBeVisible();
 
-    // AppShell currently nests <main> inside SidebarInset's <main>; scan the feature
-    // content only. Widen to "main" once the shell renders a single main landmark.
-    const results = await new AxeBuilder({ page }).include("main main").analyze();
+    const results = await scanA11y(page);
     const serious = results.violations.filter(
       (violation) => violation.impact === "serious" || violation.impact === "critical",
     );

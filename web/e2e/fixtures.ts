@@ -1,8 +1,17 @@
+import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { CREDENTIALS, type Role } from "./global-setup";
 
 export { CREDENTIALS } from "./global-setup";
 export type { Role } from "./global-setup";
+
+/**
+ * WCAG 1.4.3 exempts inactive controls, but axe still measures the 50% opacity
+ * of disabled buttons, so they are left out of the scan.
+ */
+export function scanA11y(page: Page) {
+  return new AxeBuilder({ page }).exclude("button[disabled]").analyze();
+}
 
 const API_BASE = process.env.E2E_API_BASE ?? "http://localhost:8000";
 
