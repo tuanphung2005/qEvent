@@ -76,6 +76,10 @@ jobs:
           exit 1
         working-directory: .
 
+      - name: Seed database
+        run: bun run seed
+        working-directory: .
+
       - name: Install web dependencies
         run: bun install --frozen-lockfile
 
