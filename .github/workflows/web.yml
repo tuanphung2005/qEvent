@@ -22,7 +22,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.2.x
+          bun-version: latest
 
       - name: Install
         run: bun install --frozen-lockfile
@@ -59,7 +59,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.2.x
+          bun-version: latest
 
       - name: Start gateway and services
         run: docker compose up -d --build
@@ -74,6 +74,14 @@ jobs:
           echo "gateway không lên sau 5 phút" >&2
           docker compose logs api-gateway
           exit 1
+        working-directory: .
+
+      - name: Seed database
+        run: |
+          docker compose exec -T event-service bunx prisma db push --skip-generate
+          docker compose exec -T admission-service bunx prisma db push --skip-generate
+          docker compose exec -T engagement-service bunx prisma db push --skip-generate
+          bun run seed
         working-directory: .
 
       - name: Install web dependencies
