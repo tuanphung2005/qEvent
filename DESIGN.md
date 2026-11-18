@@ -1,229 +1,283 @@
 ---
 name: qEvent
-description: Instant Event Ticketing & Anti-Fraud Gate Check-In Design System
+description: Instant Event Ticketing & Anti-Fraud Gate Check-In Design System (Ant Design-derived, compact)
 colors:
-  primary: "#2563EB"
-  primary-hover: "#1D4ED8"
-  primary-light: "#EFF6FF"
+  primary: "#0958D9"
+  primary-foreground: "#FFFFFF"
+  primary-light: "#E6F4FF"
   surface: "#FFFFFF"
-  neutral-bg: "#F8FAFC"
-  text-primary: "#0F172A"
-  text-secondary: "#334155"
-  text-muted: "#475569"
-  neutral-fill: "#F1F5F9"
-  success: "#10B981"
-  success-light: "#ECFDF5"
-  warning: "#D97706"
-  warning-light: "#FFFBEB"
-  error: "#DC2626"
-  error-light: "#FEF2F2"
-  overlay: "rgba(15, 23, 42, 0.45)"
+  neutral-bg: "#F5F5F5"
+  table-header: "#FAFAFA"
+  text-primary: "#1F1F1F"
+  text-secondary: "#595959"
+  border: "#D9D9D9"
+  border-subtle: "#F0F0F0"
+  success: "#237804"
+  warning: "#AD6800"
+  error: "#CF1322"
+  overlay: "rgba(0, 0, 0, 0.45)"
 typography:
   display:
     fontFamily: "System, Roboto, sans-serif"
-    fontSize: "28px"
-    fontWeight: 700
-    lineHeight: 1.2
-    letterSpacing: "-0.5px"
-  headline:
-    fontFamily: "System, Roboto, sans-serif"
     fontSize: "20px"
-    fontWeight: 700
-    lineHeight: 1.3
-  title:
+    fontWeight: 600
+    lineHeight: 1.4
+  headline:
     fontFamily: "System, Roboto, sans-serif"
     fontSize: "16px"
     fontWeight: 600
     lineHeight: 1.4
+  title:
+    fontFamily: "System, Roboto, sans-serif"
+    fontSize: "14px"
+    fontWeight: 600
+    lineHeight: 1.5715
   body:
     fontFamily: "System, Roboto, sans-serif"
     fontSize: "14px"
     fontWeight: 400
-    lineHeight: 1.5
+    lineHeight: 1.5715
   label:
     fontFamily: "System, Roboto, sans-serif"
     fontSize: "12px"
-    fontWeight: 600
-    lineHeight: 1.3
-    letterSpacing: "0.2px"
+    fontWeight: 500
+    lineHeight: 1.4
 rounded:
-  sm: "8px"
-  md: "12px"
-  lg: "16px"
-  xl: "20px"
+  control: "6px"
+  card: "8px"
+  tag: "4px"
   full: "9999px"
 spacing:
   xs: "4px"
   sm: "8px"
   md: "16px"
-  lg: "20px"
-  xl: "24px"
-  "2xl": "32px"
+  lg: "24px"
+  xl: "32px"
 components:
   button-primary:
     backgroundColor: "{colors.primary}"
-    textColor: "#FFFFFF"
-    rounded: "{rounded.md}"
-    padding: "12px 24px"
-  button-secondary:
-    backgroundColor: "{colors.neutral-fill}"
+    textColor: "{colors.primary-foreground}"
+    rounded: "{rounded.control}"
+    height: "32px"
+    padding: "0 16px"
+  button-default:
+    backgroundColor: "{colors.surface}"
     textColor: "{colors.text-primary}"
-    rounded: "{rounded.md}"
-    padding: "12px 24px"
+    border: "1px solid {colors.border}"
+    rounded: "{rounded.control}"
+    height: "32px"
   card:
     backgroundColor: "{colors.surface}"
-    rounded: "{rounded.lg}"
+    border: "1px solid {colors.border-subtle}"
+    rounded: "{rounded.card}"
     padding: "16px"
   input:
-    backgroundColor: "{colors.neutral-fill}"
+    backgroundColor: "{colors.surface}"
     textColor: "{colors.text-primary}"
-    rounded: "{rounded.md}"
-    padding: "12px 16px"
+    border: "1px solid {colors.border}"
+    rounded: "{rounded.control}"
+    height: "32px"
+    padding: "0 10px"
   badge:
     backgroundColor: "{colors.primary-light}"
     textColor: "{colors.primary}"
-    rounded: "{rounded.full}"
-    padding: "4px 10px"
+    rounded: "{rounded.tag}"
+    height: "20px"
+    padding: "0 6px"
 ---
 
 # Design System: qEvent
+
+## Scope
+
+- **Web staff console (`web/`) is the only UI in this repository.** It is shadcn/ui (Radix + Tailwind 4)
+  restyled as an **Ant Design–derived compact console**: 1px neutral borders, 6px control radius,
+  32px controls, dense tables, information-first layout.
+- `web/src/styles/globals.css` is the single source of truth for tokens. This document explains the
+  rules behind them; if the two disagree, the CSS wins and this file is a bug.
+- A native mobile app is planned but not implemented here. Mobile-only rules (haptics, screen-capture,
+  48dp targets) are listed under "Mobile (planned)" and must not be applied to the web console.
 
 ## Overview
 
 **Creative North Star: "The High-Throughput Beacon"**
 
-qEvent is an operational mobile tool built for intense, high-stakes physical environments: noisy venue entrance gates, dim auditoriums, and crowded queue lines under bright outdoor glare. The visual architecture rejects decorative fluff, blurred materials, and multi-layered visual noise in favor of immediate, unambiguous clarity. Every interface element exists to accelerate a physical interaction—scanning a QR code in under 500ms, glancing at synchronization queues, or voting on live session queries.
-
-The aesthetic posture is clean, modern, and rigorously utilitarian. Visual grouping is achieved strictly through spatial contrast, flat tonal surfaces, and downward directional elevation. The experience communicates reliability, cryptographic certainty, and effortless velocity.
+qEvent runs at noisy venue gates, dim auditoriums and crowded queues. The console must be readable at a
+glance and dense without becoming noisy: staff scan, reconcile and check queues in seconds. The visual
+language is therefore **utilitarian, bordered and compact** — borders define structure, colour is
+reserved for state, and every screen shows more rows per viewport than a marketing-style admin theme.
 
 **Key Characteristics:**
-- **Zero-Border Discipline:** Total elimination of outline borders, hairlines, and card strokes. Spatial separation is managed via background contrast (`#F8FAFC` vs `#FFFFFF`) and downward shadow elevation.
-- **High-Visibility Status Hierarchy:** Immediate color-coded states (Emerald for valid check-in, Amber for duplicate/offline, Red for invalid) paired with multi-sensory haptic and audio feedback.
-- **Glare-Resistant Light Theme:** High-contrast dark Slate typography (`#0F172A`) over immaculate white and slate foundations.
-- **No Light Grey Text:** Total elimination of washed-out light grey typography (`#94A3B8`, `#CBD5E1`). All body text, subheadings, labels, and placeholders maintain high contrast (≥4.5:1) for daylight outdoor readability.
-- **Gluestack + Native Ergonomics:** Large touch targets (≥48dp), predictable bottom bar layouts, and touchable card containers tailored to single-handed operation.
+
+- **Bordered structure, not shadow soup.** Separation comes from 1px `#D9D9D9` controls, `#F0F0F0`
+  card dividers and the `#F5F5F5` canvas. Shadows are tertiary and downward only.
+- **Compact density.** 32px controls, 40px table rows, 14px body, 16px page rhythm.
+- **High-visibility status hierarchy.** Colour is semantic only: blue = action/selection, green =
+  valid, amber = warning/duplicate/offline, red = invalid/cancelled.
+- **AA contrast, no pale greys.** Primary text `#1F1F1F`, secondary `#595959` (7:1 and 6:1 on white).
+  Placeholders may be faint, real copy may not.
+- **No blur, no dark mode.** Flat scrims, no glassmorphism, light theme only.
 
 ## Colors
 
-The qEvent color system employs a high-contrast functional palette rooted in clean Slate neutrals and distinct chromatic signals.
-
 ### Primary
-- **Electric Blue** (`#2563EB`): The primary interaction and action color. Guides attendees toward primary tickets and staff toward scan confirmation.
-- **Deep Blue Active** (`#1D4ED8`): Active/pressed state for primary touch targets.
-- **Soft Blue Container** (`#EFF6FF`): Background container for informational chips, badge containers, and hero icon surfaces.
+
+- **Console Blue** (`#0958D9`): primary action, links, active tab underline, selected menu item text,
+  focus halo. Ant Design's `#1677FF` is *not* used for filled controls because white 14px text on it is
+  4.1:1 (below AA); `#0958D9` keeps 6.3:1.
+- **Selection Container** (`#E6F4FF`): selected table row, checked select item, active sidebar item,
+  info badge background.
 
 ### Neutral
-- **Background Slate** (`#F8FAFC`): The global screen background, establishing a soft, glare-free canvas.
-- **Surface White** (`#FFFFFF`): Primary elevated surface for cards, bottom sheets, headers, and floating dialogs.
-- **Text Slate 900** (`#0F172A`): High-contrast primary headlines, titles, and critical attendee details (17.5:1 contrast).
-- **Text Slate 700** (`#334155`): Secondary descriptions, uppercase tracking labels, timestamps, and venue metadata (9.6:1 contrast).
-- **Text Slate 600** (`#475569`): Muted input placeholder hints, subtle category headers (5.8:1 contrast). Total elimination of low-contrast light grey (`#94A3B8`).
-- **Field Neutral** (`#F1F5F9`): Unbordered input container and secondary button fill.
-- **Neutral Dark** (`#E2E8F0`): Subtle fill for pressed states and active toggles.
+
+- **Canvas** (`#F5F5F5`): app background.
+- **Surface** (`#FFFFFF`): cards, table body, header, sidebar, dropdowns.
+- **Table Header** (`#FAFAFA`): table head and hover row fill.
+- **Text Primary** (`#1F1F1F`): headings, values, table cells.
+- **Text Secondary** (`#595959`): descriptions, metadata, helper text, table captions.
+- **Border** (`#D9D9D9`): inputs, selects, buttons, table row separators.
+- **Border Subtle** (`#F0F0F0`): card outline, dividers inside cards, table header rule.
+- **Muted Fill** (`#FAFAFA`): hover states, secondary buttons, tag background.
 
 ### Functional / Semantic
-- **Emerald Valid** (`#10B981` / Light: `#ECFDF5`): Sub-second successful scan validation, active check-in badges, and verified ticket state.
-- **Amber Warning** (`#D97706` / Light: `#FFFBEB`): Duplicate scan warnings, offline queuing mode, and pending synchronization items (4.5:1 contrast).
-- **Crimson Error** (`#DC2626` / Light: `#FEF2F2`): Fraudulent ticket signals, revoked QR tokens, and network error alerts (5.9:1 contrast).
+
+- **Valid Green** (`#237804` on `#F6FFED` 10% tint): successful scan, confirmed order, paid ticket.
+- **Warning Amber** (`#AD6800` on tint): duplicate scan, offline queue, pending reconciliation.
+- **Error Red** (`#CF1322` on tint): fraudulent ticket, cancelled, failed payment.
 
 ### Named Rules
-**The Borderless Boundary Rule.** Never use `borderWidth: 1` or hairline divider lines to separate components or card sections. Content hierarchy must be defined by surface contrast (`#FFFFFF` on `#F8FAFC`), 12–20px spacing gaps, or subtle background tint fills.
 
-**The High-Contrast Legibility Rule.** Never use light grey text colors (`#94A3B8`, `#CBD5E1`, `#9CA3AF`, etc.) for any label, placeholder, or indicator. All typography must maintain sharp, high-visibility contrast (≥4.5:1 against surface background) to guarantee instant readability outdoors and under harsh gate lighting.
+**The Primitive Border Rule.** Borders are allowed and expected — but only in `src/components/ui/**`
+and the token layer. Feature code never writes `border`, hex colours or raw Tailwind palettes; it uses
+the primitives and semantic tokens. `bun run lint:design` enforces this.
 
-**The Semantic Monosemy Rule.** Emerald (`#10B981`), Amber (`#D97706`), and Crimson (`#DC2626`) are strictly reserved for ticket validation and synchronization state. They are never used for decorative accents.
+**The High-Contrast Legibility Rule.** Never use pale grey text (`#94A3B8`, `#CBD5E1`, `#9CA3AF`) for any
+label, cell or action. Body copy must stay ≥4.5:1 on its surface.
 
-**The Standalone Icon Rule.** Standalone icon-only buttons and elements (such as the back button, logout button, torch button, or modal close button) must never have a background container (no rounded or circular colored boxes behind them) and must be rendered in pure black (#000000). Icons that are paired with labels or placed inside styled buttons/badges retain their contextual colors.
+**The Semantic Monosemy Rule.** Green, amber and red are exclusively state colours. Blue is the only
+action/accent colour; never tint a non-interactive surface for decoration.
+
+**The Standalone Icon Rule.** Icon-only buttons are borderless and transparent until hover/focus; the
+icon itself carries the colour, never a coloured container.
 
 ## Typography
 
-**Display Font:** System Default (Roboto on Android, San Francisco on iOS)
-**Body Font:** System Default
-**Mono/Code Font:** Monospace (used for truncated ticket IDs and cryptographic tokens)
-
-**Character:** Clean, legible, and unpretentious system typography that renders natively without font-download lag or layout shift.
+**Family:** system sans (Roboto / Segoe UI / SF). **Mono:** ticket codes and order ids only.
 
 ### Hierarchy
-- **Display** (Bold 700, 24–28px, line-height 32px): Screen hero titles and event names.
-- **Headline** (Bold 700, 18–20px, line-height 26px): Modal titles, card section headers, and scanner status announcements.
-- **Title** (SemiBold 600, 15–16px, line-height 22px): Ticket tier names, attendee name, and button text.
-- **Body** (Regular 400, 14px, line-height 20px): Venue instructions, session details, and Q&A question copy.
-- **Label** (SemiBold 600, 11–12px, line-height 16px, uppercase letter-spacing 0.5px): Badges, countdown timer chips, and form input headers.
 
-### Named Rules
-**The No-Hairline-Type Rule.** Thin or ultra-light weights are prohibited. All interactive labels and status badges must use a minimum weight of 600 (SemiBold) to ensure immediate legibility under rapid movement and bright sunlight.
+| Token | Size / weight | Use |
+|---|---|---|
+| `text-display` | 20 / 600 | Page title, KPI number |
+| `text-headline` | 16 / 600 | Card title, section header |
+| `text-title` | 14 / 600 | Table header, emphasised value, dialog title |
+| body | 14 / 400, line-height 1.5715 | Everything else |
+| `text-label` | 12 / 500 | Badges, captions, helper text, column labels |
+
+**Rules:** no font weights below 400; no sizes between the five steps; numbers in tables, stat cards and
+money use `tabular-nums`.
 
 ## Layout
 
-The mobile layout adheres to strict single-handed thumb zone ergonomics:
-- **Screen Margins:** Horizontal padding of 20px (`px="$5"` in Gluestack) across all primary containers.
-- **Vertical Flow Rhythm:** 16px default spacing between list cards; 24px between distinct functional sections.
-- **Thumb Zone Anchoring:** Primary gate actions (camera scan trigger, sync action button, ticket QR presentation) reside within the lower two-thirds of the viewport.
-- **Safe Area Inset Discipline:** All screen containers consume `SafeAreaView` from `react-native-safe-area-context` with explicit edge management to prevent notch and navigation bar overlap.
+Web console breakpoints (`AppShell`):
+
+| Breakpoint | Navigation | Content |
+|---|---|---|
+| ≥1280px | sidebar 200px, always open | max-width 1440px, 24px horizontal padding |
+| 768–1279px | rail 64px (icons + tooltip) | full width, 20px padding |
+| <768px | bottom bar (≤5 items) | 16px padding; tables scroll horizontally in their own container |
+
+- Header bar: 48px tall, white surface, `shadow-subtle`, holds the sidebar trigger, event selector and
+  account menu.
+- Page rhythm: 16px between cards, 24px between sections, 32px between feature groups.
+- **Density is the feature:** prefer one more row over one more decorative gap.
 
 ## Elevation & Depth
 
-qEvent utilizes natural, downward-directed elevation rather than multi-directional drop shadows or heavy strokes.
+Ant Design elevation, downward only:
 
-### Shadow Vocabulary
-- **Subtle Elevation** (`elevation: 2`, `offset: {0, 2}`, `opacity: 0.05`, `radius: 6`): Top navigation bars and subtle list items.
-- **Card Elevation** (`elevation: 3`, `offset: {0, 4}`, `opacity: 0.07`, `radius: 10`): Standard content cards, ticket list items, and Q&A cards.
-- **Floating Elevation** (`elevation: 6`, `offset: {0, 8}`, `opacity: 0.12`, `radius: 16`): Sticky summary bars, bottom sheets, and scanner feedback dialogs.
+- **Subtle / Card** — `0 1px 2px rgba(0,0,0,.03), 0 1px 6px -1px rgba(0,0,0,.02), 0 2px 4px rgba(0,0,0,.02)`.
+  Header bar, cards, default buttons.
+- **Float** — `0 6px 16px rgba(0,0,0,.08), 0 3px 6px -4px rgba(0,0,0,.12), 0 9px 28px 8px rgba(0,0,0,.05)`.
+  Dropdowns, selects, dialogs, sheets.
 
-### Named Rules
-**The Downward Gravity Rule.** Shadows must have a strictly positive Y-offset (`height >= 2`). Omni-directional glow shadows are banned.
-
-**The Absolute No-Blur Rule.** Glassmorphism and `BlurView` components are prohibited. Translucent sheets must use flat alpha scrims (`rgba(15, 23, 42, 0.45)`) over opaque surfaces.
+**Rules:** no `blur` / `backdrop-filter`; scrims are flat `rgba(0,0,0,.45)`; no negative-Y or omni glow.
 
 ## Shapes
 
-- **Base Radius:** 16px (`borderRadius: 16`) for cards and surface containers.
-- **Interactive Radius:** 12px (`borderRadius: 12`) for buttons, inputs, and pressable list rows.
-- **Pill Badges:** 9999px (`borderRadius: 20`+) for status badges, tags, and category chips.
-- **Zero Border Invariant:** `borderWidth: 0` on every component without exception.
+- **Control radius 6px** (`--radius`): buttons, inputs, selects, dropdown items use 4px.
+- **Card radius 8px** (`--radius-card`): cards, dialogs, popovers, dropdown panels.
+- **Tag radius 4px**: badges and status tags.
+- **Pills** (`9999px`): avatars and status dots only.
+- **No exception:** every control has exactly one of the radii above — no per-screen overrides.
 
 ## Components
 
 ### Buttons
-- **Shape:** Rounded rectangle (12px radius)
-- **Primary:** Background `#2563EB`, text `#FFFFFF`, font weight 600, min-height 48dp.
-- **Secondary:** Background `#F1F5F9`, text `#0F172A`, font weight 600.
-- **States:** Active opacity `0.85` on press; disabled background `#E2E8F0` with text `#334155`.
+
+- Height 32px (small 24, large 40); radius 6px; 14px normal weight; icon 16px.
+- **Primary:** `#0958D9` fill, white text, no border.
+- **Default / secondary:** white fill, `1px #D9D9D9`, `#1F1F1F` text; hover turns border and text blue.
+- **Text (ghost):** transparent, hover `#FAFAFA`; **danger:** `#CF1322` fill.
+- Disabled: 50% opacity, no pointer events. Focus: 2px blue halo, never an outline.
 
 ### Cards
-- **Shape:** Rounded container (16px radius), background `#FFFFFF`, zero border.
-- **Shadow:** Standard `shadows.card` (elevation 3) or `shadows.floating` (elevation 6).
-- **Internal Padding:** 16px (`p="$4"`).
 
-### Inputs
-- **Shape:** Soft pill-cornered box (12px radius), background `#F1F5F9`, zero border.
-- **Focus:** Background shifts to `#E2E8F0` without adding a stroke outline.
-- **Label:** Small uppercase label (12px, SemiBold) placed 6px above field.
-- **Placeholder:** Crisp Slate-600 (`#475569`, 5.8:1 contrast).
+- White surface, `1px #F0F0F0`, radius 8px, 16px internal padding, `shadow-card`, no nested cards.
 
-### Badges / Status Chips
-- **Shape:** Pill container (full radius 20px), padding `4px 10px`, zero border.
-- **Success:** Background `#ECFDF5`, text `#10B981`.
-- **Warning:** Background `#FFFBEB`, text `#D97706`.
-- **Info:** Background `#EFF6FF`, text `#2563EB`.
+### Inputs / Selects
 
-### Top Header Bar
-- **Shape:** Full-width surface `#FFFFFF`, zero border, subtle elevation shadow (`shadows.subtle`).
-- **Affordance:** Back button with minimum 48×48dp pressable area.
+- Height 32px, radius 6px, white background, `1px #D9D9D9`; hover border `#0958D9` at 60%.
+- Focus: 2px `rgba(9,88,217,.2)` halo. Placeholder is the only faint text allowed (`foreground/30`).
+- Labels sit 6px above the field at 12/500; errors replace helper text and set the border red.
+
+### Tables
+
+- Header `#FAFAFA`, 36px tall, 14/600 text, `1px #F0F0F0` bottom rule.
+- Rows 40px, `1px #F0F0F0` separators, hover `#FAFAFA`, selected `#E6F4FF`.
+- Text left, numbers/money right and tabular, status in its own badge column.
+
+### Tabs
+
+- Ant Design line style: transparent list with a 1px bottom rule, 32px tall; active tab 2px blue underline
+  and blue 14/500 text. No pill background.
+
+### Badges / Tags
+
+- 20px tall, 4px radius, 12/500, tinted background + matching darker text (`bg-*/10` + semantic colour).
+- Status is a badge, never bare coloured text.
+
+### Sidebar & Header
+
+- White surfaces; sidebar item 32px, 4px radius, hover `#FAFAFA`, active `#E6F4FF` with blue text.
+- Header 48px with the event selector at 32px and the account menu collapsed to an avatar.
+
+### Overlays
+
+- Dialogs: white, radius 8px, `shadow-float`, max-width 560px, focus trap, `Esc` closes, focus returns.
+- Dropdown/select panels: radius 8px, `1px #F0F0F0`, `shadow-float`, 32px items.
+
+## Mobile (planned)
+
+Not implemented in this repository. When built with Expo, keep: light theme, semantic colours, no blur,
+`expo-screen-capture` on the dynamic QR screen, haptic + audio feedback for scan results, ≥48dp targets,
+and primary gate actions in the lower two-thirds of the viewport. The bordered compact rules above are
+web-only; mobile keeps surface-contrast separation and downward elevation.
 
 ## Do's and Don'ts
 
-### Do:
-- **Do** maintain strict zero-border geometry (`borderWidth: 0`) across all UI elements.
-- **Do** provide immediate haptic and audio feedback on gate scanning operations.
-- **Do** ensure all interactive buttons and icons have at least 48×48dp touchable bounding boxes.
-- **Do** preserve the anti-screenshot screen capture protection on the ticket detail screen.
-- **Do** display dynamic 30-second countdown rings or progress indicators on QR codes.
-- **Do** enforce high text contrast (≥4.5:1) for all typography and placeholders.
+### Do
 
-### Don't:
-- **Don't** add outline borders, border-bottom lines, or hairlines anywhere in the application.
-- **Don't** use light grey text colors (`#94A3B8`, `#CBD5E1`, `#9CA3AF`, etc.) for any label, placeholder, or indicator.
-- **Don't** introduce dark mode or dark themes unless explicitly directed; the app is built exclusively as an outdoor glare-resistant Light Theme.
-- **Don't** use `expo-blur`, `BlurView`, or frosted glass backgrounds.
-- **Don't** place critical gate validation controls in the hard-to-reach top quarter of the screen.
+- **Do** put borders in primitives and tokens; keep feature code on semantic classes only.
+- **Do** show more data per screen: 40px rows, 32px controls, 16px page gaps.
+- **Do** keep status colour semantic and always pair it with a label.
+- **Do** keep ≥4.5:1 contrast for every real text string, including table metadata.
+- **Do** keep the scan/check-in primary action ≥44px tall even though the console default is 32px.
+
+### Don't
+
+- **Don't** hard-code hex, raw Tailwind palettes (`blue-600`, `emerald-500`) or `border-*` in feature code.
+- **Don't** use pale grey text, low-contrast placeholders in labels, or colour as decoration.
+- **Don't** add blur, glassmorphism, gradients or dark mode.
+- **Don't** use pill radii for tags or 12–16px radii on controls — they are no longer the house style.
+- **Don't** add a second design language (e.g. default Ant Design components next to the shadcn ones).

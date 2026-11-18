@@ -20,7 +20,7 @@ export function SettingsPage() {
   const { eventId, setEventId, events, isLoading } = useEventContext();
 
   return (
-    <div className="flex max-w-[720px] flex-col gap-6">
+    <div className="flex max-w-[720px] flex-col gap-4">
       <h1 className="text-display text-foreground">Tài khoản</h1>
 
       <Card>
@@ -62,17 +62,14 @@ export function SettingsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <Skeleton className="h-11 w-full max-w-[420px]" />
+            <Skeleton className="w-full max-w-[420px]" />
           ) : (
             <Select
               value={eventId ?? ""}
               onValueChange={(value) => value && setEventId(value)}
               disabled={events.length === 0}
             >
-              <SelectTrigger
-                aria-label="Sự kiện mặc định"
-                className="h-11 w-full max-w-[420px] bg-secondary"
-              >
+              <SelectTrigger aria-label="Sự kiện mặc định" className="w-full max-w-[420px]">
                 <SelectValue
                   placeholder={events.length === 0 ? "Chưa có sự kiện" : "Chọn sự kiện"}
                 />

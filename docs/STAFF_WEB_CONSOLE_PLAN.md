@@ -162,7 +162,7 @@ flowchart LR
 ### 3.3. Quyết định quan trọng
 
 1. **Không dùng Next.js.** Web là SPA nội bộ sau gateway, không cần SSR/SEO. Vite đơn giản hơn, build nhanh hơn, ít khái niệm hơn.
-2. **Dùng shadcn/ui, không tự viết UI kit.** shadcn copy source vào `src/components/ui` (Radix + Tailwind 4) nên vẫn giữ được "zero border / bottom shadow / no blur" bằng token ở `globals.css` + patch nhỏ vào source (bỏ `border`/`ring`, control 44px, card radius 16). Không có tầng composition riêng: page ghép trực tiếp từ primitive.
+2. **Dùng shadcn/ui, không tự viết UI kit.** shadcn copy source vào `src/components/ui` (Radix + Tailwind 4) nên vẫn giữ được ngôn ngữ console compact kiểu Ant Design bằng token ở `globals.css` + patch nhỏ vào source (viền 1px `#D9D9D9`, control 32px, radius 6/8/4, no blur). Không có tầng composition riêng: page ghép trực tiếp từ primitive.
 3. **Không dùng Zustand/Redux.** Server state do TanStack Query; auth do Context; bộ lọc nằm trên URL; offline queue nằm trong IndexedDB. Không cần global store.
 4. **Không gọi thẳng service.** Mọi request đi qua gateway để JWT, CORS, circuit breaker và logging tập trung.
 5. **Không lưu JWT trong `localStorage`.** Dùng memory + `sessionStorage` (xem mục 6).
@@ -414,36 +414,27 @@ Nếu cần web hoạt động khi mạng chập chờn:
 
 ```css
 :root {
-  --color-primary: #2563EB;
-  --color-primary-hover: #1D4ED8;
-  --color-primary-light: #EFF6FF;
-  --color-surface: #FFFFFF;
-  --color-bg: #F8FAFC;
-  --color-text: #0F172A;
-  --color-text-secondary: #334155;
-  --color-text-muted: #475569;
-  --color-fill: #F1F5F9;
-  --color-success: #10B981;
-  --color-success-light: #ECFDF5;
-  --color-warning: #D97706;
-  --color-warning-light: #FFFBEB;
-  --color-error: #DC2626;
-  --color-error-light: #FEF2F2;
-  --radius-card: 16px;
-  --radius-control: 12px;
-  --shadow-card: 0 4px 10px rgba(0, 0, 0, 0.07);
-  --shadow-floating: 0 8px 16px rgba(0, 0, 0, 0.12);
+  --background: #F5F5F5;   --card: #FFFFFF;      --popover: #FFFFFF;
+  --foreground: #1F1F1F;   --muted: #FAFAFA;     --muted-foreground: #595959;
+  --primary: #0958D9;      --primary-foreground: #FFFFFF;
+  --accent: #E6F4FF;       --accent-foreground: #0958D9;
+  --border: #D9D9D9;       --input: #D9D9D9;     --card-border: #F0F0F0;
+  --success: #237804;      --warning: #AD6800;   --destructive: #CF1322;
+  --sidebar: #FFFFFF;      --sidebar-accent: #E6F4FF; --sidebar-border: #F0F0F0;
+  --radius: 6px;           --radius-card: 8px;
+  --shadow-card: 0 1px 2px rgba(0,0,0,.03), 0 1px 6px -1px rgba(0,0,0,.02), 0 2px 4px rgba(0,0,0,.02);
+  --shadow-floating: 0 6px 16px rgba(0,0,0,.08), 0 3px 6px -4px rgba(0,0,0,.12), 0 9px 28px 8px rgba(0,0,0,.05);
 }
 ```
 
 ### 9.2. Quy tắc bắt buộc
 
-- `border: 0` toàn bộ; phân tầng bằng nền và shadow hướng xuống.
-- Không blur/glassmorphism; overlay dùng `rgba(15, 23, 42, 0.45)`.
-- Không dùng chữ xám nhạt; tương phản ≥ 4.5:1.
-- Nút/ô nhập cao tối thiểu 44px; touch target ≥ 48px ở tablet.
-- Icon-only button: nền trong suốt, icon đen, vùng bấm 48×48.
-- Focus ring: dùng `box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25)` (không dùng border) để vẫn accessible.
+- Viền 1px (`#D9D9D9` control, `#F0F0F0` card) — chỉ khai báo trong `components/ui/**` + token, feature không tự thêm.
+- Không blur/glassmorphism; overlay dùng `rgba(0, 0, 0, 0.45)`.
+- Không dùng chữ xám nhạt; tương phản ≥ 4.5:1 (chữ phụ `#595959`).
+- Control 32px, table row 40px; **ngoại lệ** Scan/Check-in giữ nút hành động chính ≥44px.
+- Icon-only button: nền trong suốt, icon mang màu ngữ nghĩa.
+- Focus ring: `box-shadow: 0 0 0 2px rgba(9, 88, 217, 0.2)` (không dùng outline).
 - Motion 150–200ms; tôn trọng `prefers-reduced-motion`.
 - Không dark mode.
 
@@ -474,12 +465,12 @@ bunx shadcn@latest add button card input label textarea select checkbox badge di
 | Dashboard | `Chart` (bọc recharts) |
 
 Quy tắc: không tạo wrapper/composition riêng; page ghép trực tiếp. Hàm thuần (format, map trạng thái →
-class) nằm trong `lib/**`. Sửa `src/components/ui/**` phải giữ zero-border, control ≥44px, shadow hướng xuống.
+class) nằm trong `lib/**`. Sửa `src/components/ui/**` phải giữ console compact: viền 1px, control 32px, radius 6/8/4, AA contrast, shadow hướng xuống.
 
 ### 9.4. Layout
 
-- Desktop ≥1280px: sidebar 240px + content tối đa 1440px.
-- Tablet 768–1279px: sidebar thu gọn, content full.
+- Desktop ≥1280px: sidebar 200px + content tối đa 1440px.
+- Tablet 768–1279px: rail icon 64px, content full.
 - Mobile <768px: bottom nav; scanner vẫn dùng được nhưng khuyến khích tablet.
 - Top bar: event switcher, trạng thái realtime, user menu, nút logout.
 - Scanner: camera chiếm vùng lớn, kết quả nổi bật, nút "Quét tiếp" trong tầm tay.
@@ -487,7 +478,7 @@ class) nằm trong `lib/**`. Sửa `src/components/ui/**` phải giữ zero-bord
 ### 9.5. Trước khi demo
 
 - Chạy `/impeccable audit` (theo `README.md` mục AI Agent).
-- Kiểm tra không có `border`, `blur`, màu xám nhạt.
+- Kiểm tra không có hex/border tự thêm trong `features/**`, không `blur`, không màu xám nhạt.
 - Kiểm tra contrast bằng axe.
 
 ---

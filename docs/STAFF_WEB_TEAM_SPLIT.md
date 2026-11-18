@@ -337,7 +337,7 @@ openapi-typescript  openapi-fetch  @biomejs/biome  tailwindcss
 - Hàm thuần (format, `statusToneClass`) ở `src/lib/**` — không render.
 - Được phép: dùng `variant` (`default | secondary | ghost | destructive | outline | link`), `size`
   (`sm | default | lg | icon`), và các primitive có sẵn. Không `className` để đổi màu/bo góc/shadow.
-- Sửa `src/components/ui/**` phải qua Tuấn; giữ luật zero-border / 44px / shadow hướng xuống.
+- Sửa `src/components/ui/**` phải qua Tuấn; giữ luật console compact: viền 1px chỉ trong primitive/token, control 32px, radius 6/8/4, shadow hướng xuống.
 - Không bao giờ `!important`, không `style={{}}` inline để né token.
 
 ### 6.1. Tuấn — Nền tảng, Dashboard, Tích hợp (20 ngày)
@@ -447,9 +447,9 @@ Hệ quả trực tiếp: **không** chạy `impeccable bolder | colorize | deli
 
 1. **Một ngôn ngữ component.** Nút "Lưu" ở 2 màn hình phải giống hệt nhau. Lệch = 1 trong 2 sai.
 2. **Trạng thái đủ bộ.** Mỗi control có default / hover / focus / active / disabled / loading / error. Không ship nửa bộ.
-3. **Phân tầng bằng nền, không bằng đường kẻ.** `border: 0` toàn bộ.
-4. **Một màu nhấn.** Xanh `#2563EB` chỉ cho hành động chính, mục đang chọn, link. Không tô màu để trang trí.
-5. **Màu ngữ nghĩa là monosemy.** Emerald/Amber/Crimson **chỉ** cho trạng thái vé và đồng bộ.
+3. **Viền thuộc về primitive.** Control dùng `1px #D9D9D9`, card `1px #F0F0F0`; feature code không tự thêm viền/hex — viền và radius khai báo một lần trong `components/ui` + token.
+4. **Một màu nhấn.** Xanh `#0958D9` chỉ cho hành động chính, mục đang chọn, link. Không tô màu để trang trí.
+5. **Màu ngữ nghĩa là monosemy.** Green/Amber/Red **chỉ** cho trạng thái vé và đồng bộ.
 6. **Số liệu đọc được trong 1 giây.** `tabular-nums`, căn phải, đơn vị nhỏ hơn số.
 7. **Skeleton thay spinner.** Spinner toàn trang bị cấm; skeleton đúng hình dạng nội dung cuối.
 8. **Empty state dạy cách dùng**, không phải "Không có dữ liệu".
@@ -464,35 +464,32 @@ Test trước khi merge: *một người quen dùng admin tool có tin được 
 
 ```css
 :root {
-  --color-primary: #2563EB;      --color-primary-hover: #1D4ED8;
-  --color-primary-light: #EFF6FF;
-  --color-surface: #FFFFFF;      --color-bg: #F8FAFC;
-  --color-ink: #0F172A;          --color-body: #334155;   --color-muted: #475569;
-  --color-fill: #F1F5F9;         --color-fill-active: #E2E8F0;
-  --color-success: #10B981;      --color-success-bg: #ECFDF5;
-  --color-warning: #D97706;      --color-warning-bg: #FFFBEB;
-  --color-error: #DC2626;        --color-error-bg: #FEF2F2;
-  --color-scrim: rgba(15, 23, 42, 0.45);
-  --radius-card: 16px; --radius-control: 12px; --radius-pill: 9999px;
-  --shadow-subtle: 0 2px 6px rgba(0,0,0,.05);
-  --shadow-card: 0 4px 10px rgba(0,0,0,.07);
-  --shadow-float: 0 8px 16px rgba(0,0,0,.12);
-  --space-1: 4px; --space-2: 8px; --space-3: 16px; --space-4: 20px; --space-5: 24px; --space-6: 32px;
-  --dur-fast: 150ms; --dur-base: 200ms;
+  --background: #F5F5F5;          --card: #FFFFFF;         --popover: #FFFFFF;
+  --foreground: #1F1F1F;          --muted: #FAFAFA;        --muted-foreground: #595959;
+  --primary: #0958D9;             --primary-foreground: #FFFFFF;
+  --accent: #E6F4FF;              --accent-foreground: #0958D9;
+  --border: #D9D9D9;              --input: #D9D9D9;        --card-border: #F0F0F0;
+  --success: #237804;             --warning: #AD6800;      --destructive: #CF1322;
+  --sidebar: #FFFFFF;             --sidebar-accent: #E6F4FF; --sidebar-border: #F0F0F0;
+  --radius: 6px;                  --radius-card: 8px;
+  --shadow-subtle: 0 1px 2px rgba(0,0,0,.03), 0 1px 6px -1px rgba(0,0,0,.02), 0 2px 4px rgba(0,0,0,.02);
+  --shadow-card:   0 1px 2px rgba(0,0,0,.03), 0 1px 6px -1px rgba(0,0,0,.02), 0 2px 4px rgba(0,0,0,.02);
+  --shadow-float:  0 6px 16px rgba(0,0,0,.08), 0 3px 6px -4px rgba(0,0,0,.12), 0 9px 28px 8px rgba(0,0,0,.05);
 }
 ```
 
-Tailwind theme map 1-1 (shadcn variables): `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `bg-secondary`, `text-primary`, `bg-success/10`, `text-warning`, `text-destructive`, `rounded-card`, `shadow-card`, `shadow-float`. **Cấm hex trong feature** — `bun run lint:design` fail CI.
+Tailwind theme map 1-1 (shadcn variables): `bg-background`, `bg-card`, `border-card-border`, `text-foreground`, `text-muted-foreground`, `bg-muted`, `text-primary`, `bg-accent`, `border-border`, `bg-success/10`, `text-warning`, `text-destructive`, `rounded-card`, `rounded-md`, `shadow-card`, `shadow-float`.
+**Cấm hex trong feature** — `bun run lint:design` fail CI. Viền/hex chỉ được khai báo ở `styles/globals.css` và `components/ui/**`.
 
 ### 8.4. Cấm tuyệt đối
 
-`border` / `border-bottom` / hairline · `blur` / `backdrop-filter` / glass · gradient · chữ xám nhạt (`#94A3B8`, `#CBD5E1`, `#9CA3AF`) · shadow đa hướng hoặc offset Y âm · dark mode · icon-only button có nền màu (icon đen, vùng bấm 48×48) · card lồng card (elevation soup) · spinner toàn trang · `outline` làm focus ring (dùng `box-shadow`) · palette-load choreography, parallax, animation lặp vô hạn · scrollbar tự chế · `!important` · inline style để né token · emoji làm icon.
+`border` / hex / màu Tailwind thô (`blue-600`, `emerald-500`…) **trong `features/**` và `app/**`** (viền chỉ sống trong `components/ui/**` + token) · `blur` / `backdrop-filter` / glass · gradient · chữ xám nhạt (`#94A3B8`, `#CBD5E1`, `#9CA3AF`) · shadow đa hướng hoặc offset Y âm · dark mode · icon-only button có nền màu · card lồng card (elevation soup) · spinner toàn trang · `outline` làm focus ring (dùng `box-shadow`) · badge pill (radius tag = 4px) · control radius 12–16px (đã bị thay bằng 6px) · palette-load choreography, parallax, animation lặp vô hạn · scrollbar tự chế · `!important` · inline style để né token · emoji làm icon.
 
 ### 8.5. Typography
 
 - **Một family**: system sans (Roboto/SF). Không font display trong UI. Mono chỉ cho mã vé/order id.
-- Thang cố định (không `clamp`): `28/700` display · `20/700` headline · `16/600` title · `14/400` body · `12/600` label + `tracking:.2px` (chữ thường nhãn bảng có thể uppercase).
-- Weight tối thiểu cho label và badge: **600**. Không weight < 400.
+- Thang cố định (không `clamp`): `20/600` display · `16/600` headline · `14/600` title · `14/400` body (line-height `1.5715`) · `12/500` label.
+- Weight tối thiểu: **400**; label và số liệu trạng thái dùng 500–600. Không weight < 400.
 - Số trong bảng/stat: `font-variant-numeric: tabular-nums`.
 - Đo dòng prose (mô tả, ghi chú): 65–75ch. Bảng được phép >120ch.
 
@@ -500,32 +497,32 @@ Tailwind theme map 1-1 (shadcn variables): `bg-background`, `bg-card`, `text-for
 
 | Breakpoint | Nav | Content |
 |---|---|---|
-| ≥1280px | sidebar 240px cố định | max-width 1440px, padding 24px |
-| 768–1279px | rail 72px (icon + tooltip) | full, padding 20px |
+| ≥1280px | sidebar 200px cố định | max-width 1440px, padding 24px |
+| 768–1279px | rail 64px (icon + tooltip) | full, padding 20px |
 | <768px | bottom nav 3–5 mục | padding 16px; bảng cuộn ngang trong container riêng |
 
-- Page pattern cố định: header màn hình (h1 + meta + actions) (title + meta + actions bên phải) → hàng lọc (Input + Select) (nếu là list) → nội dung → `Pagination` ở chân.
-- Nhịp dọc: 16px giữa card, 24px giữa section, 32px giữa nhóm chức năng.
-- Hai lớp nền: app `#F8FAFC`, content `#FFFFFF`. Sidebar và top bar là surface trắng + `shadow-subtle`, **không** tô màu thương hiệu.
-- Vùng bấm: ≥44px desktop, ≥48px tablet (scan/check-in). Khoảng cách giữa 2 target ≥8px.
+- Page pattern cố định: header màn hình (h1 + meta + actions) → hàng lọc (Input + Select) → nội dung → `Pagination` ở chân.
+- Nhịp dọc: 16px giữa card, 24px giữa section, 32px giữa nhóm chức năng. Header bar cao 48px.
+- Hai lớp nền: app `#F5F5F5`, content `#FFFFFF`. Sidebar và top bar là surface trắng + `shadow-subtle`, **không** tô màu thương hiệu.
+- Mật độ: control 32px, bảng row 40px. **Ngoại lệ bắt buộc:** nút hành động chính ở Scan/Check-in giữ ≥44px (tablet tại cổng), khoảng cách giữa 2 target ≥8px.
 - Không đặt hành động chính ở góc trên phải xa tầm tay trên tablet ở cổng.
 
 ### 8.7. Bảng (thành phần dùng nhiều nhất)
 
-- Header: label 12/600, sticky khi scroll, nền `#F8FAFC`, cao 44px.
-- Row: cao 52px, hover `#F8FAFC`, selected `#EFF6FF`, **không** zebra striping.
+- Header: 14/600, sticky khi scroll, nền `#FAFAFA`, cao 36px, viền dưới `1px #F0F0F0`.
+- Row: cao 40px, viền dưới `1px #F0F0F0`, hover `#FAFAFA`, selected `#E6F4FF`, **không** zebra striping.
 - Căn: text trái, số/money phải + `tabular-nums`, badge cột riêng.
-- Trạng thái = `Badge` pill (nền nhạt + chữ đậm semantic), không dùng màu chữ trần.
+- Trạng thái = `Badge` tag (nền tint + chữ semantic, radius 4px), không dùng màu chữ trần.
 - Cột ngày: `15/11 · 14:30` (không lặp năm nếu cùng năm).
 - Rỗng: `Empty` bên trong bảng (không render header trống).
 - Loading: 8 skeleton row đúng số cột. Error: 1 dòng trong bảng + nút "Thử lại".
-- Phân trang: cursor, `limit` 20, hiện "20 / 240". Search debounce 300ms, giữ từ khoá trên URL.
+- Phân trang: cursor, `limit` 20, hiện "20 / 240", nút 32px, trang hiện tại viền + chữ xanh. Search debounce 300ms, giữ từ khoá trên URL.
 - Cột đầu (mã vé/order) là mono và được copy bằng click — có feedback "Đã copy".
 
 ### 8.8. Form
 
-- Label trên field 6px, 12/600; helper 12/400 `--color-muted`; lỗi **thay chỗ** helper, `--color-error` + icon, có `aria-describedby`.
-- Control cao 44px, radius 12, nền `--color-fill`, focus đổi nền sang `--color-fill-active` + ring `0 0 0 3px rgba(37,99,235,.25)`.
+- Label trên field 6px, 12/500; helper 12/400 `--muted-foreground`; lỗi **thay chỗ** helper, `--destructive` + icon, có `aria-describedby`.
+- Control cao 32px, radius 6, nền `--card` + viền `1px --border`; hover viền xanh 60%; focus halo `0 0 0 2px rgba(9,88,217,.2)`.
 - 12px giữa field cùng nhóm, 24px giữa nhóm; nhóm dài chia section có heading 16/600.
 - Validate khi blur + submit, không validate từng ký tự. Lỗi server 422 map về field theo `code`.
 - Nút submit cố định chân form khi form dài; disable khi `isPending`; **không** reset form sau lỗi 503.
@@ -548,7 +545,7 @@ Tailwind theme map 1-1 (shadcn variables): `bg-background`, `bg-card`, `text-for
 ### 8.10. Overlay
 
 - Dùng `<dialog>` / portal, `position: fixed`; không nhét dropdown trong ancestor `overflow: hidden`.
-- `Dialog` (shadcn): scrim `rgba(15,23,42,.45)`, surface trắng radius 16, `shadow-float`, max-width 560px, focus trap, `Esc` đóng, focus trả về phần tử mở.
+- `Dialog` (shadcn): scrim `rgba(0,0,0,.45)`, surface trắng radius 8, `shadow-float`, max-width 560px, focus trap, `Esc` đóng, focus trả về phần tử mở.
 - `Sheet` (shadcn): dùng cho chi tiết nhanh trên desktop (order/ticket) khi không cần URL riêng.
 - Toast = `sonner` (`toast()`), góc dưới phải, 4s, tối đa 3 cái, chỉ cho kết quả hành động; lỗi field không dùng toast.
 

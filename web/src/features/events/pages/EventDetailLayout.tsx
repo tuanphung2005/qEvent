@@ -57,7 +57,7 @@ export function EventDetailLayout() {
 
   if (query.isLoading) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         <Skeleton className="h-9 w-80 max-w-full" />
         <Skeleton className="h-4 w-full max-w-[520px]" />
         <Skeleton className="h-10 w-[420px] max-w-full" />
@@ -142,7 +142,7 @@ export function EventDetailLayout() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-2">
           <Link
@@ -171,10 +171,7 @@ export function EventDetailLayout() {
       </header>
 
       <Tabs value={tab} onValueChange={goTab}>
-        <TabsList
-          variant="line"
-          className="h-11 w-fit max-w-full justify-start overflow-x-auto group-data-horizontal/tabs:h-11"
-        >
+        <TabsList variant="line" className="w-fit max-w-full justify-start overflow-x-auto">
           {TABS.map((item) => (
             <TabsTrigger key={item.value} value={item.value} className="px-3">
               {item.label}

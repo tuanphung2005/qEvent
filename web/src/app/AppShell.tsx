@@ -61,8 +61,8 @@ const NAV_ICON: Record<NavItem["icon"], LucideIcon> = {
 };
 
 const SIDEBAR_WIDTH = {
-  "--sidebar-width": "240px",
-  "--sidebar-width-icon": "72px",
+  "--sidebar-width": "200px",
+  "--sidebar-width-icon": "64px",
 } as CSSProperties;
 
 function visibleNav(role: string | undefined): NavItem[] {
@@ -82,8 +82,8 @@ export function AppShell() {
     <SidebarProvider style={SIDEBAR_WIDTH} defaultOpen={wide}>
       <Sidebar collapsible="icon">
         <SidebarHeader>
-          <Link to={routes.dashboard()} className="flex h-12 items-center gap-2 px-2">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+          <Link to={routes.dashboard()} className="flex h-10 items-center gap-2 px-2">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
               qE
             </span>
             <span className="truncate text-sm font-semibold text-foreground group-data-[collapsible=icon]:hidden">
@@ -120,20 +120,17 @@ export function AppShell() {
       </Sidebar>
 
       <SidebarInset>
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-2 bg-card px-4 shadow-subtle md:px-5 lg:px-6">
+        <header className="sticky top-0 z-20 flex h-12 items-center gap-2 bg-card px-3 shadow-subtle md:px-4 lg:px-5">
           <SidebarTrigger className="hidden md:inline-flex" />
           {eventsLoading ? (
-            <Skeleton className="h-11 w-[220px] md:w-[280px]" />
+            <Skeleton className="h-8 w-[200px] md:w-[240px]" />
           ) : (
             <Select
               value={eventId ?? ""}
               onValueChange={(value) => value && setEventId(value)}
               disabled={events.length === 0}
             >
-              <SelectTrigger
-                aria-label="Sự kiện đang chọn"
-                className="h-11 w-[220px] bg-secondary md:w-[280px]"
-              >
+              <SelectTrigger aria-label="Sự kiện đang chọn" className="w-[200px] md:w-[240px]">
                 <SelectValue
                   placeholder={events.length === 0 ? "Chưa có sự kiện" : "Chọn sự kiện"}
                 />
@@ -152,10 +149,10 @@ export function AppShell() {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-11 gap-2 px-2">
+                  <Button variant="ghost" className="h-8 gap-2 px-1.5">
                     <span
                       aria-hidden="true"
-                      className="flex size-8 items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-foreground"
+                      className="flex size-6 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground"
                     >
                       {user.fullName.slice(0, 1).toUpperCase()}
                     </span>
@@ -200,8 +197,8 @@ export function AppShell() {
         </header>
 
         {/* SidebarInset already renders the page's single <main> landmark. */}
-        <div className="flex-1 px-4 py-6 pb-24 md:px-5 md:pb-6 lg:px-6">
-          <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6">
+        <div className="flex-1 px-4 py-4 pb-20 md:px-5 md:pb-4 lg:px-6">
+          <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4">
             <Outlet />
           </div>
         </div>

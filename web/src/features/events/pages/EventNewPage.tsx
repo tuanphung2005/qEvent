@@ -155,7 +155,7 @@ export function EventNewPage() {
   });
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1">
           <Link
@@ -171,7 +171,7 @@ export function EventNewPage() {
         </div>
       </header>
 
-      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
         {formError ? (
           <Alert variant="destructive">
             <AlertTriangle />
@@ -370,7 +370,7 @@ export function EventNewPage() {
                   <div className="mt-3 flex items-center justify-between gap-3">
                     <Label
                       htmlFor={`session-${index}-live`}
-                      className="flex h-11 items-center gap-2 text-sm text-foreground"
+                      className="flex h-8 items-center gap-2 text-sm text-foreground"
                     >
                       <Checkbox
                         id={`session-${index}-live`}

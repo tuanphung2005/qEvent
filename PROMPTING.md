@@ -15,7 +15,7 @@ Tài liệu này chuẩn hóa quy trình ra lệnh (prompting) và phương phá
 | :--- | :--- | :--- | :--- |
 | **GitNexus** | An toàn kiến trúc | Mọi chỉnh sửa mã nguồn backend/logic, điều hướng, tái cấu trúc | **BẮT BUỘC** chạy `impact` trước khi sửa symbol; chạy `detect_changes` trước khi commit. |
 | **Ponytail** | Tối giản mã nguồn | Toàn bộ tác vụ viết code, sửa bug, chọn thư viện | Tạo ra **diff nhỏ nhất** giải quyết triệt để vấn đề; loại bỏ code thừa, wrapper và abstraction không cần thiết. |
-| **Impeccable** | Chuẩn mực UI/UX | Toàn bộ giao diện người dùng (Mobile Expo, Web, Dashboard) | Tuân thủ sàn thiết kế: `borderWidth: 0`, chỉ dùng shadow đổ đáy, không blur, phản hồi đa giác quan. |
+| **Impeccable** | Chuẩn mực UI/UX | Toàn bộ giao diện người dùng (Mobile Expo, Web, Dashboard) | Tuân thủ sàn thiết kế trong `DESIGN.md`: web = console compact kiểu Ant Design (viền 1px chỉ trong `components/ui`, control 32px, AA contrast, không blur); mobile = surface contrast + shadow đổ đáy. |
 
 ---
 
@@ -96,15 +96,14 @@ Trước khi sửa file giao diện, luôn nạp context thiết kế:
 
 ### Sàn Thiết Kế Bất Biến Của qEvent (Tuyệt Đối Không Vi Phạm)
 1. **Chỉ Dùng Light Theme (Chủ đề sáng)**:
-   - Màu nền (canvas): `#F8FAFC` hoặc `#FFFFFF`.
-   - Bề mặt card: `#FFFFFF`.
-   - Chữ chính: `#0F172A` / `#334155`. Màu chủ đạo (Brand): `#2563EB`.
-2. **Không Dùng Viền (`borderWidth: 0`)**:
-   - Nghiêm cấm mọi đường viền (border/outline/hairline) trên cards, nút bấm, ô nhập liệu (inputs), tabs, và badges.
-   - Phân cấp thị giác hoàn toàn bằng độ tương phản bề mặt và bóng đổ.
+   - Web console (đã triển khai): nền `#F5F5F5`, card `#FFFFFF`, chữ chính `#1F1F1F`, chữ phụ `#595959`, brand `#0958D9`.
+   - Mobile (dự kiến): nền `#F8FAFC`, card `#FFFFFF`, chữ `#0F172A` / `#334155`, brand `#2563EB`.
+2. **Viền Chỉ Thuộc Về Primitive**:
+   - Web: control dùng viền `1px #D9D9D9`, card `1px #F0F0F0`, radius 6px (control) / 8px (card) / 4px (tag). Viền, hex và màu Tailwind thô **chỉ được khai báo trong `src/styles/globals.css` và `src/components/ui/**`**; feature code chỉ dùng class semantic và bị `bun run lint:design` chặn nếu vi phạm.
+   - Mobile (dự kiến): `borderWidth: 0`, phân cấp bằng surface contrast.
 3. **Chỉ Dùng Bóng Đổ Đáy (Bottom Drop Shadow)**:
-   - Android: `elevation: 2` đến `elevation: 8`.
-   - iOS: `shadowOffset: { width: 0, height: 4 }`, `shadowOpacity: 0.08`, `shadowRadius: 8`.
+   - Web: thang Ant Design — card/subtle `0 1px 2px rgba(0,0,0,.03), 0 1px 6px -1px rgba(0,0,0,.02)`; float `0 6px 16px rgba(0,0,0,.08), 0 3px 6px -4px rgba(0,0,0,.12)`.
+   - Mobile (dự kiến): Android `elevation: 2–8`; iOS `shadowOffset: { width: 0, height: 4 }`, `shadowOpacity: 0.08`, `shadowRadius: 8`.
 4. **Cấm Hiệu Ứng Làm Mờ (No Blur / No Glassmorphism)**:
    - Nghiêm cấm sử dụng `BlurView` hoặc bộ lọc blur.
    - Sử dụng lớp phủ phẳng bán trong suốt: `rgba(15, 23, 42, 0.45)`.
@@ -201,7 +200,7 @@ Quy trình bắt buộc:
 2. Áp dụng chế độ OPERATE (nhanh gọn, độ tương phản cao, tối ưu cho thao tác tại cổng vào).
 3. Tuân thủ tuyệt đối sàn thiết kế qEvent:
    - Light theme duy nhất (Nền `#F8FAFC`, bề mặt card `#FFFFFF`, chữ `#0F172A`).
-   - `borderWidth: 0` trên toàn bộ component (không viền, không hairline).
+   - `borderWidth: 0` trên toàn bộ component mobile (không viền, không hairline) — web console dùng sàn riêng trong `DESIGN.md`.
    - Chỉ dùng bottom drop shadow để tạo khối nổi.
    - Không dùng BlurView hay hiệu ứng kính mờ (glassmorphism).
    - Bật chống chụp màn hình `expo-screen-capture` và hiển thị vòng đếm ngược 30 giây.
@@ -216,7 +215,7 @@ Quy trình bắt buộc:
 1. Chạy Impeccable Audit kiểm tra:
    - Khả năng đọc dưới ánh sáng mặt trời / chống lóa tại cổng sự kiện.
    - Kích thước vùng bấm (tối thiểu 48x48dp cho nhân viên thao tác một tay).
-   - Sự tuân thủ nguyên tắc `borderWidth: 0` và bóng đổ đáy.
+   - Sự tuân thủ sàn thiết kế nền tảng: mobile `borderWidth: 0` + bóng đổ đáy; web console viền 1px trong primitive, token semantic, AA contrast.
    - Độ trễ của phản hồi đa giác quan (âm thanh + rung haptics + nhấp nháy màu màn hình).
 2. Liệt kê các điểm cần sửa theo thứ tự ưu tiên (Blocker -> Major -> Minor).
 3. Cung cấp đoạn code thay đổi nhỏ gọn nhất để khắc phục ngay các lỗi Blocker và Major.

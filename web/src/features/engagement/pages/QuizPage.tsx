@@ -147,7 +147,7 @@ export function QuizPage() {
         {isStaffOrOrganizer && (
           <div className="flex justify-center">
             <Button
-              className="h-11 gap-2 shadow-sm"
+              className="gap-2"
               disabled={createGameMutation.isPending}
               onClick={() => createGameMutation.mutate()}
             >
@@ -229,7 +229,7 @@ export function QuizPage() {
                               value={qContent}
                               onChange={(e) => setQContent(e.target.value)}
                               required
-                              className="h-11"
+                              className="h-8"
                             />
                           </Field>
 
@@ -246,7 +246,7 @@ export function QuizPage() {
                                   type="button"
                                   variant={correctIdx === idx ? "default" : "outline"}
                                   size="sm"
-                                  className="h-11 w-11 shrink-0 font-bold"
+                                  className="h-8 w-8 shrink-0 font-bold"
                                   aria-label={`Chọn ${String.fromCharCode(65 + idx)} là đáp án đúng`}
                                   aria-pressed={correctIdx === idx}
                                   onClick={() => setCorrectIdx(idx)}
@@ -263,7 +263,7 @@ export function QuizPage() {
                                     setQOptions(next);
                                   }}
                                   required
-                                  className="h-11"
+                                  className="h-8"
                                 />
                               </div>
                             ))}
@@ -274,14 +274,14 @@ export function QuizPage() {
                           <Button
                             type="button"
                             variant="ghost"
-                            className="h-11"
+                            className="h-8"
                             onClick={() => setOpenAddQuestion(false)}
                           >
                             Huỷ
                           </Button>
                           <Button
                             type="submit"
-                            className="h-11"
+                            className="h-8"
                             disabled={
                               addQuestionMutation.isPending ||
                               !qContent.trim() ||
@@ -456,9 +456,9 @@ export function QuizPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="h-11">Huỷ</AlertDialogCancel>
+            <AlertDialogCancel className="h-8">Huỷ</AlertDialogCancel>
             <AlertDialogAction
-              className="h-11"
+              className="h-8"
               onClick={() => {
                 if (confirmAction === "next") {
                   nextMutation.mutate(game.id);

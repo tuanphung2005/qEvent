@@ -92,7 +92,7 @@ export function TicketDetailPage() {
 
   if (ticketQuery.isLoading) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         {back}
         <Skeleton className="h-9 w-64" />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -116,7 +116,7 @@ export function TicketDetailPage() {
 
   if (error?.status === 404 || !ticketId) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         {back}
         <Card>
           <Empty className="p-10">
@@ -139,7 +139,7 @@ export function TicketDetailPage() {
 
   if (error || !ticket || !detail) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         {back}
         <Alert variant="destructive">
           <AlertTriangle />
@@ -160,7 +160,7 @@ export function TicketDetailPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {back}
 
       <header className="flex flex-wrap items-start justify-between gap-4">

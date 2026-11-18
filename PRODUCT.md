@@ -28,10 +28,8 @@ Hybrid Check-in architecture combining RSA-256 + 30-second TOTP Dynamic QR codes
 - **High-Speed Scanner**: Camera-based QR reader with immediate sensory feedback (sound chime via `expo-av`, haptic vibration via `expo-haptics`).
 - **Offline Cache & Sync**: Local SQLite database storing cached ticket tokens; offline check-in queue that syncs automatically when network reconnects.
 - **Design Constraints (Binding)**:
-  - **Light Theme Only**: Background `#F8FAFC` or `#FFFFFF`, Card surfaces `#FFFFFF`, Text `#0F172A` / `#475569`.
-  - **Zero Borders**: `borderWidth: 0` across all cards, buttons, inputs, tabs, bottom sheets, and badges. No outlines or hairlines.
-  - **Bottom Drop Shadow Only**: Natural elevation using bottom-directed shadows (`elevation` on Android, bottom offset on iOS).
-  - **No Blur / No Glassmorphism**: Prohibited use of `BlurView` or blur filters. Flat translucent overlays only (`rgba(15, 23, 42, 0.45)`).
+  - **Mobile app (planned)**: light theme only — background `#F8FAFC` or `#FFFFFF`, card `#FFFFFF`, text `#0F172A` / `#475569`; `borderWidth: 0` on cards, buttons, inputs, tabs, sheets, badges; bottom drop shadow only; no blur (`rgba(15, 23, 42, 0.45)` scrims).
+  - **Web staff console (implemented)**: Ant Design–derived compact console — canvas `#F5F5F5`, surfaces `#FFFFFF`, text `#1F1F1F` / `#595959`, primary `#0958D9`; 1px `#D9D9D9` borders inside primitives/tokens only, 32px controls, 40px table rows, radius 6/8/4, AA contrast. Details in `DESIGN.md`.
 
 ## Brand Commitments
 - **Name**: qEvent (QUICKEVENT)

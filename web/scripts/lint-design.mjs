@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * Fails CI when a feature or component breaks the visual rules that keep the
- * four owners consistent: hex colours, borders, blur and pale grey text.
- * Tokens live in src/styles/tokens.css and nowhere else.
+ * Fails CI when a feature or app file breaks the visual rules that keep the
+ * four owners consistent: hex colours, hand-rolled borders, blur and pale grey
+ * text. Borders/radii belong to the primitives in src/components/ui; tokens
+ * live in src/styles/globals.css and nowhere else.
  *
  * Escape hatch (rare, with a reason on the line): `lint-design-allow`.
  */

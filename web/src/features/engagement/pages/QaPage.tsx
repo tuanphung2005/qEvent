@@ -132,7 +132,7 @@ export function QaPage() {
                     variant="ghost"
                     size="icon"
                     aria-label="Xoá câu hỏi"
-                    className="h-11 w-11 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => setQuestionToDelete(q)}
                   >
                     <Trash2 className="size-4" />
@@ -158,9 +158,9 @@ export function QaPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="h-11">Huỷ</AlertDialogCancel>
+            <AlertDialogCancel className="h-8">Huỷ</AlertDialogCancel>
             <AlertDialogAction
-              className="h-11 bg-destructive text-primary-foreground hover:bg-destructive/90"
+              className="bg-destructive text-primary-foreground hover:bg-destructive/90"
               onClick={() => {
                 if (questionToDelete) {
                   deleteMutation.mutate(questionToDelete.id);

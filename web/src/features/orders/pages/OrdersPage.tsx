@@ -150,7 +150,7 @@ export function OrdersPage() {
 
   if (!eventId) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         <h1 className="text-display text-foreground">Đơn hàng</h1>
         <Card>
           <Empty>
@@ -164,7 +164,7 @@ export function OrdersPage() {
             <EmptyContent>
               {events.length > 0 ? (
                 <Select onValueChange={(value) => value && setEventId(value)}>
-                  <SelectTrigger aria-label="Chọn sự kiện" className="h-11 w-[320px] bg-secondary">
+                  <SelectTrigger aria-label="Chọn sự kiện" className="h-8 w-[320px]">
                     <SelectValue placeholder="Chọn sự kiện" />
                   </SelectTrigger>
                   <SelectContent>
@@ -176,7 +176,7 @@ export function OrdersPage() {
                   </SelectContent>
                 </Select>
               ) : eventsLoading ? (
-                <Skeleton className="h-11 w-[320px]" />
+                <Skeleton className="h-8 w-[320px]" />
               ) : (
                 <p className="text-sm text-muted-foreground">
                   Chưa có sự kiện nào. Tạo sự kiện trước khi xem đơn hàng.
@@ -190,7 +190,7 @@ export function OrdersPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1">
           <h1 className="text-display text-foreground">Đơn hàng</h1>
@@ -207,10 +207,10 @@ export function OrdersPage() {
           value={search}
           onChange={(input) => setSearch(input.target.value)}
           ref={searchRef}
-          className="h-11 sm:max-w-[360px]"
+          className="sm:max-w-[360px]"
         />
         <Select value={status ?? "ALL"} onValueChange={setStatus}>
-          <SelectTrigger aria-label="Lọc theo trạng thái" className="h-11 w-full sm:w-[240px]">
+          <SelectTrigger aria-label="Lọc theo trạng thái" className="w-full sm:w-[240px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

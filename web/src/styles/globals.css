@@ -5,11 +5,13 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Palette, radius, elevation and type scale come from DESIGN.md and live only
- * here. shadcn components read these variables; features never hard-code a hex.
+ * Palette, radius, elevation and type scale live only here. shadcn components
+ * read these variables; features never hard-code a hex.
  *
- * "Zero border": --border and --input are transparent, so the generated border
- * utilities draw nothing. Separation is surface contrast + downward shadow.
+ * Visual language: Ant Design (compact + information dense) — 6px control
+ * radius, 32px controls, 1px #d9d9d9 borders, #fafafa table header, #e6f4ff
+ * selected surface, 14px body. Blue #0958d9 instead of antd #1677ff keeps AA
+ * (4.5:1) for white 14px button text.
  */
 @theme inline {
   --font-sans: system-ui, Roboto, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
@@ -35,6 +37,7 @@
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-border: var(--border);
+  --color-card-border: var(--card-border);
   --color-input: var(--input);
   --color-ring: var(--ring);
 
@@ -57,76 +60,81 @@
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
-  --radius-card: 16px;
+  --radius-card: 8px;
 
-  --shadow-subtle: 0 2px 6px rgba(0, 0, 0, 0.05);
-  --shadow-card: 0 4px 10px rgba(0, 0, 0, 0.07);
-  --shadow-float: 0 8px 16px rgba(0, 0, 0, 0.12);
+  /* antd elevation: tertiary (cards/controls) and the dropdown/modal shadow. */
+  --shadow-subtle: 0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px 0
+    rgba(0, 0, 0, 0.02);
+  --shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px 0
+    rgba(0, 0, 0, 0.02);
+  --shadow-float: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px
+    8px rgba(0, 0, 0, 0.05);
 
-  --text-display: 28px;
-  --text-display--line-height: 1.2;
-  --text-display--letter-spacing: -0.5px;
-  --text-display--font-weight: 700;
+  --text-display: 20px;
+  --text-display--line-height: 1.4;
+  --text-display--letter-spacing: 0;
+  --text-display--font-weight: 600;
 
-  --text-headline: 20px;
-  --text-headline--line-height: 1.3;
-  --text-headline--font-weight: 700;
+  --text-headline: 16px;
+  --text-headline--line-height: 1.4;
+  --text-headline--font-weight: 600;
 
-  --text-title: 16px;
-  --text-title--line-height: 1.4;
+  --text-title: 14px;
+  --text-title--line-height: 1.5715;
   --text-title--font-weight: 600;
 
   --text-label: 12px;
-  --text-label--line-height: 1.3;
-  --text-label--letter-spacing: 0.2px;
-  --text-label--font-weight: 600;
+  --text-label--line-height: 1.4;
+  --text-label--letter-spacing: 0;
+  --text-label--font-weight: 500;
 }
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #f5f5f5;
+  --foreground: #1f1f1f;
 
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #1f1f1f;
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
+  --popover-foreground: #1f1f1f;
 
-  --primary: #2563eb;
+  --primary: #0958d9;
   --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #475569;
-  --accent: #eff6ff;
-  --accent-foreground: #2563eb;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #1f1f1f;
+  --muted: #fafafa;
+  --muted-foreground: #595959;
+  --accent: #e6f4ff;
+  --accent-foreground: #0958d9;
 
-  --destructive: #dc2626;
+  --destructive: #cf1322;
   /* 700-shade greens/ambers: AA (4.5:1) as text on white and on their /10 tint. */
-  --success: #047857;
-  --success-foreground: #ecfdf5;
-  --warning: #92400e;
-  --warning-foreground: #fffbeb;
+  --success: #237804;
+  --success-foreground: #f6ffed;
+  --warning: #ad6800;
+  --warning-foreground: #fffbe6;
 
-  --border: transparent;
-  --input: transparent;
-  --ring: #2563eb;
+  --border: #d9d9d9;
+  --input: #d9d9d9;
+  --ring: #0958d9;
+  --card-border: #f0f0f0;
 
-  --chart-1: #2563eb;
-  --chart-2: #475569;
-  --chart-3: #10b981;
-  --chart-4: #d97706;
-  --chart-5: #dc2626;
+  --chart-1: #0958d9;
+  --chart-2: #595959;
+  --chart-3: #389e0d;
+  --chart-4: #d46b08;
+  --chart-5: #cf1322;
 
-  --radius: 12px;
+  --radius: 6px;
 
   --sidebar: #ffffff;
-  --sidebar-foreground: #334155;
-  --sidebar-primary: #2563eb;
+  --sidebar-foreground: #1f1f1f;
+  --sidebar-primary: #0958d9;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #eff6ff;
-  --sidebar-accent-foreground: #2563eb;
-  --sidebar-border: transparent;
-  --sidebar-ring: #2563eb;
+  --sidebar-accent: #e6f4ff;
+  --sidebar-accent-foreground: #0958d9;
+  --sidebar-border: #f0f0f0;
+  --sidebar-ring: #0958d9;
 }
 
 @layer base {
@@ -138,7 +146,7 @@
   body {
     @apply bg-background font-sans text-foreground antialiased;
     font-size: 14px;
-    line-height: 1.5;
+    line-height: 1.5715;
   }
 
   h1,
@@ -153,10 +161,10 @@
     color: var(--foreground);
   }
 
-  /* Focus is always visible and never an outline: a 3px ring, per DESIGN.md. */
+  /* Focus is always visible and never an outline: antd-style 2px halo. */
   :focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+    box-shadow: 0 0 0 2px rgba(9, 88, 217, 0.2);
   }
 
   input,

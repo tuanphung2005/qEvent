@@ -116,7 +116,7 @@ export function PollsPage() {
         {isStaffOrOrganizer && (
           <Dialog open={openCreate} onOpenChange={setOpenCreate}>
             <DialogTrigger asChild>
-              <Button className="h-11 gap-1.5 shadow-sm">
+              <Button className="gap-1.5">
                 <Plus className="size-4" />
                 <span>Tạo khảo sát mới</span>
               </Button>
@@ -139,7 +139,7 @@ export function PollsPage() {
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       required
-                      className="h-11"
+                      className="h-8"
                     />
                   </Field>
 
@@ -155,7 +155,7 @@ export function PollsPage() {
                           value={opt}
                           onChange={(e) => handleOptionChange(idx, e.target.value)}
                           required
-                          className="h-11"
+                          className="h-8"
                         />
                         {options.length > 2 && (
                           <Button
@@ -163,7 +163,7 @@ export function PollsPage() {
                             variant="ghost"
                             size="icon"
                             aria-label={`Xoá lựa chọn ${idx + 1}`}
-                            className="h-11 w-11 shrink-0 text-muted-foreground hover:text-destructive"
+                            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
                             onClick={() => handleRemoveOption(idx)}
                           >
                             <Trash2 className="size-4" />
@@ -191,14 +191,14 @@ export function PollsPage() {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="h-11"
+                    className="h-8"
                     onClick={() => setOpenCreate(false)}
                   >
                     Huỷ
                   </Button>
                   <Button
                     type="submit"
-                    className="h-11"
+                    className="h-8"
                     disabled={
                       createPollMutation.isPending ||
                       !title.trim() ||

@@ -56,7 +56,7 @@ export function OrderDetailPage() {
 
   if (orderQuery.isLoading) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         {back}
         <Skeleton className="h-9 w-64" />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -80,7 +80,7 @@ export function OrderDetailPage() {
 
   if (error?.status === 404 || !orderId) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         {back}
         <Card>
           <Empty className="p-10">
@@ -103,7 +103,7 @@ export function OrderDetailPage() {
 
   if (error || !order) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         {back}
         <Alert variant="destructive">
           <AlertTriangle />
@@ -124,7 +124,7 @@ export function OrderDetailPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {back}
 
       <header className="flex flex-wrap items-start justify-between gap-4">

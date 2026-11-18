@@ -188,7 +188,7 @@ Mật khẩu chung: `password123`.
 3. **BR-6**: chỉ người đã check-in vào đúng event của session mới được Q&A/poll/quiz; `eventId` lấy từ Event Service và session phải `isLive`.
 4. **Lỗi hạ tầng đúng mã**: dependency không kết nối được trả `503`, quá hạn trả `504`; không bị biến thành `403 NOT_CHECKED_IN`.
 5. **Offline sync**: xử lý theo `scannedAt`, lần quét sớm nhất thắng kể cả khi đến muộn ở batch sau.
-6. **UI/UX**: light theme, `borderWidth: 0`, bottom drop shadow, không blur (xem `DESIGN.md`).
+6. **UI/UX**: light theme, không blur; web console compact kiểu Ant Design (viền 1px trong primitive, control 32px, AA contrast), mobile dự kiến zero-border + bottom drop shadow (xem `DESIGN.md`).
 
 ---
 

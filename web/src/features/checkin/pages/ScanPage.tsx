@@ -210,7 +210,7 @@ export function ScanPage() {
   }, [result, dismiss]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <header inert={Boolean(result)} className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1">
           <h1 className="text-display text-foreground">Quét vé</h1>
@@ -220,7 +220,7 @@ export function ScanPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={gate} onValueChange={setGate}>
-            <SelectTrigger aria-label="Cổng soát vé" className="h-11 w-[180px]">
+            <SelectTrigger aria-label="Cổng soát vé" className="w-[180px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -291,7 +291,7 @@ export function ScanPage() {
             value={manual}
             onChange={(event) => setManual(event.target.value)}
             ref={manualRef}
-            className="h-11 sm:max-w-[420px]"
+            className="sm:max-w-[420px]"
           />
           <Button type="submit" variant="secondary" disabled={!manual.trim()}>
             Soát vé

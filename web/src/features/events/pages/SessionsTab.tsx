@@ -196,7 +196,7 @@ function SessionDialog({
             {session ? null : (
               <Label
                 htmlFor="session-live"
-                className="flex h-11 items-center gap-2 text-sm text-foreground"
+                className="flex h-8 items-center gap-2 text-sm text-foreground"
               >
                 <Checkbox
                   id="session-live"

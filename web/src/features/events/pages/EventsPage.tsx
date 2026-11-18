@@ -126,7 +126,7 @@ export function EventsPage() {
   };
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-4">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1">
           <h1 className="text-display text-foreground">Sự kiện</h1>
@@ -150,10 +150,10 @@ export function EventsPage() {
           value={search}
           onChange={(input) => setSearch(input.target.value)}
           ref={searchRef}
-          className="h-11 sm:max-w-[360px]"
+          className="sm:max-w-[360px]"
         />
         <Select value={phaseFilter ?? "ALL"} onValueChange={setPhase}>
-          <SelectTrigger aria-label="Lọc theo trạng thái" className="h-11 w-full sm:w-[220px]">
+          <SelectTrigger aria-label="Lọc theo trạng thái" className="w-full sm:w-[220px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

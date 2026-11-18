@@ -71,7 +71,7 @@ bunx shadcn@latest add dialog sheet alert-dialog select table pagination tabs
 - Hàm thuần (format, map trạng thái → class Badge) nằm trong `src/lib/**`; nó không render gì.
 - Token nằm duy nhất ở `src/styles/globals.css` (`--primary`, `--background`, `--radius`, `--shadow-card`…).
   Feature không hex, không override màu/bo góc bằng `className`, không `!important`.
-- Sửa `src/components/ui/**` phải qua Tuấn; mọi thay đổi phải giữ luật zero-border / 44px / shadow hướng xuống.
+- Sửa `src/components/ui/**` phải qua Tuấn; mọi thay đổi phải giữ luật console compact: viền 1px chỉ trong primitive/token, control 32px, radius 6/8/4, shadow hướng xuống.
 - `bun run lint:design` quét `features/**`, `app/**`; `src/components/ui/**` do CLI sinh nên được miễn.
   Nó cũng chặn màu Tailwind thô (`emerald-600`, `amber-500`…) và HTML primitive (`<button>`, `<input>`…):
   dùng token (`success`, `warning`, `destructive`…) và component shadcn (`Button`, `Input`, `Progress`…).

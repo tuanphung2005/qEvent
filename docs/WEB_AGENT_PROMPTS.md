@@ -14,7 +14,7 @@ kể cả cách prompt để dựng/sửa nền tảng như lần đầu (mục 
 | 2 | `docs/STAFF_WEB_CONSOLE_PLAN.md` | Kiến trúc, API, lộ trình, deployment |
 | 3 | `docs/STAFF_WEB_STARTER.md` | Endpoint ↔ màn hình, auth, phân trang, RBAC |
 | 4 | `web/README.md` | Script, ranh giới file, shadcn, dev mock |
-| 5 | `DESIGN.md` + `PRODUCT.md` | Palette, typography, luật zero-border, mode Operate |
+| 5 | `DESIGN.md` + `PRODUCT.md` | Palette, typography, luật console compact (viền primitive, 32px, AA), mode Operate |
 
 Không đưa cả 5 file vào prompt nếu agent tự đọc được — chỉ **đường dẫn** + mục nào liên quan.
 Nếu task hẹp (1 màn hình), đưa: route, endpoint, file được sửa, ảnh/evidence mong muốn.
@@ -82,10 +82,10 @@ Trước khi commit: `detect_changes({ scope: "all" })`; `partial/truncated` kh�
 Xoá web/ và dựng lại nền tảng staff web. Yêu cầu:
 - Vite + React 19 + TS strict, Tailwind 4, Biome. UI = shadcn/ui, thêm bằng CLI, KHÔNG tự viết component.
 - Theo docs/STAFF_WEB_CONSOLE_PLAN.md + docs/STAFF_WEB_TEAM_SPLIT.md (Tuấn: foundation, auth, dashboard, settings).
-- Token map từ DESIGN.md vào globals.css; giữ zero-border, control ≥44px, shadow hướng xuống.
+- Token map từ DESIGN.md vào globals.css; console compact kiểu Ant Design: viền 1px chỉ trong `components/ui`/token, control 32px, radius 6/8/4, shadow hướng xuống.
 - lib/**: api client + error tiếng Việt, generated từ services/*/openapi.json, query keys, format, routes,
   event-context, realtime hook.
-- app/**: router glob features/*/routes.tsx, AppShell (sidebar 240/rail 72/bottom nav), RequireRole, ErrorBoundary.
+- app/**: router glob features/*/routes.tsx, AppShell (sidebar 200/rail 64/bottom nav), RequireRole, ErrorBoundary.
 - /login, /dashboard (3 service song song, degraded khi 503), /settings.
 - Test: vitest + msw; e2e Playwright login/logout/403/401; chụp evidence 390/768/1440.
 - Dùng skill: impeccable (Operate), gitnexus-lfg, ponytail.
@@ -111,7 +111,7 @@ Làm /orders (Vũ) theo docs/STAFF_WEB_TEAM_SPLIT.md §6.3.
 
 ```text
 Migrate toàn bộ UI sang shadcn: xoá component tự viết, `bunx shadcn@latest add …` từng component,
-map token DESIGN.md vào globals.css, patch source shadcn cho zero-border + 44px, viết lại docs là dùng shadcn.
+map token DESIGN.md vào globals.css, patch source shadcn cho console compact (viền 1px + control 32px + radius 6/8/4), viết lại docs là dùng shadcn.
 Không commit. Kiểm tra: typecheck, biome, test, build, lint:design/routes/encoding, e2e, evidence 3 bề rộng.
 ```
 
@@ -130,7 +130,7 @@ Chỉ báo finding theo mức serious/critical, kèm ảnh và vị trí; không
 - [ ] `bun run lint:design && bun run lint:routes && bun run lint:encoding`
 - [ ] `bun run e2e` (cần `docker compose up -d` + `bun run seed` ở root)
 - [ ] `bun run evidence` → mở **từng** ảnh ở 390/768/1440, không chỉ nhìn thumbnail
-- [ ] Không hex/border/blur; control ≥44px; bàn phím đi hết luồng; axe 0 serious/critical
+- [ ] Không hex/border tự thêm/blur; control 32px (scan/check-in ≥44px); bàn phím đi hết luồng; axe 0 serious/critical
 - [ ] PR ghi: màn hình nào, endpoint nào, phần nào cắt
 - [ ] **Chưa commit** (trừ khi được bảo), chưa push
 
@@ -157,4 +157,4 @@ Ví dụ: `feat(orders): add cursor list with status filter`, `fix(checkin): kee
   `bun run lint:encoding` trước khi báo xong.
 - Copy screenshot chụp lúc animation đang chạy → chart trống, kết luận sai.
 - Bỏ qua `--frozen-lockfile` khi build Docker với Bun khác phiên bản → build fail; Dockerfile pin `oven/bun:1.4`.
-- Sửa `components/ui/**` mà không giữ zero-border/44px → `lint:design` không bắt được, nhưng review sẽ bắt.
+- Sửa `components/ui/**` mà không giữ luật console compact (viền 1px, control 32px, radius 6/8/4, AA) → `lint:design` không bắt được, nhưng review sẽ bắt.

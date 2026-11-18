@@ -40,7 +40,7 @@ export function EngagementShell() {
   if (eventLoading) {
     return (
       <div className="space-y-6 p-6">
-        <Skeleton className="h-11 w-64" />
+        <Skeleton className="h-8 w-64" />
         <Skeleton className="h-32 w-full" />
       </div>
     );
