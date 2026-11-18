@@ -188,6 +188,180 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
       }
     )
 
+    // PATCH /api/game/:gameId/question/:questionId
+    .patch(
+      "/api/game/:gameId/question/:questionId",
+      async ({ params, body, currentUser, set }) => {
+        if (!currentUser) {
+          return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
+        }
+        if (!isHostRole(currentUser.role)) {
+          return fail(set, 403, "FORBIDDEN", "Only staff or organizer can edit questions");
+        }
+
+        const game = await deps.prisma.quizGame.findUnique({ where: { id: params.gameId } });
+        if (!game) {
+          return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
+        }
+        if (game.status !== "WAITING") {
+          return fail(
+            set,
+            409,
+            "INVALID_GAME_STATE",
+            `Cannot edit questions when game is ${game.status}`
+          );
+        }
+
+        const question = await deps.prisma.quizQuestion.findFirst({
+          where: { id: params.questionId, gameId: game.id },
+        });
+        if (!question) {
+          return fail(set, 404, "QUESTION_NOT_FOUND", "Question was not found");
+        }
+
+        const options = body.options
+          ? body.options.map((option) => option.trim())
+          : question.options;
+        if (options.length < 2 || options.length > 6) {
+          return fail(set, 400, "INVALID_OPTIONS", "Question must have between 2 and 6 options");
+        }
+
+        const correctOption = body.correctOption ?? question.correctOption;
+        if (correctOption < 0 || correctOption >= options.length) {
+          return fail(
+            set,
+            400,
+            "INVALID_CORRECT_OPTION",
+            `correctOption must be an index between 0 and ${options.length - 1}`
+          );
+        }
+
+        const timeLimitSec = body.timeLimitSec ?? question.timeLimitSec;
+        if (timeLimitSec <= 0 || timeLimitSec > 300) {
+          return fail(
+            set,
+            400,
+            "INVALID_TIME_LIMIT",
+            "timeLimitSec must be between 1 and 300 seconds"
+          );
+        }
+
+        const updated = await deps.prisma.quizQuestion.update({
+          where: { id: question.id },
+          data: {
+            content: body.content?.trim(),
+            options,
+            correctOption,
+            timeLimitSec,
+          },
+        });
+
+        return { question: updated };
+      },
+      {
+        params: t.Object({
+          gameId: t.String({ minLength: 1 }),
+          questionId: t.String({ minLength: 1 }),
+        }),
+        body: t.Object({
+          content: t.Optional(t.String({ minLength: 1, maxLength: 500 })),
+          options: t.Optional(t.Array(t.String(), { minItems: 2, maxItems: 6 })),
+          correctOption: t.Optional(t.Integer({ minimum: 0, maximum: 5 })),
+          timeLimitSec: t.Optional(t.Integer({ minimum: 1, maximum: 300 })),
+        }),
+      }
+    )
+
+    // DELETE /api/game/:gameId/question/:questionId
+    .delete(
+      "/api/game/:gameId/question/:questionId",
+      async ({ params, currentUser, set }) => {
+        if (!currentUser) {
+          return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
+        }
+        if (!isHostRole(currentUser.role)) {
+          return fail(set, 403, "FORBIDDEN", "Only staff or organizer can delete questions");
+        }
+
+        const game = await deps.prisma.quizGame.findUnique({ where: { id: params.gameId } });
+        if (!game) {
+          return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
+        }
+        if (game.status !== "WAITING") {
+          return fail(
+            set,
+            409,
+            "INVALID_GAME_STATE",
+            `Cannot delete questions when game is ${game.status}`
+          );
+        }
+
+        const question = await deps.prisma.quizQuestion.findFirst({
+          where: { id: params.questionId, gameId: game.id },
+        });
+        if (!question) {
+          return fail(set, 404, "QUESTION_NOT_FOUND", "Question was not found");
+        }
+
+        await deps.prisma.$transaction(async (tx) => {
+          await tx.quizQuestion.delete({ where: { id: question.id } });
+
+          // start/next index the ordered array, but /answer looks up by orderNum:
+          // keep 0..n-1 contiguous after a delete.
+          const remaining = await tx.quizQuestion.findMany({
+            where: { gameId: game.id },
+            orderBy: { orderNum: "asc" },
+            select: { id: true },
+          });
+          for (const [index, row] of remaining.entries()) {
+            await tx.quizQuestion.update({ where: { id: row.id }, data: { orderNum: index } });
+          }
+        });
+
+        set.status = 204;
+      },
+      {
+        params: t.Object({
+          gameId: t.String({ minLength: 1 }),
+          questionId: t.String({ minLength: 1 }),
+        }),
+      }
+    )
+
+    // DELETE /api/game/:gameId
+    .delete(
+      "/api/game/:gameId",
+      async ({ params, currentUser, set }) => {
+        if (!currentUser) {
+          return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
+        }
+        if (!isHostRole(currentUser.role)) {
+          return fail(set, 403, "FORBIDDEN", "Only staff or organizer can delete a quiz game");
+        }
+
+        const game = await deps.prisma.quizGame.findUnique({ where: { id: params.gameId } });
+        if (!game) {
+          return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
+        }
+        if (game.status !== "WAITING" && game.status !== "FINISHED") {
+          return fail(
+            set,
+            409,
+            "INVALID_GAME_STATE",
+            `Cannot delete a game while it is ${game.status}`
+          );
+        }
+
+        await deps.prisma.quizGame.delete({ where: { id: game.id } });
+        broadcaster.broadcastGame(game.id, { type: "GAME_DELETED", gameId: game.id });
+
+        set.status = 204;
+      },
+      {
+        params: t.Object({ gameId: t.String({ minLength: 1 }) }),
+      }
+    )
+
     // GET /api/game/:gameId
     .get(
       "/api/game/:gameId",

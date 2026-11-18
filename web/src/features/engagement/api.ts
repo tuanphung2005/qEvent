@@ -2,7 +2,13 @@ import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
 import { qk } from "@/lib/query/keys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AddGameQuestionInput, CreatePollInput, CreateQuestionInput } from "./types";
+import type {
+  AddGameQuestionInput,
+  CreatePollInput,
+  CreateQuestionInput,
+  UpdateGameQuestionInput,
+  UpdatePollInput,
+} from "./types";
 
 /**
  * G2: Q&A Queries and Mutations
@@ -46,6 +52,22 @@ export function useToggleVote(sessionId: string) {
       unwrap(
         await api.PUT("/api/questions/{questionId}/votes", {
           params: { path: { questionId } },
+        }),
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.engagement.questions(sessionId) });
+    },
+  });
+}
+
+export function useUpdateQuestion(sessionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ questionId, content }: { questionId: string; content: string }) =>
+      unwrap(
+        await api.PATCH("/api/questions/{questionId}", {
+          params: { path: { questionId } },
+          body: { content },
         }),
       ),
     onSuccess: () => {
@@ -107,13 +129,24 @@ export function useCreatePoll(sessionId: string) {
 export function useUpdatePoll(sessionId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ pollId, isActive }: { pollId: string; isActive: boolean }) =>
+    mutationFn: async ({ pollId, ...input }: { pollId: string } & UpdatePollInput) =>
       unwrap(
         await api.PATCH("/api/polls/{pollId}", {
           params: { path: { pollId } },
-          body: { isActive },
+          body: input,
         }),
       ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.engagement.polls(sessionId) });
+    },
+  });
+}
+
+export function useDeletePoll(sessionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (pollId: string) =>
+      unwrap(await api.DELETE("/api/polls/{pollId}", { params: { path: { pollId } } })),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.engagement.polls(sessionId) });
     },
@@ -161,6 +194,26 @@ export function useAddGameQuestion(sessionId: string, gameId: string) {
       unwrap(
         await api.POST("/api/game/{gameId}/question", {
           params: { path: { gameId } },
+          body: input,
+        }),
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.engagement.game(sessionId) });
+    },
+  });
+}
+
+export function useUpdateGameQuestion(sessionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      gameId,
+      questionId,
+      ...input
+    }: { gameId: string; questionId: string } & UpdateGameQuestionInput) =>
+      unwrap(
+        await api.PATCH("/api/game/{gameId}/question/{questionId}", {
+          params: { path: { gameId, questionId } },
           body: input,
         }),
       ),
@@ -226,6 +279,33 @@ export function useEndGame(sessionId: string) {
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.engagement.game(sessionId) });
+    },
+  });
+}
+
+export function useDeleteGameQuestion(sessionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ gameId, questionId }: { gameId: string; questionId: string }) =>
+      unwrap(
+        await api.DELETE("/api/game/{gameId}/question/{questionId}", {
+          params: { path: { gameId, questionId } },
+        }),
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.engagement.game(sessionId) });
+    },
+  });
+}
+
+export function useDeleteGame(sessionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (gameId: string) =>
+      unwrap(await api.DELETE("/api/game/{gameId}", { params: { path: { gameId } } })),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.engagement.game(sessionId) });
+      queryClient.invalidateQueries({ queryKey: ["game", "leaderboard"] });
     },
   });
 }

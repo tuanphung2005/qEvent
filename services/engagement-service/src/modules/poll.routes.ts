@@ -224,9 +224,33 @@ export function pollRoutes(deps: Deps, jwtSecret: string) {
           return fail(set, 404, "POLL_NOT_FOUND", "Poll was not found");
         }
 
+        if (body.title === undefined && body.isActive === undefined && body.options === undefined) {
+          return fail(set, 400, "NO_CHANGES", "Nothing to update");
+        }
+
+        const options = body.options
+          ? body.options.map((option) => option.trim()).filter((option) => option.length > 0)
+          : null;
+        if (options && options.length < 2) {
+          return fail(set, 400, "INVALID_OPTIONS", "Poll must have at least 2 options");
+        }
+        if (options && poll.options.length > 0) {
+          // Votes are attached to option ids; replacing the option set clears them.
+          await deps.prisma.$transaction(async (tx) => {
+            await tx.pollVote.deleteMany({ where: { option: { pollId: poll.id } } });
+            await tx.pollOption.deleteMany({ where: { pollId: poll.id } });
+            for (const content of options) {
+              await tx.pollOption.create({ data: { pollId: poll.id, content } });
+            }
+          });
+        }
+
         const updated = await deps.prisma.poll.update({
           where: { id: poll.id },
-          data: { isActive: body.isActive },
+          data: {
+            title: body.title?.trim(),
+            isActive: body.isActive,
+          },
           include: { options: true },
         });
 
@@ -240,7 +264,40 @@ export function pollRoutes(deps: Deps, jwtSecret: string) {
       },
       {
         params: t.Object({ pollId: t.String({ minLength: 1 }) }),
-        body: t.Object({ isActive: t.Boolean() }),
+        body: t.Object({
+          title: t.Optional(t.String({ minLength: 1, maxLength: 200 })),
+          isActive: t.Optional(t.Boolean()),
+          options: t.Optional(t.Array(t.String(), { minItems: 2, maxItems: 10 })),
+        }),
+      }
+    )
+    .delete(
+      "/api/polls/:pollId",
+      async ({ params, currentUser, set }) => {
+        if (!currentUser) {
+          return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
+        }
+        if (!isHostRole(currentUser.role)) {
+          return fail(set, 403, "FORBIDDEN", "Only staff or organizer can delete polls");
+        }
+
+        const poll = await deps.prisma.poll.findUnique({
+          where: { id: params.pollId },
+        });
+        if (!poll) {
+          return fail(set, 404, "POLL_NOT_FOUND", "Poll was not found");
+        }
+
+        await deps.prisma.poll.delete({ where: { id: poll.id } });
+        broadcaster.broadcastQa(poll.sessionId, {
+          type: "POLL_DELETED",
+          pollId: poll.id,
+        });
+
+        set.status = 204;
+      },
+      {
+        params: t.Object({ pollId: t.String({ minLength: 1 }) }),
       }
     );
 }

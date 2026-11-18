@@ -85,6 +85,144 @@ describe("host moderation", () => {
     expect(missing.status).toBe(404);
   });
 
+  it("edits a poll title/options and deletes it", async () => {
+    const { app, fakeAdmissionClient } = makeTestApp();
+    fakeAdmissionClient.allow("user-attendee-mod");
+
+    const created = await call(app, `/api/sessions/${sessionId}/polls`, {
+      method: "POST",
+      headers: organizer,
+      body: { title: "Old title", options: ["A", "B"] },
+    });
+    const poll = created.data.poll;
+    await call(app, `/api/polls/${poll.id}/vote`, {
+      method: "POST",
+      headers: attendee,
+      body: { optionId: poll.options[0].id },
+    });
+
+    const denied = await call(app, `/api/polls/${poll.id}`, {
+      method: "PATCH",
+      headers: attendee,
+      body: { title: "hack" },
+    });
+    expect(denied.status).toBe(403);
+
+    const updated = await call(app, `/api/polls/${poll.id}`, {
+      method: "PATCH",
+      headers: organizer,
+      body: { title: "New title", options: ["X", "Y", "Z"] },
+    });
+    expect(updated.status).toBe(200);
+    expect(updated.data.poll.title).toBe("New title");
+    expect(updated.data.poll.options.map((option: { content: string }) => option.content)).toEqual([
+      "X",
+      "Y",
+      "Z",
+    ]);
+    // Replacing the option set clears the votes that pointed at the old ids.
+    expect(updated.data.poll.options.every((option: { voteCount: number }) => option.voteCount === 0)).toBe(true);
+
+    const removed = await call(app, `/api/polls/${poll.id}`, {
+      method: "DELETE",
+      headers: organizer,
+    });
+    expect(removed.status).toBe(204);
+
+    const list = await call(app, `/api/sessions/${sessionId}/polls`);
+    expect(list.data.polls).toHaveLength(0);
+  });
+
+  it("edits a question text", async () => {
+    const { app, fakeAdmissionClient } = makeTestApp();
+    fakeAdmissionClient.allow("user-attendee-mod");
+    const questionId = await createQuestion(app, "original text");
+
+    const denied = await call(app, `/api/questions/${questionId}`, {
+      method: "PATCH",
+      headers: attendee,
+      body: { content: "hacked" },
+    });
+    expect(denied.status).toBe(403);
+
+    const updated = await call(app, `/api/questions/${questionId}`, {
+      method: "PATCH",
+      headers: organizer,
+      body: { content: "edited text" },
+    });
+    expect(updated.status).toBe(200);
+    expect(updated.data.question.content).toBe("edited text");
+
+    const list = await call(app, `/api/sessions/${sessionId}/questions`);
+    expect(list.data.questions[0].content).toBe("edited text");
+  });
+
+  it("edits and deletes quiz questions while WAITING", async () => {
+    const { app } = makeTestApp();
+    const session = "session-quiz-edit";
+    const game = await call(app, `/api/sessions/${session}/game`, {
+      method: "POST",
+      headers: organizer,
+    });
+    const gameId = game.data.game.id;
+
+    const first = await call(app, `/api/game/${gameId}/question`, {
+      method: "POST",
+      headers: organizer,
+      body: { content: "Q1", options: ["A", "B"], correctOption: 0 },
+    });
+    await call(app, `/api/game/${gameId}/question`, {
+      method: "POST",
+      headers: organizer,
+      body: { content: "Q2", options: ["C", "D", "E"], correctOption: 2 },
+    });
+
+    const denied = await call(app, `/api/game/${gameId}/question/${first.data.question.id}`, {
+      method: "PATCH",
+      headers: attendee,
+      body: { content: "hacked" },
+    });
+    expect(denied.status).toBe(403);
+
+    const patched = await call(app, `/api/game/${gameId}/question/${first.data.question.id}`, {
+      method: "PATCH",
+      headers: organizer,
+      body: { content: "Q1 edited", correctOption: 1 },
+    });
+    expect(patched.status).toBe(200);
+    expect(patched.data.question.content).toBe("Q1 edited");
+    expect(patched.data.question.correctOption).toBe(1);
+
+    const removed = await call(app, `/api/game/${gameId}/question/${first.data.question.id}`, {
+      method: "DELETE",
+      headers: organizer,
+    });
+    expect(removed.status).toBe(204);
+
+    const state = await call(app, `/api/game/${gameId}`, { headers: organizer });
+    expect(state.data.game.questions).toHaveLength(1);
+    expect(state.data.game.questions[0].content).toBe("Q2");
+    // Renumbered so /answer can still resolve orderNum 0.
+    expect(state.data.game.questions[0].orderNum).toBe(0);
+
+    await call(app, `/api/game/${gameId}/start`, { method: "POST", headers: organizer });
+    const locked = await call(app, `/api/game/${gameId}/question/${state.data.game.questions[0].id}`, {
+      method: "DELETE",
+      headers: organizer,
+    });
+    expect(locked.status).toBe(409);
+
+    const fresh = await call(app, "/api/sessions/session-quiz-reset/game", {
+      method: "POST",
+      headers: organizer,
+    });
+    const deletedGame = await call(app, `/api/game/${fresh.data.game.id}`, {
+      method: "DELETE",
+      headers: organizer,
+    });
+    expect(deletedGame.status).toBe(204);
+  });
+
   it("returns session counters for the dashboard", async () => {
     const { app, fakeAdmissionClient } = makeTestApp();
     fakeAdmissionClient.allow("user-attendee-mod");

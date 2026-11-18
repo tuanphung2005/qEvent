@@ -269,11 +269,21 @@ components:
           maxItems: 10
     UpdatePollRequest:
       type: object
-      required:
-        - isActive
+      required: []
       properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
         isActive:
           type: boolean
+        options:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          minItems: 2
+          maxItems: 10
     SessionStatsResponse:
       type: object
       required:
@@ -449,6 +459,29 @@ components:
         - options
         - correctOption
         - timeLimitSec
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 500
+        options:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          minItems: 2
+          maxItems: 6
+        correctOption:
+          type: integer
+          minimum: 0
+          maximum: 5
+        timeLimitSec:
+          type: integer
+          minimum: 1
+          maximum: 300
+    UpdateGameQuestionRequest:
+      type: object
+      required: []
       properties:
         content:
           type: string
@@ -789,7 +822,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/VoteResponse"
               example:
-                questionId: 00000000-0000-4000-8000-000000000008
+                questionId: 00000000-0000-4000-8000-000000000011
                 upvotes: 5
                 hasVoted: true
         "401":
@@ -817,6 +850,59 @@ paths:
         "504":
           $ref: "#/components/responses/UpstreamTimeout"
   "/api/questions/{questionId}":
+    patch:
+      tags:
+        - qa
+      summary: "Edit a question's text (host only)"
+      description: Staff and organizers can reword a question; votes and author are kept.
+      operationId: updateQuestion
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: questionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQuestionRequest"
+            example:
+              content: string
+      responses:
+        "200":
+          description: Question updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateQuestionResponse"
+              example:
+                question:
+                  id: 00000000-0000-4000-8000-000000000008
+                  sessionId: 00000000-0000-4000-8000-000000000009
+                  userId: 00000000-0000-4000-8000-000000000010
+                  content: How does the circuit breaker recover?
+                  upvotes: 4
+                  createdAt: 2026-11-14T08:00:00.000Z
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The question does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: QUESTION_NOT_FOUND
+                message: Question was not found
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
     delete:
       tags:
         - qa
@@ -869,16 +955,16 @@ paths:
               schema:
                 $ref: "#/components/schemas/PollListResponse"
               example:
-                sessionId: 00000000-0000-4000-8000-000000000009
+                sessionId: 00000000-0000-4000-8000-000000000012
                 polls:
-                  - id: 00000000-0000-4000-8000-000000000010
-                    sessionId: 00000000-0000-4000-8000-000000000011
+                  - id: 00000000-0000-4000-8000-000000000013
+                    sessionId: 00000000-0000-4000-8000-000000000014
                     title: How was the keynote?
                     isActive: true
                     createdAt: 2026-11-14T08:00:00.000Z
                     options:
-                      - id: 00000000-0000-4000-8000-000000000012
-                        pollId: 00000000-0000-4000-8000-000000000013
+                      - id: 00000000-0000-4000-8000-000000000015
+                        pollId: 00000000-0000-4000-8000-000000000016
                         content: Very good
                         voteCount: 12
     post:
@@ -914,14 +1000,14 @@ paths:
                 $ref: "#/components/schemas/PollResponse"
               example:
                 poll:
-                  id: 00000000-0000-4000-8000-000000000014
-                  sessionId: 00000000-0000-4000-8000-000000000015
+                  id: 00000000-0000-4000-8000-000000000017
+                  sessionId: 00000000-0000-4000-8000-000000000018
                   title: How was the keynote?
                   isActive: true
                   createdAt: 2026-11-14T08:00:00.000Z
                   options:
-                    - id: 00000000-0000-4000-8000-000000000016
-                      pollId: 00000000-0000-4000-8000-000000000017
+                    - id: 00000000-0000-4000-8000-000000000019
+                      pollId: 00000000-0000-4000-8000-000000000020
                       content: Very good
                       voteCount: 12
         "400":
@@ -962,7 +1048,7 @@ paths:
             schema:
               $ref: "#/components/schemas/PollVoteRequest"
             example:
-              optionId: 00000000-0000-4000-8000-000000000018
+              optionId: 00000000-0000-4000-8000-000000000021
       responses:
         "200":
           description: Vote applied (or removed when voting the same option twice).
@@ -971,8 +1057,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/PollVoteResponse"
               example:
-                pollId: 00000000-0000-4000-8000-000000000019
-                optionId: 00000000-0000-4000-8000-000000000020
+                pollId: 00000000-0000-4000-8000-000000000022
+                optionId: 00000000-0000-4000-8000-000000000023
                 voted: true
         "400":
           description: The poll is closed or the option is invalid.
@@ -1019,7 +1105,8 @@ paths:
     patch:
       tags:
         - polls
-      summary: Open or close a poll (host only)
+      summary: Edit a poll or open/close it (host only)
+      description: "Sending `options` replaces the option set and clears its votes, because votes are attached to option ids."
       operationId: updatePoll
       security:
         - bearerAuth: []
@@ -1037,7 +1124,10 @@ paths:
             schema:
               $ref: "#/components/schemas/UpdatePollRequest"
             example:
+              title: string
               isActive: true
+              options:
+                - string
       responses:
         "200":
           description: Poll updated.
@@ -1047,16 +1137,25 @@ paths:
                 $ref: "#/components/schemas/PollResponse"
               example:
                 poll:
-                  id: 00000000-0000-4000-8000-000000000021
-                  sessionId: 00000000-0000-4000-8000-000000000022
+                  id: 00000000-0000-4000-8000-000000000024
+                  sessionId: 00000000-0000-4000-8000-000000000025
                   title: How was the keynote?
                   isActive: true
                   createdAt: 2026-11-14T08:00:00.000Z
                   options:
-                    - id: 00000000-0000-4000-8000-000000000023
-                      pollId: 00000000-0000-4000-8000-000000000024
+                    - id: 00000000-0000-4000-8000-000000000026
+                      pollId: 00000000-0000-4000-8000-000000000027
                       content: Very good
                       voteCount: 12
+        "400":
+          description: The request has no fields or fewer than 2 options.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: INVALID_OPTIONS
+                message: Poll must have at least 2 options
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1072,6 +1171,37 @@ paths:
                 message: Poll was not found
         "422":
           $ref: "#/components/responses/ValidationFailed"
+    delete:
+      tags:
+        - polls
+      summary: Delete a poll (host only)
+      description: Removes the poll with its options and votes.
+      operationId: deletePoll
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: pollId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Poll deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The poll does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: POLL_NOT_FOUND
+                message: Poll was not found
   "/api/sessions/{sessionId}/game":
     get:
       tags:
@@ -1094,13 +1224,13 @@ paths:
                 $ref: "#/components/schemas/GameResponse"
               example:
                 game:
-                  id: 00000000-0000-4000-8000-000000000028
-                  sessionId: 00000000-0000-4000-8000-000000000029
+                  id: 00000000-0000-4000-8000-000000000031
+                  sessionId: 00000000-0000-4000-8000-000000000032
                   status: WAITING
                   currentQuestionIndex: 0
                   totalQuestions: 3
                   questions:
-                    - id: 00000000-0000-4000-8000-000000000030
+                    - id: 00000000-0000-4000-8000-000000000033
                       orderNum: 0
                       content: Which algorithm prevents double check-in?
                       options:
@@ -1109,7 +1239,7 @@ paths:
                       timeLimitSec: 30
                       questionStartedAt: 2026-11-14T08:00:00.000Z
                   currentQuestion:
-                    id: 00000000-0000-4000-8000-000000000031
+                    id: 00000000-0000-4000-8000-000000000034
                     orderNum: 0
                     content: Which algorithm prevents double check-in?
                     options:
@@ -1149,13 +1279,13 @@ paths:
                 $ref: "#/components/schemas/GameResponse"
               example:
                 game:
-                  id: 00000000-0000-4000-8000-000000000032
-                  sessionId: 00000000-0000-4000-8000-000000000033
+                  id: 00000000-0000-4000-8000-000000000035
+                  sessionId: 00000000-0000-4000-8000-000000000036
                   status: WAITING
                   currentQuestionIndex: 0
                   totalQuestions: 3
                   questions:
-                    - id: 00000000-0000-4000-8000-000000000034
+                    - id: 00000000-0000-4000-8000-000000000037
                       orderNum: 0
                       content: Which algorithm prevents double check-in?
                       options:
@@ -1164,7 +1294,7 @@ paths:
                       timeLimitSec: 30
                       questionStartedAt: 2026-11-14T08:00:00.000Z
                   currentQuestion:
-                    id: 00000000-0000-4000-8000-000000000035
+                    id: 00000000-0000-4000-8000-000000000038
                     orderNum: 0
                     content: Which algorithm prevents double check-in?
                     options:
@@ -1180,13 +1310,13 @@ paths:
                 $ref: "#/components/schemas/GameResponse"
               example:
                 game:
-                  id: 00000000-0000-4000-8000-000000000036
-                  sessionId: 00000000-0000-4000-8000-000000000037
+                  id: 00000000-0000-4000-8000-000000000039
+                  sessionId: 00000000-0000-4000-8000-000000000040
                   status: WAITING
                   currentQuestionIndex: 0
                   totalQuestions: 3
                   questions:
-                    - id: 00000000-0000-4000-8000-000000000038
+                    - id: 00000000-0000-4000-8000-000000000041
                       orderNum: 0
                       content: Which algorithm prevents double check-in?
                       options:
@@ -1195,7 +1325,7 @@ paths:
                       timeLimitSec: 30
                       questionStartedAt: 2026-11-14T08:00:00.000Z
                   currentQuestion:
-                    id: 00000000-0000-4000-8000-000000000039
+                    id: 00000000-0000-4000-8000-000000000042
                     orderNum: 0
                     content: Which algorithm prevents double check-in?
                     options:
@@ -1243,7 +1373,7 @@ paths:
                 $ref: "#/components/schemas/QuizQuestionResponse"
               example:
                 question:
-                  id: 00000000-0000-4000-8000-000000000040
+                  id: 00000000-0000-4000-8000-000000000043
                   orderNum: 0
                   content: Which algorithm prevents double check-in?
                   options:
@@ -1294,6 +1424,141 @@ paths:
                 message: Game status changed while adding question
         "422":
           $ref: "#/components/responses/ValidationFailed"
+  "/api/game/{gameId}/question/{questionId}":
+    patch:
+      tags:
+        - game
+      summary: Edit a quiz question while WAITING (host only)
+      operationId: updateGameQuestion
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: questionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGameQuestionRequest"
+            example:
+              content: string
+              options:
+                - string
+              correctOption: 0
+              timeLimitSec: 1
+      responses:
+        "200":
+          description: Question updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuizQuestionResponse"
+              example:
+                question:
+                  id: 00000000-0000-4000-8000-000000000044
+                  orderNum: 0
+                  content: Which algorithm prevents double check-in?
+                  options:
+                    - string
+                  correctOption: 0
+                  timeLimitSec: 30
+                  questionStartedAt: 2026-11-14T08:00:00.000Z
+        "400":
+          description: The question payload is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              examples:
+                options:
+                  value:
+                    code: INVALID_OPTIONS
+                    message: Question must have between 2 and 6 options
+                correctOption:
+                  value:
+                    code: INVALID_CORRECT_OPTION
+                    message: correctOption must be an index between 0 and 5
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The quiz game does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: GAME_NOT_FOUND
+                message: Quiz game was not found
+        "409":
+          description: The game is not WAITING.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: INVALID_GAME_STATE
+                message: Cannot edit questions when game is QUESTION_ACTIVE
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    delete:
+      tags:
+        - game
+      summary: Delete a quiz question while WAITING (host only)
+      description: Remaining questions are renumbered so indexes stay contiguous.
+      operationId: deleteGameQuestion
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: questionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Question deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The quiz game does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: GAME_NOT_FOUND
+                message: Quiz game was not found
+        "409":
+          description: The game is not WAITING.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: INVALID_GAME_STATE
+                message: Cannot delete questions when game is QUESTION_ACTIVE
   "/api/game/{gameId}":
     get:
       tags:
@@ -1315,62 +1580,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GameResponse"
-              example:
-                game:
-                  id: 00000000-0000-4000-8000-000000000041
-                  sessionId: 00000000-0000-4000-8000-000000000042
-                  status: WAITING
-                  currentQuestionIndex: 0
-                  totalQuestions: 3
-                  questions:
-                    - id: 00000000-0000-4000-8000-000000000043
-                      orderNum: 0
-                      content: Which algorithm prevents double check-in?
-                      options:
-                        - string
-                      correctOption: 0
-                      timeLimitSec: 30
-                      questionStartedAt: 2026-11-14T08:00:00.000Z
-                  currentQuestion:
-                    id: 00000000-0000-4000-8000-000000000044
-                    orderNum: 0
-                    content: Which algorithm prevents double check-in?
-                    options:
-                      - string
-                    correctOption: 0
-                    timeLimitSec: 30
-                    questionStartedAt: 2026-11-14T08:00:00.000Z
-        "404":
-          description: The quiz game does not exist.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorBody"
-              example:
-                code: GAME_NOT_FOUND
-                message: Quiz game was not found
-  "/api/game/{gameId}/start":
-    post:
-      tags:
-        - game
-      summary: "Start the first question (host only, CAS)"
-      operationId: startGame
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: gameId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Game started and the first question is active.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/StartGameResponse"
               example:
                 game:
                   id: 00000000-0000-4000-8000-000000000045
@@ -1396,8 +1605,104 @@ paths:
                     correctOption: 0
                     timeLimitSec: 30
                     questionStartedAt: 2026-11-14T08:00:00.000Z
-                currentQuestion:
+        "404":
+          description: The quiz game does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: GAME_NOT_FOUND
+                message: Quiz game was not found
+    delete:
+      tags:
+        - game
+      summary: Delete a quiz game while WAITING or FINISHED (host only)
+      description: "Resets the session's quiz so a fresh game can be created."
+      operationId: deleteGame
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Game deleted with its questions and answers.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The quiz game does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: GAME_NOT_FOUND
+                message: Quiz game was not found
+        "409":
+          description: The game is live or revealing.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: INVALID_GAME_STATE
+                message: Cannot delete a game while it is QUESTION_ACTIVE
+  "/api/game/{gameId}/start":
+    post:
+      tags:
+        - game
+      summary: "Start the first question (host only, CAS)"
+      operationId: startGame
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Game started and the first question is active.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StartGameResponse"
+              example:
+                game:
                   id: 00000000-0000-4000-8000-000000000049
+                  sessionId: 00000000-0000-4000-8000-000000000050
+                  status: WAITING
+                  currentQuestionIndex: 0
+                  totalQuestions: 3
+                  questions:
+                    - id: 00000000-0000-4000-8000-000000000051
+                      orderNum: 0
+                      content: Which algorithm prevents double check-in?
+                      options:
+                        - string
+                      correctOption: 0
+                      timeLimitSec: 30
+                      questionStartedAt: 2026-11-14T08:00:00.000Z
+                  currentQuestion:
+                    id: 00000000-0000-4000-8000-000000000052
+                    orderNum: 0
+                    content: Which algorithm prevents double check-in?
+                    options:
+                      - string
+                    correctOption: 0
+                    timeLimitSec: 30
+                    questionStartedAt: 2026-11-14T08:00:00.000Z
+                currentQuestion:
+                  id: 00000000-0000-4000-8000-000000000053
                   orderNum: 0
                   content: Which algorithm prevents double check-in?
                   options:
@@ -1460,13 +1765,13 @@ paths:
                 $ref: "#/components/schemas/RevealGameResponse"
               example:
                 game:
-                  id: 00000000-0000-4000-8000-000000000050
-                  sessionId: 00000000-0000-4000-8000-000000000051
+                  id: 00000000-0000-4000-8000-000000000054
+                  sessionId: 00000000-0000-4000-8000-000000000055
                   status: WAITING
                   currentQuestionIndex: 0
                   totalQuestions: 3
                   questions:
-                    - id: 00000000-0000-4000-8000-000000000052
+                    - id: 00000000-0000-4000-8000-000000000056
                       orderNum: 0
                       content: Which algorithm prevents double check-in?
                       options:
@@ -1475,7 +1780,7 @@ paths:
                       timeLimitSec: 30
                       questionStartedAt: 2026-11-14T08:00:00.000Z
                   currentQuestion:
-                    id: 00000000-0000-4000-8000-000000000053
+                    id: 00000000-0000-4000-8000-000000000057
                     orderNum: 0
                     content: Which algorithm prevents double check-in?
                     options:
@@ -1530,13 +1835,13 @@ paths:
                 $ref: "#/components/schemas/StartGameResponse"
               example:
                 game:
-                  id: 00000000-0000-4000-8000-000000000054
-                  sessionId: 00000000-0000-4000-8000-000000000055
+                  id: 00000000-0000-4000-8000-000000000058
+                  sessionId: 00000000-0000-4000-8000-000000000059
                   status: WAITING
                   currentQuestionIndex: 0
                   totalQuestions: 3
                   questions:
-                    - id: 00000000-0000-4000-8000-000000000056
+                    - id: 00000000-0000-4000-8000-000000000060
                       orderNum: 0
                       content: Which algorithm prevents double check-in?
                       options:
@@ -1545,7 +1850,7 @@ paths:
                       timeLimitSec: 30
                       questionStartedAt: 2026-11-14T08:00:00.000Z
                   currentQuestion:
-                    id: 00000000-0000-4000-8000-000000000057
+                    id: 00000000-0000-4000-8000-000000000061
                     orderNum: 0
                     content: Which algorithm prevents double check-in?
                     options:
@@ -1554,7 +1859,7 @@ paths:
                     timeLimitSec: 30
                     questionStartedAt: 2026-11-14T08:00:00.000Z
                 currentQuestion:
-                  id: 00000000-0000-4000-8000-000000000058
+                  id: 00000000-0000-4000-8000-000000000062
                   orderNum: 0
                   content: Which algorithm prevents double check-in?
                   options:
@@ -1614,13 +1919,13 @@ paths:
                 $ref: "#/components/schemas/GameResponse"
               example:
                 game:
-                  id: 00000000-0000-4000-8000-000000000059
-                  sessionId: 00000000-0000-4000-8000-000000000060
+                  id: 00000000-0000-4000-8000-000000000063
+                  sessionId: 00000000-0000-4000-8000-000000000064
                   status: WAITING
                   currentQuestionIndex: 0
                   totalQuestions: 3
                   questions:
-                    - id: 00000000-0000-4000-8000-000000000061
+                    - id: 00000000-0000-4000-8000-000000000065
                       orderNum: 0
                       content: Which algorithm prevents double check-in?
                       options:
@@ -1629,7 +1934,7 @@ paths:
                       timeLimitSec: 30
                       questionStartedAt: 2026-11-14T08:00:00.000Z
                   currentQuestion:
-                    id: 00000000-0000-4000-8000-000000000062
+                    id: 00000000-0000-4000-8000-000000000066
                     orderNum: 0
                     content: Which algorithm prevents double check-in?
                     options:
@@ -1682,7 +1987,7 @@ paths:
             schema:
               $ref: "#/components/schemas/AnswerRequest"
             example:
-              questionId: 00000000-0000-4000-8000-000000000063
+              questionId: 00000000-0000-4000-8000-000000000067
               selectedOption: 0
               userId: string
               responseTimeMs: 1
@@ -1776,10 +2081,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/LeaderboardResponse"
               example:
-                gameId: 00000000-0000-4000-8000-000000000064
+                gameId: 00000000-0000-4000-8000-000000000068
                 leaderboard:
                   - rank: 1
-                    userId: 00000000-0000-4000-8000-000000000065
+                    userId: 00000000-0000-4000-8000-000000000069
                     totalScore: 2750
                     correctCount: 3
         "404":
@@ -1814,15 +2119,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/SessionStatsResponse"
               example:
-                sessionId: 00000000-0000-4000-8000-000000000025
+                sessionId: 00000000-0000-4000-8000-000000000028
                 questions:
                   total: 12
                   topQuestion:
-                    id: 00000000-0000-4000-8000-000000000026
+                    id: 00000000-0000-4000-8000-000000000029
                     content: How does the circuit breaker recover?
                     upvotes: 7
                 activePoll:
-                  id: 00000000-0000-4000-8000-000000000027
+                  id: 00000000-0000-4000-8000-000000000030
                   title: How was the keynote?
                   isActive: true
                   totalVotes: 31

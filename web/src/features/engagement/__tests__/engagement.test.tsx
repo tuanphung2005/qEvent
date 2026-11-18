@@ -1,6 +1,6 @@
 ﻿import type { ComponentType } from "react";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 const NativeRequest = globalThis.Request;
 const origin = window.location.origin;
@@ -54,6 +54,8 @@ let waitFor: any;
 // biome-ignore lint/suspicious/noExplicitAny: dynamically loaded
 let userEvent: any;
 // biome-ignore lint/suspicious/noExplicitAny: dynamically loaded
+let cleanup: any;
+// biome-ignore lint/suspicious/noExplicitAny: dynamically loaded
 let server: any;
 // biome-ignore lint/suspicious/noExplicitAny: dynamically loaded
 let http: any;
@@ -80,6 +82,7 @@ beforeAll(async () => {
   render = testLib.render;
   screen = testLib.screen;
   waitFor = testLib.waitFor;
+  cleanup = testLib.cleanup;
 
   const userLib = await import("@testing-library/user-event");
   userEvent = userLib.default;
@@ -119,6 +122,10 @@ beforeAll(async () => {
 
 afterAll(() => {
   globalThis.Request = NativeRequest;
+});
+
+afterEach(() => {
+  cleanup?.();
 });
 
 function createTestClient() {
@@ -202,6 +209,22 @@ describe("Q&A Feature (G2)", () => {
     expect(await screen.findByText("16")).toBeInTheDocument();
   });
 
+  it("cho phep sua noi dung cau hoi", async () => {
+    const user = userEvent.setup();
+    renderQa();
+
+    await screen.findByText(/WebSocket/);
+    const editButtons = await screen.findAllByRole("button", { name: "Sửa câu hỏi" });
+    await user.click(editButtons[0]);
+
+    const field = await screen.findByRole("textbox", { name: "Nội dung câu hỏi" });
+    await user.clear(field);
+    await user.type(field, "Câu hỏi đã sửa");
+    await user.click(screen.getByRole("button", { name: "Lưu câu hỏi" }));
+
+    expect(await screen.findByText("Câu hỏi đã sửa")).toBeInTheDocument();
+  });
+
   it("hien thi empty state khi khong co cau hoi nao", async () => {
     server.use(
       http.get("/api/sessions/:sessionId/questions", () =>
@@ -232,6 +255,26 @@ describe("Polls Feature (G3)", () => {
 
     await user.click(toggleButton);
     expect(await screen.findByRole("button", { name: /Mở lại/ })).toBeInTheDocument();
+  });
+
+  it("cho phep sua va xoa khao sat", async () => {
+    const user = userEvent.setup();
+    renderPolls();
+
+    await screen.findByText(/nội dung bài diễn thuyết/);
+    await user.click(screen.getByRole("button", { name: "Sửa" }));
+
+    const title = await screen.findByRole("textbox", { name: "Nội dung khảo sát" });
+    await user.clear(title);
+    await user.type(title, "Khảo sát đã sửa");
+    await user.click(screen.getByRole("button", { name: "Lưu thay đổi" }));
+
+    expect(await screen.findByText("Khảo sát đã sửa")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Xoá khảo sát/ }));
+    await user.click(await screen.findByRole("button", { name: "Xoá khảo sát" }));
+
+    await waitFor(() => expect(screen.queryByText("Khảo sát đã sửa")).toBeNull());
   });
 });
 

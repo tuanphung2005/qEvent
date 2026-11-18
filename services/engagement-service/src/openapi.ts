@@ -98,7 +98,14 @@ const schemas: Record<string, JsonSchema> = {
     title: str({ minLength: 1, maxLength: 200 }),
     options: arr(str({ minLength: 1 }), { minItems: 2, maxItems: 10 }),
   }),
-  UpdatePollRequest: obj({ isActive: bool() }),
+  UpdatePollRequest: obj(
+    {
+      title: str({ minLength: 1, maxLength: 200 }),
+      isActive: bool(),
+      options: arr(str({ minLength: 1 }), { minItems: 2, maxItems: 10 }),
+    },
+    []
+  ),
   SessionStatsResponse: obj({
     sessionId: uuid,
     questions: obj({
@@ -170,6 +177,15 @@ const schemas: Record<string, JsonSchema> = {
     correctOption: int({ minimum: 0, maximum: 5 }),
     timeLimitSec: int({ minimum: 1, maximum: 300 }),
   }),
+  UpdateGameQuestionRequest: obj(
+    {
+      content: str({ minLength: 1, maxLength: 500 }),
+      options: arr(str({ minLength: 1 }), { minItems: 2, maxItems: 6 }),
+      correctOption: int({ minimum: 0, maximum: 5 }),
+      timeLimitSec: int({ minimum: 1, maximum: 300 }),
+    },
+    []
+  ),
   QuizQuestionResponse: obj({ question: ref("GameQuestion") }),
   StartGameResponse: obj({
     game: ref("Game"),
@@ -441,6 +457,22 @@ const paths = {
     },
   },
   "/api/questions/{questionId}": {
+    patch: {
+      tags: ["qa"],
+      summary: "Edit a question's text (host only)",
+      description: "Staff and organizers can reword a question; votes and author are kept.",
+      operationId: "updateQuestion",
+      security: bearer,
+      parameters: [idParameter("questionId")],
+      requestBody: body("CreateQuestionRequest"),
+      responses: {
+        "200": ok("Question updated.", "CreateQuestionResponse"),
+        "401": unauthorized,
+        "403": forbidden,
+        "404": fail("The question does not exist.", "QUESTION_NOT_FOUND", "Question was not found"),
+        "422": validationFailed,
+      },
+    },
     delete: {
       tags: ["qa"],
       summary: "Delete a question (host only)",
@@ -536,17 +568,34 @@ const paths = {
   "/api/polls/{pollId}": {
     patch: {
       tags: ["polls"],
-      summary: "Open or close a poll (host only)",
+      summary: "Edit a poll or open/close it (host only)",
+      description:
+        "Sending `options` replaces the option set and clears its votes, because votes are attached to option ids.",
       operationId: "updatePoll",
       security: bearer,
       parameters: [idParameter("pollId")],
       requestBody: body("UpdatePollRequest"),
       responses: {
         "200": ok("Poll updated.", "PollResponse"),
+        "400": fail("The request has no fields or fewer than 2 options.", "INVALID_OPTIONS", "Poll must have at least 2 options"),
         "401": unauthorized,
         "403": forbidden,
         "404": fail("The poll does not exist.", "POLL_NOT_FOUND", "Poll was not found"),
         "422": validationFailed,
+      },
+    },
+    delete: {
+      tags: ["polls"],
+      summary: "Delete a poll (host only)",
+      description: "Removes the poll with its options and votes.",
+      operationId: "deletePoll",
+      security: bearer,
+      parameters: [idParameter("pollId")],
+      responses: {
+        "204": { description: "Poll deleted." },
+        "401": unauthorized,
+        "403": forbidden,
+        "404": fail("The poll does not exist.", "POLL_NOT_FOUND", "Poll was not found"),
       },
     },
   },
@@ -629,6 +678,57 @@ const paths = {
       },
     },
   },
+  "/api/game/{gameId}/question/{questionId}": {
+    patch: {
+      tags: ["game"],
+      summary: "Edit a quiz question while WAITING (host only)",
+      operationId: "updateGameQuestion",
+      security: bearer,
+      parameters: [idParameter("gameId"), idParameter("questionId")],
+      requestBody: body("UpdateGameQuestionRequest"),
+      responses: {
+        "200": ok("Question updated.", "QuizQuestionResponse"),
+        "400": examples("The question payload is invalid.", ref("ErrorBody"), {
+          options: {
+            code: "INVALID_OPTIONS",
+            message: "Question must have between 2 and 6 options",
+          },
+          correctOption: {
+            code: "INVALID_CORRECT_OPTION",
+            message: "correctOption must be an index between 0 and 5",
+          },
+        }),
+        "401": unauthorized,
+        "403": forbidden,
+        "404": gameNotFound,
+        "409": fail(
+          "The game is not WAITING.",
+          "INVALID_GAME_STATE",
+          "Cannot edit questions when game is QUESTION_ACTIVE"
+        ),
+        "422": validationFailed,
+      },
+    },
+    delete: {
+      tags: ["game"],
+      summary: "Delete a quiz question while WAITING (host only)",
+      description: "Remaining questions are renumbered so indexes stay contiguous.",
+      operationId: "deleteGameQuestion",
+      security: bearer,
+      parameters: [idParameter("gameId"), idParameter("questionId")],
+      responses: {
+        "204": { description: "Question deleted." },
+        "401": unauthorized,
+        "403": forbidden,
+        "404": gameNotFound,
+        "409": fail(
+          "The game is not WAITING.",
+          "INVALID_GAME_STATE",
+          "Cannot delete questions when game is QUESTION_ACTIVE"
+        ),
+      },
+    },
+  },
   "/api/game/{gameId}": {
     get: {
       tags: ["game"],
@@ -640,6 +740,25 @@ const paths = {
       responses: {
         "200": ok("Game state for the caller's role.", "GameResponse"),
         "404": gameNotFound,
+      },
+    },
+    delete: {
+      tags: ["game"],
+      summary: "Delete a quiz game while WAITING or FINISHED (host only)",
+      description: "Resets the session's quiz so a fresh game can be created.",
+      operationId: "deleteGame",
+      security: bearer,
+      parameters: [idParameter("gameId")],
+      responses: {
+        "204": { description: "Game deleted with its questions and answers." },
+        "401": unauthorized,
+        "403": forbidden,
+        "404": gameNotFound,
+        "409": fail(
+          "The game is live or revealing.",
+          "INVALID_GAME_STATE",
+          "Cannot delete a game while it is QUESTION_ACTIVE"
+        ),
       },
     },
   },

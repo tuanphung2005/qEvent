@@ -88,6 +88,8 @@ export function unwrap<T>(result: ClientResult<T>): T {
     });
   }
   if (result.data === undefined) {
+    // 204 No Content is a successful DELETE; only an empty 2xx-less response is an error.
+    if (result.response.ok) return undefined as T;
     throw new ApiRequestError({ code: "UNKNOWN", message: errorMessage("UNKNOWN"), status: 0 });
   }
   return result.data;

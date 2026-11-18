@@ -12,13 +12,22 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/features/auth/auth-context";
-import { AlertTriangle, ChevronUp, Clock, MessageSquare, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronUp, Clock, MessageSquare, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useOutletContext, useParams } from "react-router";
-import { useDeleteQuestion, useQuestions, useToggleVote } from "../api";
+import { useDeleteQuestion, useQuestions, useToggleVote, useUpdateQuestion } from "../api";
 import type { QAQuestion } from "../types";
 
 type OutletCtx = {
@@ -38,8 +47,11 @@ export function QaPage() {
   const { data, isLoading, error } = useQuestions(sessionId, pollingInterval);
   const toggleVoteMutation = useToggleVote(sessionId ?? "");
   const deleteMutation = useDeleteQuestion(sessionId ?? "");
+  const updateMutation = useUpdateQuestion(sessionId ?? "");
 
   const [questionToDelete, setQuestionToDelete] = useState<QAQuestion | null>(null);
+  const [questionToEdit, setQuestionToEdit] = useState<QAQuestion | null>(null);
+  const [editContent, setEditContent] = useState("");
 
   const rawQuestions = data?.questions ?? [];
   // Sort descending by upvotes, then latest
@@ -126,23 +138,89 @@ export function QaPage() {
                   </div>
                 </div>
 
-                {/* Staff Actions (Delete Question) */}
+                {/* Staff Actions (Edit / Delete Question) */}
                 {isStaffOrOrganizer && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Xoá câu hỏi"
-                    className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                    onClick={() => setQuestionToDelete(q)}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Sửa câu hỏi"
+                      className="h-8 w-8 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                      onClick={() => {
+                        setQuestionToEdit(q);
+                        setEditContent(q.content);
+                      }}
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Xoá câu hỏi"
+                      className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setQuestionToDelete(q)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
                 )}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      {/* Edit question dialog */}
+      <Dialog
+        open={Boolean(questionToEdit)}
+        onOpenChange={(open) => !open && setQuestionToEdit(null)}
+      >
+        <DialogContent className="sm:max-w-[520px]">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!questionToEdit || !editContent.trim()) return;
+              updateMutation.mutate(
+                { questionId: questionToEdit.id, content: editContent.trim() },
+                { onSuccess: () => setQuestionToEdit(null) },
+              );
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Sửa câu hỏi</DialogTitle>
+              <DialogDescription>
+                Nội dung mới hiển thị ngay trên bảng tương tác; số phiếu bình chọn được giữ nguyên.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Textarea
+                aria-label="Nội dung câu hỏi"
+                value={editContent}
+                onChange={(event) => setEditContent(event.target.value)}
+                maxLength={500}
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-8"
+                onClick={() => setQuestionToEdit(null)}
+              >
+                Huỷ
+              </Button>
+              <Button
+                type="submit"
+                className="h-8"
+                disabled={updateMutation.isPending || !editContent.trim()}
+              >
+                {updateMutation.isPending ? "Đang lưu..." : "Lưu câu hỏi"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Confirmation Dialog for Deleting Question */}
       <AlertDialog

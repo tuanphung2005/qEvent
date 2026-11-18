@@ -66,7 +66,7 @@ export const initialGame: Game = {
 
 let questions = [...initialQuestions];
 const polls = [...initialPolls];
-let game = { ...initialGame };
+let game: Game | null = { ...initialGame };
 
 export const handlers = [
   // Q&A
@@ -94,6 +94,14 @@ export const handlers = [
     if (!q) return new HttpResponse(null, { status: 404 });
     q.upvotes += 1;
     return HttpResponse.json({ questionId: q.id, upvotes: q.upvotes, hasVoted: true });
+  }),
+
+  http.patch("/api/questions/:questionId", async ({ params, request }) => {
+    const body = (await request.json()) as { content: string };
+    const q = questions.find((item) => item.id === params.questionId);
+    if (!q) return new HttpResponse(null, { status: 404 });
+    q.content = body.content;
+    return HttpResponse.json({ question: q });
   }),
 
   http.delete("/api/questions/:questionId", ({ params }) => {
@@ -128,16 +136,36 @@ export const handlers = [
   }),
 
   http.patch("/api/polls/:pollId", async ({ params, request }) => {
-    const body = (await request.json()) as { isActive: boolean };
+    const body = (await request.json()) as {
+      isActive?: boolean;
+      title?: string;
+      options?: string[];
+    };
     const p = polls.find((item) => item.id === params.pollId);
     if (!p) return new HttpResponse(null, { status: 404 });
-    p.isActive = body.isActive;
+    if (body.isActive !== undefined) p.isActive = body.isActive;
+    if (body.title !== undefined) p.title = body.title;
+    if (body.options) {
+      p.options = body.options.map((content, idx) => ({
+        id: `opt-${p.id}-${idx}-${Date.now()}`,
+        pollId: p.id,
+        content,
+        voteCount: 0,
+      }));
+    }
     return HttpResponse.json({ poll: p });
+  }),
+
+  http.delete("/api/polls/:pollId", ({ params }) => {
+    const idx = polls.findIndex((item) => item.id === params.pollId);
+    if (idx < 0) return new HttpResponse(null, { status: 404 });
+    polls.splice(idx, 1);
+    return new HttpResponse(null, { status: 204 });
   }),
 
   // Quiz Game
   http.get("/api/sessions/:sessionId/game", ({ params }) => {
-    if (game.sessionId === params.sessionId) {
+    if (game && game.sessionId === params.sessionId) {
       return HttpResponse.json({ game });
     }
     return HttpResponse.json({ game: null });
@@ -163,30 +191,63 @@ export const handlers = [
     };
     const newQ = {
       id: `gq-${Date.now()}`,
-      orderNum: game.questions?.length ?? 0,
+      orderNum: game?.questions?.length ?? 0,
       content: body.content,
       options: body.options,
       correctOption: body.correctOption,
       timeLimitSec: body.timeLimitSec ?? 30,
       questionStartedAt: null,
     };
-    game.questions = [...(game.questions ?? []), newQ];
-    game.totalQuestions = game.questions.length;
+    if (game) {
+      game.questions = [...(game.questions ?? []), newQ];
+      game.totalQuestions = game.questions.length;
+    }
     return HttpResponse.json({ question: newQ }, { status: 201 });
   }),
 
+  http.patch("/api/game/:gameId/question/:questionId", async ({ params, request }) => {
+    const body = (await request.json()) as {
+      content?: string;
+      options?: string[];
+      correctOption?: number;
+      timeLimitSec?: number;
+    };
+    const q = game?.questions?.find((item) => item.id === params.questionId);
+    if (!q) return new HttpResponse(null, { status: 404 });
+    Object.assign(q, body);
+    return HttpResponse.json({ question: q });
+  }),
+
+  http.delete("/api/game/:gameId/question/:questionId", ({ params }) => {
+    if (game?.questions) {
+      game.questions = game.questions
+        .filter((item) => item.id !== params.questionId)
+        .map((item, index) => ({ ...item, orderNum: index }));
+      game.totalQuestions = game.questions.length;
+    }
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.delete("/api/game/:gameId", () => {
+    game = null;
+    return new HttpResponse(null, { status: 204 });
+  }),
+
   http.post("/api/game/:gameId/start", () => {
-    game.status = "QUESTION_ACTIVE";
-    game.currentQuestionIndex = 0;
+    if (game) {
+      game.status = "QUESTION_ACTIVE";
+      game.currentQuestionIndex = 0;
+    }
     return HttpResponse.json({ game });
   }),
 
   http.post("/api/game/:gameId/reveal", () => {
-    game.status = "ROUND_REVEALED";
+    if (game) game.status = "ROUND_REVEALED";
     return HttpResponse.json({ game });
   }),
 
   http.post("/api/game/:gameId/next", () => {
+    if (!game) return HttpResponse.json({ game: null });
     if (game.currentQuestionIndex + 1 < (game.questions?.length ?? 0)) {
       game.currentQuestionIndex += 1;
       game.status = "QUESTION_ACTIVE";
@@ -197,7 +258,7 @@ export const handlers = [
   }),
 
   http.post("/api/game/:gameId/end", () => {
-    game.status = "FINISHED";
+    if (game) game.status = "FINISHED";
     return HttpResponse.json({ game });
   }),
 

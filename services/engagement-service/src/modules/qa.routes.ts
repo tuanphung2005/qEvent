@@ -150,6 +150,39 @@ export function qaRoutes(deps: Deps, jwtSecret: string) {
         params: t.Object({ questionId: t.String({ minLength: 1 }) }),
       }
     )
+    .patch(
+      "/api/questions/:questionId",
+      async ({ params, body, currentUser, set }) => {
+        if (!currentUser) {
+          return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
+        }
+        if (!isHostRole(currentUser.role)) {
+          return fail(set, 403, "FORBIDDEN", "Only staff or organizer can edit questions");
+        }
+
+        const question = await deps.prisma.qAQuestion.findUnique({
+          where: { id: params.questionId },
+        });
+        if (!question) {
+          return fail(set, 404, "QUESTION_NOT_FOUND", "Question was not found");
+        }
+
+        const updated = await deps.prisma.qAQuestion.update({
+          where: { id: question.id },
+          data: { content: body.content.trim() },
+        });
+        broadcaster.broadcastQa(question.sessionId, {
+          type: "QUESTION_UPDATED",
+          question: updated,
+        });
+
+        return { question: updated };
+      },
+      {
+        params: t.Object({ questionId: t.String({ minLength: 1 }) }),
+        body: t.Object({ content: t.String({ minLength: 1, maxLength: 500 }) }),
+      }
+    )
     .delete(
       "/api/questions/:questionId",
       async ({ params, currentUser, set }) => {

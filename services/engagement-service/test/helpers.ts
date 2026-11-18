@@ -125,6 +125,7 @@ export class InMemoryPrisma {
       if (!item) throw new Error("Question not found");
       if (args.data.upvotes?.increment) item.upvotes += args.data.upvotes.increment;
       if (args.data.upvotes?.decrement) item.upvotes -= args.data.upvotes.decrement;
+      if (args.data.content !== undefined) item.content = args.data.content;
       return { ...item };
     },
     delete: async (args: any) => {
@@ -243,9 +244,26 @@ export class InMemoryPrisma {
       this.polls = [];
       return { count };
     },
+    delete: async (args: any) => {
+      const idx = this.polls.findIndex((item) => item.id === args.where.id);
+      if (idx < 0) throw new Error("Poll not found");
+      const [removed] = this.polls.splice(idx, 1);
+      this.pollOptions = this.pollOptions.filter((option) => option.pollId !== removed.id);
+      return { ...removed };
+    },
   };
 
   pollOption = {
+    create: async (args: any) => {
+      const item = {
+        id: crypto.randomUUID(),
+        pollId: args.data.pollId,
+        content: args.data.content,
+        voteCount: args.data.voteCount ?? 0,
+      };
+      this.pollOptions.push(item);
+      return { ...item };
+    },
     update: async (args: any) => {
       const opt = this.pollOptions.find((o) => o.id === args.where.id);
       if (!opt) throw new Error("Option not found");
@@ -366,11 +384,19 @@ export class InMemoryPrisma {
       this.quizGames = [];
       return { count };
     },
+    delete: async (args: any) => {
+      const idx = this.quizGames.findIndex((item) => item.id === args.where.id);
+      if (idx < 0) throw new Error("Game not found");
+      const [removed] = this.quizGames.splice(idx, 1);
+      this.quizQuestions = this.quizQuestions.filter((q) => q.gameId !== removed.id);
+      return { ...removed };
+    },
   };
 
   quizQuestion = {
     findFirst: async (args: any) => {
       let list = this.quizQuestions;
+      if (args.where?.id) list = list.filter((q) => q.id === args.where.id);
       if (args.where?.gameId) list = list.filter((q) => q.gameId === args.where.gameId);
       if (args.where?.orderNum !== undefined) list = list.filter((q) => q.orderNum === args.where.orderNum);
       return list[0] ? { ...list[0] } : null;
@@ -410,6 +436,12 @@ export class InMemoryPrisma {
       const count = this.quizQuestions.length;
       this.quizQuestions = [];
       return { count };
+    },
+    delete: async (args: any) => {
+      const idx = this.quizQuestions.findIndex((item) => item.id === args.where.id);
+      if (idx < 0) throw new Error("Question not found");
+      const [removed] = this.quizQuestions.splice(idx, 1);
+      return { ...removed };
     },
   };
 

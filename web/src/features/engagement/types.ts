@@ -21,9 +21,17 @@ export type CreatePollInput = {
   options: string[];
 };
 
+export type UpdatePollInput = {
+  title?: string;
+  options?: string[];
+  isActive?: boolean;
+};
+
 export type AddGameQuestionInput = {
   content: string;
   options: string[];
   correctOption: number;
   timeLimitSec: number;
 };
+
+export type UpdateGameQuestionInput = Partial<AddGameQuestionInput>;

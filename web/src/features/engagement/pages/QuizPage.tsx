@@ -19,7 +19,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -31,10 +30,12 @@ import {
   CheckCircle2,
   ChevronRight,
   Eye,
+  Pencil,
   Play,
   Plus,
   Radio,
   Square,
+  Trash2,
   Trophy,
 } from "lucide-react";
 import { useState } from "react";
@@ -42,13 +43,17 @@ import { useOutletContext, useParams } from "react-router";
 import {
   useAddGameQuestion,
   useCreateSessionGame,
+  useDeleteGame,
+  useDeleteGameQuestion,
   useEndGame,
   useGameLeaderboard,
   useNextGameQuestion,
   useRevealGameAnswer,
   useSessionGame,
   useStartGame,
+  useUpdateGameQuestion,
 } from "../api";
+import type { GameQuestion } from "../types";
 
 type OutletCtx = {
   activeSession: { id: string; title: string; isLive: boolean } | null;
@@ -73,44 +78,74 @@ export function QuizPage() {
   // Mutations
   const createGameMutation = useCreateSessionGame(sessionId ?? "");
   const addQuestionMutation = useAddGameQuestion(sessionId ?? "", game?.id ?? "");
+  const updateQuestionMutation = useUpdateGameQuestion(sessionId ?? "");
+  const deleteQuestionMutation = useDeleteGameQuestion(sessionId ?? "");
+  const deleteGameMutation = useDeleteGame(sessionId ?? "");
   const startMutation = useStartGame(sessionId ?? "");
   const revealMutation = useRevealGameAnswer(sessionId ?? "");
   const nextMutation = useNextGameQuestion(sessionId ?? "");
   const endMutation = useEndGame(sessionId ?? "");
 
   // Modal / Confirm States
-  const [openAddQuestion, setOpenAddQuestion] = useState(false);
+  const [openQuestionForm, setOpenQuestionForm] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<GameQuestion | null>(null);
   const [qContent, setQContent] = useState("");
   const [qOptions, setQOptions] = useState<string[]>(["", "", "", ""]);
   const [correctIdx, setCorrectIdx] = useState(0);
   const [timeLimit, setTimeLimit] = useState(30);
 
-  const [confirmAction, setConfirmAction] = useState<"next" | "end" | null>(null);
+  const [questionToDelete, setQuestionToDelete] = useState<GameQuestion | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"next" | "end" | "delete-game" | null>(null);
 
   const isStaffOrOrganizer = user?.role === "STAFF" || user?.role === "ORGANIZER";
 
+  const openCreateQuestion = () => {
+    setEditingQuestion(null);
+    setQContent("");
+    setQOptions(["", "", "", ""]);
+    setCorrectIdx(0);
+    setTimeLimit(30);
+    setOpenQuestionForm(true);
+  };
+
+  const openEditQuestion = (question: GameQuestion) => {
+    setEditingQuestion(question);
+    setQContent(question.content);
+    setQOptions(question.options);
+    setCorrectIdx(question.correctOption ?? 0);
+    setTimeLimit(question.timeLimitSec ?? 30);
+    setOpenQuestionForm(true);
+  };
+
   const handleAddQuestionSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanOpts = qOptions.map((o) => o.trim()).filter(Boolean);
-    if (!qContent.trim() || cleanOpts.length < 2) return;
+    // Keep positions: filtering blanks would shift `correctOption`.
+    const cleanOpts = qOptions.map((o) => o.trim());
+    if (!qContent.trim() || cleanOpts.length < 2 || cleanOpts.some((o) => !o)) return;
 
-    addQuestionMutation.mutate(
-      {
-        content: qContent.trim(),
-        options: cleanOpts,
-        correctOption: correctIdx,
-        timeLimitSec: timeLimit,
-      },
-      {
-        onSuccess: () => {
-          setQContent("");
-          setQOptions(["", "", "", ""]);
-          setCorrectIdx(0);
-          setTimeLimit(30);
-          setOpenAddQuestion(false);
-        },
-      },
-    );
+    const input = {
+      content: qContent.trim(),
+      options: cleanOpts,
+      correctOption: correctIdx,
+      timeLimitSec: timeLimit,
+    };
+    const onSuccess = () => {
+      setEditingQuestion(null);
+      setQContent("");
+      setQOptions(["", "", "", ""]);
+      setCorrectIdx(0);
+      setTimeLimit(30);
+      setOpenQuestionForm(false);
+    };
+
+    if (editingQuestion && game) {
+      updateQuestionMutation.mutate(
+        { gameId: game.id, questionId: editingQuestion.id, ...input },
+        { onSuccess },
+      );
+      return;
+    }
+    addQuestionMutation.mutate(input, { onSuccess });
   };
 
   if (isLoading) {
@@ -202,17 +237,17 @@ export function QuizPage() {
             <div className="flex flex-wrap items-center gap-2">
               {game.status === "WAITING" && (
                 <>
-                  <Dialog open={openAddQuestion} onOpenChange={setOpenAddQuestion}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="h-10 gap-1.5">
-                        <Plus className="size-4" />
-                        <span>Thêm câu hỏi</span>
-                      </Button>
-                    </DialogTrigger>
+                  <Dialog open={openQuestionForm} onOpenChange={setOpenQuestionForm}>
+                    <Button variant="outline" className="h-8 gap-1.5" onClick={openCreateQuestion}>
+                      <Plus className="size-4" />
+                      <span>Thêm câu hỏi</span>
+                    </Button>
                     <DialogContent className="sm:max-w-[540px]">
                       <form onSubmit={handleAddQuestionSubmit}>
                         <DialogHeader>
-                          <DialogTitle>Thêm câu hỏi Quiz mới</DialogTitle>
+                          <DialogTitle>
+                            {editingQuestion ? "Sửa câu hỏi Quiz" : "Thêm câu hỏi Quiz mới"}
+                          </DialogTitle>
                           <DialogDescription>
                             Nhập nội dung câu hỏi, thời gian giới hạn và chọn đáp án chính xác.
                           </DialogDescription>
@@ -275,7 +310,7 @@ export function QuizPage() {
                             type="button"
                             variant="ghost"
                             className="h-8"
-                            onClick={() => setOpenAddQuestion(false)}
+                            onClick={() => setOpenQuestionForm(false)}
                           >
                             Huỷ
                           </Button>
@@ -284,11 +319,16 @@ export function QuizPage() {
                             className="h-8"
                             disabled={
                               addQuestionMutation.isPending ||
+                              updateQuestionMutation.isPending ||
                               !qContent.trim() ||
-                              qOptions.filter((o) => o.trim()).length < 2
+                              qOptions.some((option) => !option.trim())
                             }
                           >
-                            {addQuestionMutation.isPending ? "Đang lưu..." : "Lưu câu hỏi"}
+                            {addQuestionMutation.isPending || updateQuestionMutation.isPending
+                              ? "Đang lưu..."
+                              : editingQuestion
+                                ? "Lưu thay đổi"
+                                : "Lưu câu hỏi"}
                           </Button>
                         </DialogFooter>
                       </form>
@@ -296,7 +336,7 @@ export function QuizPage() {
                   </Dialog>
 
                   <Button
-                    className="h-10 gap-1.5"
+                    className="h-8 gap-1.5"
                     disabled={startMutation.isPending || questions.length === 0}
                     onClick={() => startMutation.mutate(game.id)}
                   >
@@ -304,6 +344,18 @@ export function QuizPage() {
                     <span>Bắt đầu Game</span>
                   </Button>
                 </>
+              )}
+
+              {(game.status === "WAITING" || game.status === "FINISHED") && (
+                <Button
+                  variant="outline"
+                  className="h-8 gap-1.5 text-destructive hover:bg-destructive/10"
+                  disabled={deleteGameMutation.isPending}
+                  onClick={() => setConfirmAction("delete-game")}
+                >
+                  <Trash2 className="size-4" />
+                  <span>Xoá game</span>
+                </Button>
               )}
 
               {game.status === "QUESTION_ACTIVE" && (
@@ -387,6 +439,66 @@ export function QuizPage() {
         )}
       </Card>
 
+      {/* Question list — only editable while the game is WAITING */}
+      {game.status === "WAITING" && (
+        <Card className="bg-card shadow-sm">
+          <CardHeader className="p-4 sm:p-6 pb-2">
+            <CardTitle className="text-base font-semibold text-foreground">
+              Danh sách câu hỏi ({questions.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-2">
+            {questions.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                Chưa có câu hỏi. Thêm ít nhất một câu trước khi bắt đầu game.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {questions.map((question, index) => (
+                  <div
+                    key={question.id}
+                    className="flex items-start justify-between gap-3 rounded-lg bg-secondary p-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground">
+                        Câu {index + 1}: {question.content}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {question.options.length} lựa chọn · Đáp án{" "}
+                        {String.fromCharCode(65 + (question.correctOption ?? 0))} ·{" "}
+                        {question.timeLimitSec ?? 30}s
+                      </p>
+                    </div>
+                    {isStaffOrOrganizer && (
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Sửa câu hỏi ${index + 1}`}
+                          className="h-8 w-8 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                          onClick={() => openEditQuestion(question)}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Xoá câu hỏi ${index + 1}`}
+                          className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => setQuestionToDelete(question)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Leaderboard Section */}
       <Card className="bg-card shadow-sm">
         <CardHeader className="p-4 sm:p-6 pb-2">
@@ -437,7 +549,7 @@ export function QuizPage() {
         </CardContent>
       </Card>
 
-      {/* Confirmation Dialog for Sensitive Actions (next/end) */}
+      {/* Confirmation Dialog for Sensitive Actions (next/end/delete game) */}
       <AlertDialog
         open={Boolean(confirmAction)}
         onOpenChange={(open) => !open && setConfirmAction(null)}
@@ -447,12 +559,16 @@ export function QuizPage() {
             <AlertDialogTitle>
               {confirmAction === "next"
                 ? "Chuyển sang câu hỏi tiếp theo?"
-                : "Kết thúc trò chơi Quiz?"}
+                : confirmAction === "delete-game"
+                  ? "Xoá Quiz game?"
+                  : "Kết thúc trò chơi Quiz?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmAction === "next"
                 ? "Khán giả sẽ được chuyển ngay sang câu hỏi kế tiếp và không thể tiếp tục gửi đáp án cho câu hỏi này."
-                : "Game sẽ chính thức khép lại và hiển thị bảng xếp hạng chung cuộc cho toàn bộ phiên."}
+                : confirmAction === "delete-game"
+                  ? "Toàn bộ câu hỏi và câu trả lời của game này sẽ bị xoá để tạo game mới. Hành động này không thể hoàn tác."
+                  : "Game sẽ chính thức khép lại và hiển thị bảng xếp hạng chung cuộc cho toàn bộ phiên."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -464,11 +580,47 @@ export function QuizPage() {
                   nextMutation.mutate(game.id);
                 } else if (confirmAction === "end") {
                   endMutation.mutate(game.id);
+                } else if (confirmAction === "delete-game") {
+                  deleteGameMutation.mutate(game.id);
                 }
                 setConfirmAction(null);
               }}
             >
               Xác nhận
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete question confirmation */}
+      <AlertDialog
+        open={Boolean(questionToDelete)}
+        onOpenChange={(open) => !open && setQuestionToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xoá câu hỏi Quiz?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{questionToDelete?.content}” sẽ bị xoá khỏi game và các câu còn lại được đánh số lại.
+              Chỉ xoá được khi game chưa bắt đầu.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-8">Huỷ</AlertDialogCancel>
+            <AlertDialogAction
+              className="h-8 bg-destructive text-primary-foreground hover:bg-destructive/90"
+              disabled={deleteQuestionMutation.isPending}
+              onClick={() => {
+                if (questionToDelete && game) {
+                  deleteQuestionMutation.mutate({
+                    gameId: game.id,
+                    questionId: questionToDelete.id,
+                  });
+                }
+                setQuestionToDelete(null);
+              }}
+            >
+              Xoá câu hỏi
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

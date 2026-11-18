@@ -1,4 +1,14 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +19,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -17,10 +26,11 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth/auth-context";
-import { Activity, AlertTriangle, Plus, Power, Trash2 } from "lucide-react";
+import { Activity, AlertTriangle, Pencil, Plus, Power, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useOutletContext, useParams } from "react-router";
-import { useCreatePoll, usePolls, useUpdatePoll } from "../api";
+import { useCreatePoll, useDeletePoll, usePolls, useUpdatePoll } from "../api";
+import type { Poll } from "../types";
 
 type OutletCtx = {
   activeSession: { id: string; title: string; isLive: boolean } | null;
@@ -38,11 +48,14 @@ export function PollsPage() {
   const { data, isLoading, error } = usePolls(sessionId, pollingInterval);
   const createPollMutation = useCreatePoll(sessionId ?? "");
   const updatePollMutation = useUpdatePoll(sessionId ?? "");
+  const deletePollMutation = useDeletePoll(sessionId ?? "");
 
-  // Create Poll Dialog State
-  const [openCreate, setOpenCreate] = useState(false);
+  // One dialog serves create and edit; `editingPoll` is null while creating.
+  const [openForm, setOpenForm] = useState(false);
+  const [editingPoll, setEditingPoll] = useState<Poll | null>(null);
   const [title, setTitle] = useState("");
   const [options, setOptions] = useState<string[]>(["", ""]);
+  const [pollToDelete, setPollToDelete] = useState<Poll | null>(null);
 
   const polls = data?.polls ?? [];
   const isStaffOrOrganizer = user?.role === "STAFF" || user?.role === "ORGANIZER";
@@ -65,21 +78,41 @@ export function PollsPage() {
     setOptions(updated);
   };
 
+  const openCreateForm = () => {
+    setEditingPoll(null);
+    setTitle("");
+    setOptions(["", ""]);
+    setOpenForm(true);
+  };
+
+  const openEditForm = (poll: Poll) => {
+    setEditingPoll(poll);
+    setTitle(poll.title);
+    setOptions(poll.options.map((option) => option.content));
+    setOpenForm(true);
+  };
+
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanOptions = options.map((opt) => opt.trim()).filter(Boolean);
     if (!title.trim() || cleanOptions.length < 2) return;
 
-    createPollMutation.mutate(
-      { title: title.trim(), options: cleanOptions },
-      {
-        onSuccess: () => {
-          setTitle("");
-          setOptions(["", ""]);
-          setOpenCreate(false);
-        },
-      },
-    );
+    const onSuccess = () => {
+      setTitle("");
+      setOptions(["", ""]);
+      setEditingPoll(null);
+      setOpenForm(false);
+    };
+
+    if (editingPoll) {
+      updatePollMutation.mutate(
+        { pollId: editingPoll.id, title: title.trim(), options: cleanOptions },
+        { onSuccess },
+      );
+      return;
+    }
+
+    createPollMutation.mutate({ title: title.trim(), options: cleanOptions }, { onSuccess });
   };
 
   if (isLoading) {
@@ -114,19 +147,21 @@ export function PollsPage() {
         </div>
 
         {isStaffOrOrganizer && (
-          <Dialog open={openCreate} onOpenChange={setOpenCreate}>
-            <DialogTrigger asChild>
-              <Button className="gap-1.5">
-                <Plus className="size-4" />
-                <span>Tạo khảo sát mới</span>
-              </Button>
-            </DialogTrigger>
+          <Dialog open={openForm} onOpenChange={setOpenForm}>
+            <Button className="gap-1.5" onClick={openCreateForm}>
+              <Plus className="size-4" />
+              <span>Tạo khảo sát mới</span>
+            </Button>
             <DialogContent className="sm:max-w-[500px]">
               <form onSubmit={handleCreateSubmit}>
                 <DialogHeader>
-                  <DialogTitle>Tạo khảo sát bình chọn</DialogTitle>
+                  <DialogTitle>
+                    {editingPoll ? "Sửa khảo sát bình chọn" : "Tạo khảo sát bình chọn"}
+                  </DialogTitle>
                   <DialogDescription>
-                    Tạo câu hỏi bình chọn trực tiếp với từ 2 đến 10 phương án lựa chọn.
+                    {editingPoll
+                      ? "Đổi tiêu đề hoặc phương án. Phương án mới sẽ đặt lại số phiếu đã bình chọn."
+                      : "Tạo câu hỏi bình chọn trực tiếp với từ 2 đến 10 phương án lựa chọn."}
                   </DialogDescription>
                 </DialogHeader>
 
@@ -192,7 +227,7 @@ export function PollsPage() {
                     type="button"
                     variant="ghost"
                     className="h-8"
-                    onClick={() => setOpenCreate(false)}
+                    onClick={() => setOpenForm(false)}
                   >
                     Huỷ
                   </Button>
@@ -201,11 +236,16 @@ export function PollsPage() {
                     className="h-8"
                     disabled={
                       createPollMutation.isPending ||
+                      updatePollMutation.isPending ||
                       !title.trim() ||
                       options.filter((o) => o.trim()).length < 2
                     }
                   >
-                    {createPollMutation.isPending ? "Đang tạo..." : "Tạo khảo sát"}
+                    {createPollMutation.isPending || updatePollMutation.isPending
+                      ? "Đang lưu..."
+                      : editingPoll
+                        ? "Lưu thay đổi"
+                        : "Tạo khảo sát"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -250,23 +290,44 @@ export function PollsPage() {
                     </p>
                   </div>
 
-                  {/* Host Toggle Open / Close Poll */}
+                  {/* Host actions: open/close, edit, delete */}
                   {isStaffOrOrganizer && (
-                    <Button
-                      variant={poll.isActive ? "destructive" : "secondary"}
-                      size="sm"
-                      className="h-10 gap-1.5"
-                      disabled={updatePollMutation.isPending}
-                      onClick={() =>
-                        updatePollMutation.mutate({
-                          pollId: poll.id,
-                          isActive: !poll.isActive,
-                        })
-                      }
-                    >
-                      <Power className="size-4" />
-                      <span>{poll.isActive ? "Đóng bình chọn" : "Mở lại"}</span>
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        variant={poll.isActive ? "destructive" : "secondary"}
+                        size="sm"
+                        className="h-8 gap-1.5"
+                        disabled={updatePollMutation.isPending}
+                        onClick={() =>
+                          updatePollMutation.mutate({
+                            pollId: poll.id,
+                            isActive: !poll.isActive,
+                          })
+                        }
+                      >
+                        <Power className="size-4" />
+                        <span>{poll.isActive ? "Đóng bình chọn" : "Mở lại"}</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1.5"
+                        onClick={() => openEditForm(poll)}
+                      >
+                        <Pencil className="size-4" />
+                        <span>Sửa</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Xoá khảo sát ${poll.title}`}
+                        className="h-8 gap-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => setPollToDelete(poll)}
+                      >
+                        <Trash2 className="size-4" />
+                        <span>Xoá</span>
+                      </Button>
+                    </div>
                   )}
                 </CardHeader>
 
@@ -298,6 +359,35 @@ export function PollsPage() {
           })}
         </div>
       )}
+
+      {/* Delete confirmation */}
+      <AlertDialog
+        open={Boolean(pollToDelete)}
+        onOpenChange={(open) => !open && setPollToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xoá khảo sát?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{pollToDelete?.title}” cùng toàn bộ phiếu bình chọn sẽ bị xoá. Hành động này không
+              thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-8">Huỷ</AlertDialogCancel>
+            <AlertDialogAction
+              className="h-8 bg-destructive text-primary-foreground hover:bg-destructive/90"
+              disabled={deletePollMutation.isPending}
+              onClick={() => {
+                if (pollToDelete) deletePollMutation.mutate(pollToDelete.id);
+                setPollToDelete(null);
+              }}
+            >
+              Xoá khảo sát
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

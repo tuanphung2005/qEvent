@@ -23,14 +23,21 @@ Thuộc phần việc của **Trọng** theo `plans/AI_MICROSERVICES_EXECUTION_P
 |---|---|---|---|
 | GET | `/api/sessions/:sessionId/questions` | `200` | — |
 | POST | `/api/sessions/:sessionId/questions` | `201` | `401`, `403 NOT_CHECKED_IN` |
+| PATCH | `/api/questions/:questionId` | `200` (sửa nội dung, giữ phiếu) | `401`, `403 FORBIDDEN` (chỉ Host), `404` |
+| DELETE | `/api/questions/:questionId` | `204` | `401`, `403 FORBIDDEN` (chỉ Host), `404` |
 | PUT | `/api/questions/:questionId/votes` | `200` (toggle upvote) | `401`, `403 NOT_CHECKED_IN`, `404` |
 | GET | `/api/sessions/:sessionId/polls` | `200` | — |
 | POST | `/api/sessions/:sessionId/polls` | `201` | `401`, `403 FORBIDDEN` (chỉ Host), `400` |
+| PATCH | `/api/polls/:pollId` | `200` (sửa title/options, mở/đóng) | `401`, `403 FORBIDDEN`, `404`, `400` |
+| DELETE | `/api/polls/:pollId` | `204` (xoá cả options/phiếu) | `401`, `403 FORBIDDEN`, `404` |
 | POST | `/api/polls/:pollId/vote` | `200` (vote/toggle) | `401`, `403 NOT_CHECKED_IN`, `404`, `400` |
 | GET | `/api/sessions/:sessionId/game` | `200` | `404 GAME_NOT_FOUND` |
 | POST | `/api/sessions/:sessionId/game` | `201` | `401`, `403 FORBIDDEN` |
 | POST | `/api/game/:gameId/question` | `201` | `401`, `403`, `409 INVALID_GAME_STATE` (chỉ thêm khi WAITING), `400` |
+| PATCH | `/api/game/:gameId/question/:questionId` | `200` (chỉ khi WAITING) | `401`, `403`, `404`, `409`, `400` |
+| DELETE | `/api/game/:gameId/question/:questionId` | `204` (đánh số lại câu còn lại) | `401`, `403`, `404`, `409` |
 | GET | `/api/game/:gameId` | `200` | `404` (Host thấy đáp án; Attendee chỉ thấy câu hỏi đang active) |
+| DELETE | `/api/game/:gameId` | `204` (xoá game khi WAITING/FINISHED) | `401`, `403`, `404`, `409` |
 | POST | `/api/game/:gameId/start` | `200` (CAS sang QUESTION_ACTIVE) | `401`, `403`, `400 NO_QUESTIONS`, `409` |
 | POST | `/api/game/:gameId/reveal` | `200` (CAS sang ROUND_REVEALED) | `401`, `403`, `409` (phải từ QUESTION_ACTIVE) |
 | POST | `/api/game/:gameId/next` | `200` (CAS sang QUESTION_ACTIVE) | `401`, `403`, `409` (phải từ ROUND_REVEALED) |
