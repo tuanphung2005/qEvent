@@ -295,6 +295,29 @@ describe("Quiz Game Feature (G4)", () => {
     expect(screen.getByText("Bảng xếp hạng trực tiếp")).toBeInTheDocument();
   });
 
+  it("them cau hoi chi voi 2 lua chon", async () => {
+    const user = userEvent.setup();
+    const { container } = renderQuiz();
+
+    await waitFor(
+      () => {
+        expect(container.querySelector('[data-slot="skeleton"]')).toBeNull();
+      },
+      { timeout: 4000 },
+    );
+
+    await user.click(screen.getByRole("button", { name: "Thêm câu hỏi" }));
+    await user.type(
+      await screen.findByRole("textbox", { name: "Nội dung câu hỏi" }),
+      "Câu hỏi hai lựa chọn",
+    );
+    await user.type(screen.getByRole("textbox", { name: "Lựa chọn A" }), "Đúng");
+    await user.type(screen.getByRole("textbox", { name: "Lựa chọn B" }), "Sai");
+    await user.click(screen.getByRole("button", { name: "Lưu câu hỏi" }));
+
+    expect(await screen.findByText(/Câu hỏi hai lựa chọn/)).toBeInTheDocument();
+  });
+
   it("thuc hien luong bat dau game", async () => {
     const user = userEvent.setup();
     const { container } = renderQuiz();

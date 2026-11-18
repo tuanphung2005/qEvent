@@ -60,6 +60,10 @@ type OutletCtx = {
   realtimeStatus: string;
 };
 
+type DraftOption = { id: string; value: string };
+
+const newOption = (value = ""): DraftOption => ({ id: crypto.randomUUID(), value });
+
 export function QuizPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const { realtimeStatus } = useOutletContext<OutletCtx>();
@@ -90,7 +94,7 @@ export function QuizPage() {
   const [openQuestionForm, setOpenQuestionForm] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<GameQuestion | null>(null);
   const [qContent, setQContent] = useState("");
-  const [qOptions, setQOptions] = useState<string[]>(["", "", "", ""]);
+  const [qOptions, setQOptions] = useState<DraftOption[]>(() => [newOption(), newOption()]);
   const [correctIdx, setCorrectIdx] = useState(0);
   const [timeLimit, setTimeLimit] = useState(30);
 
@@ -102,7 +106,7 @@ export function QuizPage() {
   const openCreateQuestion = () => {
     setEditingQuestion(null);
     setQContent("");
-    setQOptions(["", "", "", ""]);
+    setQOptions([newOption(), newOption()]);
     setCorrectIdx(0);
     setTimeLimit(30);
     setOpenQuestionForm(true);
@@ -111,16 +115,35 @@ export function QuizPage() {
   const openEditQuestion = (question: GameQuestion) => {
     setEditingQuestion(question);
     setQContent(question.content);
-    setQOptions(question.options);
+    setQOptions(question.options.map((option) => newOption(option)));
     setCorrectIdx(question.correctOption ?? 0);
     setTimeLimit(question.timeLimitSec ?? 30);
     setOpenQuestionForm(true);
   };
 
+  const updateOption = (index: number, value: string) => {
+    setQOptions((current) =>
+      current.map((option, i) => (i === index ? { ...option, value } : option)),
+    );
+  };
+
+  const addOption = () => {
+    setQOptions((current) => (current.length < 6 ? [...current, newOption()] : current));
+  };
+
+  const removeOption = (index: number) => {
+    setQOptions((current) => {
+      if (current.length <= 2) return current;
+      const next = current.filter((_, i) => i !== index);
+      setCorrectIdx((prev) => (prev === index ? 0 : prev > index ? prev - 1 : prev));
+      return next;
+    });
+  };
+
   const handleAddQuestionSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Keep positions: filtering blanks would shift `correctOption`.
-    const cleanOpts = qOptions.map((o) => o.trim());
+    const cleanOpts = qOptions.map((option) => option.value.trim());
     if (!qContent.trim() || cleanOpts.length < 2 || cleanOpts.some((o) => !o)) return;
 
     const input = {
@@ -132,7 +155,7 @@ export function QuizPage() {
     const onSuccess = () => {
       setEditingQuestion(null);
       setQContent("");
-      setQOptions(["", "", "", ""]);
+      setQOptions([newOption(), newOption()]);
       setCorrectIdx(0);
       setTimeLimit(30);
       setOpenQuestionForm(false);
@@ -270,13 +293,10 @@ export function QuizPage() {
 
                           <div className="space-y-2">
                             <span className="block text-sm font-medium text-foreground">
-                              Các lựa chọn (Tích chọn phương án đúng)
+                              Các lựa chọn (2–6, tích chọn phương án đúng)
                             </span>
                             {qOptions.map((opt, idx) => (
-                              <div
-                                key={`choice-${String.fromCharCode(65 + idx)}`}
-                                className="flex items-center gap-2"
-                              >
+                              <div key={opt.id} className="flex items-center gap-2">
                                 <Button
                                   type="button"
                                   variant={correctIdx === idx ? "default" : "outline"}
@@ -291,17 +311,37 @@ export function QuizPage() {
                                 <Input
                                   aria-label={`Lựa chọn ${String.fromCharCode(65 + idx)}`}
                                   placeholder={`Lựa chọn ${String.fromCharCode(65 + idx)}`}
-                                  value={opt}
-                                  onChange={(e) => {
-                                    const next = [...qOptions];
-                                    next[idx] = e.target.value;
-                                    setQOptions(next);
-                                  }}
+                                  value={opt.value}
+                                  onChange={(e) => updateOption(idx, e.target.value)}
                                   required
                                   className="h-8"
                                 />
+                                {qOptions.length > 2 && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={`Xoá lựa chọn ${String.fromCharCode(65 + idx)}`}
+                                    className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                    onClick={() => removeOption(idx)}
+                                  >
+                                    <Trash2 className="size-4" />
+                                  </Button>
+                                )}
                               </div>
                             ))}
+                            {qOptions.length < 6 && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-full gap-1.5"
+                                onClick={addOption}
+                              >
+                                <Plus className="size-4" />
+                                <span>Thêm lựa chọn</span>
+                              </Button>
+                            )}
                           </div>
                         </div>
 
@@ -321,7 +361,7 @@ export function QuizPage() {
                               addQuestionMutation.isPending ||
                               updateQuestionMutation.isPending ||
                               !qContent.trim() ||
-                              qOptions.some((option) => !option.trim())
+                              qOptions.some((option) => !option.value.trim())
                             }
                           >
                             {addQuestionMutation.isPending || updateQuestionMutation.isPending
