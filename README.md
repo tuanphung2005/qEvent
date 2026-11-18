@@ -74,15 +74,16 @@ curl http://localhost:8000/health
 
 ```bash
 bun run seed        # event, admission, engagement
-bun run demo:seed   # order/ticket/check-in qua API, bật session live
+bun run demo:seed   # order/ticket/check-in qua API, đánh dấu session live
 ```
 
 Seed tạo sẵn:
 
-- Event `Tech Summit Vietnam 2026`, 1 session, 1 ticket type.
-- 5 tài khoản (organizer / 2 staff / 2 attendee), mật khẩu chung `password123`.
-- Q&A, poll và quiz mẫu cho session seed.
-- 3 order confirmed, 4 vé, 2 check-in để dashboard/bảng không trống.
+- 4 event (Tech Summit, Indie Sài Gòn đang diễn ra, DevOps Đà Nẵng, AI & Vé thông minh) với 12 session, 9 phòng và 9 hạng vé giá VND.
+- 13 tài khoản (1 organizer / 2 staff / 10 attendee), mật khẩu chung `password123`.
+- Q&A, poll (mở/đóng) và quiz đủ 4 trạng thái cho 4 session.
+- 6 order đủ trạng thái (confirmed / pending / failed / pending reconciliation) + 9 vé (paid / pending / checked-in / cancelled) và 4 check-in, có 1 log lỗi đồng bộ.
+- `demo:seed`: ~10 order + 15 vé trải trên cả 4 event, soát vé qua 3 cổng `gate-1..3`.
 
 `demo:seed` dùng `Idempotency-Key` cố định nên chạy lại không nhân đôi dữ liệu.
 
