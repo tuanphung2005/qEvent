@@ -1,4 +1,3 @@
-import { ForbiddenScreen } from "@/app/RequireRole";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -22,12 +21,11 @@ type FormValues = z.infer<typeof schema>;
 type LocationState = { from?: string } | null;
 
 export function LoginPage() {
-  const { login, status, sessionMessage } = useAuth();
+  const { login, logout, status, sessionMessage } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as LocationState)?.from ?? routes.dashboard();
   const [formError, setFormError] = useState<string | null>(null);
-  const [blockedRole, setBlockedRole] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -36,14 +34,16 @@ export function LoginPage() {
   });
 
   if (status === "authenticated") return <Navigate to={from} replace />;
-  if (blockedRole) return <ForbiddenScreen role={blockedRole} />;
 
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError(null);
     try {
       const user = await login(values.email, values.password);
+      // No console role: keep the session? No — the only screen left would be the
+      // 403 page, so drop the token and explain on the form instead.
       if (user.role === "ATTENDEE") {
-        setBlockedRole(user.role);
+        logout();
+        setFormError("Tài khoản khách tham dự không có quyền dùng giao diện nhân sự.");
         return;
       }
       navigate(from, { replace: true });

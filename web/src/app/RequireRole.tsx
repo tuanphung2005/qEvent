@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth/auth-context";
-import { statusLabel } from "@/lib/format/status-label";
 import { routes } from "@/lib/routes";
 import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router";
@@ -29,19 +28,24 @@ function ShellSkeleton() {
   );
 }
 
-/** 403 keeps the session: the role is wrong, the login is not. */
-export function ForbiddenScreen({ role }: { role: string }) {
+/**
+ * 403 keeps the session: the role is wrong, the login is not. Logging out is the
+ * only exit, so it must clear the token — a hard reload to /login with the token
+ * still stored just bounces the user back here.
+ */
+export function ForbiddenScreen() {
+  const { logout } = useAuth();
+
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-4">
       <Card className="w-full max-w-[480px] p-6">
         <p className="text-display text-foreground">Không có quyền truy cập</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Tài khoản {statusLabel(role)} không dùng được console vận hành. Đăng nhập bằng tài khoản
-          STAFF hoặc ORGANIZER để soát vé và theo dõi sự kiện.
+          Bạn không có quyền truy cập, liên hệ tới đội ngũ kỹ thuật nếu bạn nghĩ có sai sót
         </p>
         <div className="mt-6 flex gap-2">
-          <Button variant="secondary" onClick={() => window.location.assign(routes.login())}>
-            Đăng nhập tài khoản khác
+          <Button variant="secondary" onClick={logout}>
+            Đăng xuất
           </Button>
         </div>
       </Card>
@@ -69,7 +73,7 @@ export function RequireRole({ children }: { children: ReactNode }) {
     );
   }
 
-  if (user?.role === "ATTENDEE") return <ForbiddenScreen role={user.role} />;
+  if (user?.role === "ATTENDEE") return <ForbiddenScreen />;
 
   return <>{children}</>;
 }
