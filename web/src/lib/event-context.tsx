@@ -3,7 +3,7 @@ import { unwrap } from "@/lib/api/errors";
 import type { EventSummary } from "@/lib/api/types";
 import { qk } from "@/lib/query/keys";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router";
 
 const DEFAULT_EVENT_KEY = "qevent.defaultEventId";
@@ -52,10 +52,25 @@ export function useEventContext(): EventContextValue {
   const events = useMemo(() => eventsQuery.data?.events ?? [], [eventsQuery.data]);
 
   const urlEventId = params.get("eventId");
-  const fallbackEventId = useMemo(() => readDefaultEventId(), []);
+  // Read on every render, never memoised: AppShell stays mounted while the page
+  // inside it remounts, and `setEventId` may have changed the stored default since.
+  const fallbackEventId = readDefaultEventId();
   const eventId =
     urlEventId ??
     (fallbackEventId && events.some((e) => e.id === fallbackEventId) ? fallbackEventId : null);
+
+  // The URL is the shareable source of truth, so keep both directions in sync:
+  // tab links drop the query string (put the selection back) and a shared link
+  // carries one without a stored default (remember it for the next tab).
+  useEffect(() => {
+    if (!eventId) return;
+    writeDefaultEventId(eventId);
+    if (!urlEventId) {
+      const next = new URLSearchParams(params);
+      next.set("eventId", eventId);
+      setParams(next, { replace: true });
+    }
+  }, [eventId, urlEventId, params, setParams]);
 
   const setEventId = useCallback(
     (nextEventId: string) => {
