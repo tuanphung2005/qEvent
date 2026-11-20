@@ -39,7 +39,7 @@ export function useCheckinStats(eventId: string | null) {
 /** Engagement service: Q&A, active poll and quiz state for one session. */
 export function useSessionStats(sessionId: string | null) {
   return useQuery({
-    queryKey: qk.engagement.game(sessionId ?? "none"),
+    queryKey: qk.engagement.stats(sessionId ?? "none"),
     queryFn: async () =>
       unwrap(
         await api.GET("/api/sessions/{sessionId}/stats", {

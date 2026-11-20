@@ -26,5 +26,6 @@ export const qk = {
     questions: (sessionId: string) => ["engagement", "questions", sessionId] as const,
     polls: (sessionId: string) => ["engagement", "polls", sessionId] as const,
     game: (sessionId: string) => ["engagement", "game", sessionId] as const,
+    stats: (sessionId: string) => ["engagement", "stats", sessionId] as const,
   },
 } as const;
