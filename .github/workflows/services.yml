@@ -1,0 +1,78 @@
+name: services
+
+on:
+  push:
+    paths:
+      - "gateway/**"
+      - "services/**"
+      - ".github/workflows/services.yml"
+  pull_request:
+    paths:
+      - "gateway/**"
+      - "services/**"
+      - ".github/workflows/services.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres-event:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password123
+          POSTGRES_DB: qevent_event_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qevent_event_test"
+          --health-interval 3s --health-timeout 3s --health-retries 10
+      postgres-admission:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password123
+          POSTGRES_DB: qevent_admission_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qevent_admission_test"
+          --health-interval 3s --health-timeout 3s --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Gateway
+        working-directory: gateway
+        run: |
+          bun install --frozen-lockfile
+          bunx tsc --noEmit
+          bun test
+
+      - name: Event service
+        working-directory: services/event-service
+        run: |
+          bun install --frozen-lockfile
+          bunx prisma generate
+          bunx tsc --noEmit
+          bun test
+
+      - name: Admission service
+        working-directory: services/admission-service
+        run: |
+          bun install --frozen-lockfile
+          bunx prisma generate
+          bunx tsc --noEmit
+          bun test
+
+      - name: Engagement service
+        working-directory: services/engagement-service
+        run: |
+          bun install --frozen-lockfile
+          bunx prisma generate
+          bunx tsc --noEmit
+          bun test
