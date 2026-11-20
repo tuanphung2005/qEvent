@@ -93,12 +93,23 @@ export class InMemoryPrisma {
 
   async $disconnect() {}
 
+  /** Shared include resolver so soft-deleted questions never leak into play. */
+  questionsOf(gameId: string, where?: any) {
+    let list = this.quizQuestions.filter((q) => q.gameId === gameId);
+    if (where?.deletedAt === null) list = list.filter((q) => !q.deletedAt);
+    if (where?.deletedAt?.not === null) list = list.filter((q) => q.deletedAt);
+    if (where?.deletedAt?.not !== undefined) list = list.filter((q) => Boolean(q.deletedAt));
+    return list.sort((a, b) => a.orderNum - b.orderNum).map((q) => ({ ...q }));
+  }
+
   qAQuestion = {
     findMany: async (args: any = {}) => {
       let list = this.qAQuestions;
       if (args.where?.sessionId) {
         list = list.filter((q) => q.sessionId === args.where.sessionId);
       }
+      if (args.where?.deletedAt === null) list = list.filter((q) => !q.deletedAt);
+      if (args.where?.deletedAt?.not !== undefined) list = list.filter((q) => Boolean(q.deletedAt));
       return list.map((q) => {
         const votes = this.qAVotes.filter((v) => v.questionId === q.id);
         return { ...q, votes };
@@ -116,6 +127,7 @@ export class InMemoryPrisma {
         content: args.data.content,
         upvotes: args.data.upvotes ?? 0,
         createdAt: new Date(),
+        deletedAt: null,
       };
       this.qAQuestions.push(item);
       return { ...item };
@@ -126,6 +138,7 @@ export class InMemoryPrisma {
       if (args.data.upvotes?.increment) item.upvotes += args.data.upvotes.increment;
       if (args.data.upvotes?.decrement) item.upvotes -= args.data.upvotes.decrement;
       if (args.data.content !== undefined) item.content = args.data.content;
+      if (args.data.deletedAt !== undefined) item.deletedAt = args.data.deletedAt;
       return { ...item };
     },
     delete: async (args: any) => {
@@ -180,6 +193,8 @@ export class InMemoryPrisma {
       if (args.where?.sessionId) {
         list = list.filter((p) => p.sessionId === args.where.sessionId);
       }
+      if (args.where?.deletedAt === null) list = list.filter((p) => !p.deletedAt);
+      if (args.where?.deletedAt?.not !== undefined) list = list.filter((p) => Boolean(p.deletedAt));
       return list.map((p) => {
         const options = this.pollOptions
           .filter((o) => o.pollId === p.id)
@@ -213,6 +228,7 @@ export class InMemoryPrisma {
         title: args.data.title,
         isActive: args.data.isActive ?? true,
         createdAt: new Date(),
+        deletedAt: null,
       };
       this.polls.push(poll);
 
@@ -323,10 +339,7 @@ export class InMemoryPrisma {
       if (args.where.sessionId) g = this.quizGames.find((item) => item.sessionId === args.where.sessionId);
       if (!g) return null;
 
-      const questions = this.quizQuestions
-        .filter((q) => q.gameId === g.id)
-        .sort((a, b) => a.orderNum - b.orderNum);
-      return { ...g, questions };
+      return { ...g, questions: this.questionsOf(g.id, args.include?.questions?.where) };
     },
     findUniqueOrThrow: async (args: any) => {
       const g = await this.quizGame.findUnique(args);
@@ -339,8 +352,7 @@ export class InMemoryPrisma {
         list = list.filter((g) => g.sessionId === args.where.sessionId);
       }
       return list.map((g) => {
-        const questions = this.quizQuestions.filter((q) => q.gameId === g.id);
-        return { ...g, questions };
+        return { ...g, questions: this.questionsOf(g.id) };
       });
     },
     create: async (args: any) => {
@@ -399,12 +411,19 @@ export class InMemoryPrisma {
       if (args.where?.id) list = list.filter((q) => q.id === args.where.id);
       if (args.where?.gameId) list = list.filter((q) => q.gameId === args.where.gameId);
       if (args.where?.orderNum !== undefined) list = list.filter((q) => q.orderNum === args.where.orderNum);
+      if (args.where?.deletedAt === null) list = list.filter((q) => !q.deletedAt);
+      if (args.where?.deletedAt?.not === null) list = list.filter((q) => q.deletedAt);
+      if (args.where?.deletedAt?.not !== undefined) list = list.filter((q) => Boolean(q.deletedAt));
       return list[0] ? { ...list[0] } : null;
     },
     findMany: async (args: any = {}) => {
       let list = this.quizQuestions;
       if (args.where?.gameId) list = list.filter((q) => q.gameId === args.where.gameId);
-      return list.map((q) => ({ ...q }));
+      if (args.where?.deletedAt === null) list = list.filter((q) => !q.deletedAt);
+      if (args.where?.deletedAt?.not !== undefined) list = list.filter((q) => Boolean(q.deletedAt));
+      return list
+        .sort((a, b) => a.orderNum - b.orderNum)
+        .map((q) => ({ ...q }));
     },
     aggregate: async (args: any) => {
       const questions = this.quizQuestions.filter((q) => q.gameId === args.where.gameId);
@@ -422,6 +441,7 @@ export class InMemoryPrisma {
         correctOption: args.data.correctOption,
         timeLimitSec: args.data.timeLimitSec ?? 30,
         questionStartedAt: args.data.questionStartedAt ?? null,
+        deletedAt: null,
       };
       this.quizQuestions.push(item);
       return { ...item };
@@ -431,6 +451,11 @@ export class InMemoryPrisma {
       if (!q) throw new Error("Question not found");
       Object.assign(q, args.data);
       return { ...q };
+    },
+    updateMany: async (args: any) => {
+      const list = this.quizQuestions.filter((q) => !args.where.gameId || q.gameId === args.where.gameId);
+      for (const q of list) Object.assign(q, args.data);
+      return { count: list.length };
     },
     deleteMany: async () => {
       const count = this.quizQuestions.length;
@@ -476,10 +501,17 @@ export class InMemoryPrisma {
       this.quizAnswers.push(item);
       return { ...item };
     },
-    deleteMany: async () => {
-      const count = this.quizAnswers.length;
-      this.quizAnswers = [];
-      return { count };
+    deleteMany: async (args: any = {}) => {
+      const gameId = args.where?.question?.gameId;
+      if (!gameId) {
+        const count = this.quizAnswers.length;
+        this.quizAnswers = [];
+        return { count };
+      }
+      const questionIds = this.quizQuestions.filter((q) => q.gameId === gameId).map((q) => q.id);
+      const before = this.quizAnswers.length;
+      this.quizAnswers = this.quizAnswers.filter((a) => !questionIds.includes(a.questionId));
+      return { count: before - this.quizAnswers.length };
     },
   };
 }

@@ -28,7 +28,7 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
     // GET /api/sessions/:sessionId/game
     .get(
       "/api/sessions/:sessionId/game",
-      async ({ params, set }) => {
+      async ({ params, currentUser, set }) => {
         const game = await deps.prisma.quizGame.findUnique({
           where: { sessionId: params.sessionId },
           include: {
@@ -42,14 +42,38 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
           return fail(set, 404, "GAME_NOT_FOUND", "No quiz game found for this session");
         }
 
+        const questions = game.questions.filter((q) => !q.deletedAt);
+        const host = isHostRole(currentUser?.role);
+
         return {
           game: {
             id: game.id,
             sessionId: game.sessionId,
             status: game.status,
             currentQuestionIndex: game.currentQuestionIndex,
-            totalQuestions: game.questions.length,
+            totalQuestions: questions.length,
+            // The host needs the list to edit/delete questions; attendees never see it.
+            ...(host
+              ? {
+                  questions: questions.map((q) => ({
+                    id: q.id,
+                    orderNum: q.orderNum,
+                    content: q.content,
+                    options: q.options,
+                    correctOption: q.correctOption,
+                    timeLimitSec: q.timeLimitSec,
+                    questionStartedAt: q.questionStartedAt,
+                  })),
+                }
+              : {}),
           },
+          ...(host
+            ? {
+                deletedQuestions: game.questions
+                  .filter((q) => q.deletedAt)
+                  .map((q) => ({ id: q.id, content: q.content, deletedAt: q.deletedAt })),
+              }
+            : {}),
         };
       },
       {
@@ -297,25 +321,16 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
         }
 
         const question = await deps.prisma.quizQuestion.findFirst({
-          where: { id: params.questionId, gameId: game.id },
+          where: { id: params.questionId, gameId: game.id, deletedAt: null },
         });
         if (!question) {
           return fail(set, 404, "QUESTION_NOT_FOUND", "Question was not found");
         }
 
-        await deps.prisma.$transaction(async (tx) => {
-          await tx.quizQuestion.delete({ where: { id: question.id } });
-
-          // start/next index the ordered array, but /answer looks up by orderNum:
-          // keep 0..n-1 contiguous after a delete.
-          const remaining = await tx.quizQuestion.findMany({
-            where: { gameId: game.id },
-            orderBy: { orderNum: "asc" },
-            select: { id: true },
-          });
-          for (const [index, row] of remaining.entries()) {
-            await tx.quizQuestion.update({ where: { id: row.id }, data: { orderNum: index } });
-          }
+        // Soft delete: answers and orderNum survive, so a restore is lossless.
+        await deps.prisma.quizQuestion.update({
+          where: { id: question.id },
+          data: { deletedAt: new Date() },
         });
 
         set.status = 204;
@@ -328,37 +343,49 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
       }
     )
 
-    // DELETE /api/game/:gameId
-    .delete(
-      "/api/game/:gameId",
+    // POST /api/game/:gameId/question/:questionId/restore
+    .post(
+      "/api/game/:gameId/question/:questionId/restore",
       async ({ params, currentUser, set }) => {
         if (!currentUser) {
           return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
         }
         if (!isHostRole(currentUser.role)) {
-          return fail(set, 403, "FORBIDDEN", "Only staff or organizer can delete a quiz game");
+          return fail(set, 403, "FORBIDDEN", "Only staff or organizer can restore questions");
         }
 
         const game = await deps.prisma.quizGame.findUnique({ where: { id: params.gameId } });
         if (!game) {
           return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
         }
-        if (game.status !== "WAITING" && game.status !== "FINISHED") {
+        if (game.status !== "WAITING") {
           return fail(
             set,
             409,
             "INVALID_GAME_STATE",
-            `Cannot delete a game while it is ${game.status}`
+            `Cannot restore questions when game is ${game.status}`
           );
         }
 
-        await deps.prisma.quizGame.delete({ where: { id: game.id } });
-        broadcaster.broadcastGame(game.id, { type: "GAME_DELETED", gameId: game.id });
+        const question = await deps.prisma.quizQuestion.findFirst({
+          where: { id: params.questionId, gameId: game.id, deletedAt: { not: null } },
+        });
+        if (!question) {
+          return fail(set, 404, "QUESTION_NOT_FOUND", "Deleted question was not found");
+        }
 
-        set.status = 204;
+        const restored = await deps.prisma.quizQuestion.update({
+          where: { id: question.id },
+          data: { deletedAt: null },
+        });
+
+        return { question: restored };
       },
       {
-        params: t.Object({ gameId: t.String({ minLength: 1 }) }),
+        params: t.Object({
+          gameId: t.String({ minLength: 1 }),
+          questionId: t.String({ minLength: 1 }),
+        }),
       }
     )
 
@@ -379,6 +406,7 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
         }
 
         const isHost = isHostRole(currentUser?.role);
+        const questions = game.questions.filter((q) => !q.deletedAt);
 
         if (isHost) {
           return {
@@ -387,7 +415,7 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
               sessionId: game.sessionId,
               status: game.status,
               currentQuestionIndex: game.currentQuestionIndex,
-              questions: game.questions.map((q) => ({
+              questions: questions.map((q) => ({
                 id: q.id,
                 orderNum: q.orderNum,
                 content: q.content,
@@ -397,6 +425,10 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
                 questionStartedAt: q.questionStartedAt,
               })),
             },
+            // Soft-deleted rows stay visible to the host so they can be restored.
+            deletedQuestions: game.questions
+              .filter((q) => q.deletedAt)
+              .map((q) => ({ id: q.id, content: q.content, deletedAt: q.deletedAt })),
           };
         }
 
@@ -408,7 +440,7 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
               sessionId: game.sessionId,
               status: game.status,
               currentQuestionIndex: game.currentQuestionIndex,
-              totalQuestions: game.questions.length,
+              totalQuestions: questions.length,
             },
           };
         }
@@ -420,7 +452,7 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
               sessionId: game.sessionId,
               status: game.status,
               currentQuestionIndex: game.currentQuestionIndex,
-              questions: game.questions.map((q) => ({
+              questions: questions.map((q) => ({
                 id: q.id,
                 orderNum: q.orderNum,
                 content: q.content,
@@ -431,14 +463,14 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
           };
         }
 
-        const activeQ = game.questions[game.currentQuestionIndex];
+        const activeQ = questions[game.currentQuestionIndex];
         return {
           game: {
             id: game.id,
             sessionId: game.sessionId,
             status: game.status,
             currentQuestionIndex: game.currentQuestionIndex,
-            totalQuestions: game.questions.length,
+            totalQuestions: questions.length,
             currentQuestion: activeQ
               ? {
                   id: activeQ.id,
@@ -474,7 +506,7 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
         const game = await deps.prisma.quizGame.findUnique({
           where: { id: params.gameId },
           include: {
-            questions: { orderBy: { orderNum: "asc" } },
+            questions: { where: { deletedAt: null }, orderBy: { orderNum: "asc" } },
           },
         });
         if (!game) {
@@ -562,7 +594,7 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
 
         const game = await deps.prisma.quizGame.findUnique({
           where: { id: params.gameId },
-          include: { questions: { orderBy: { orderNum: "asc" } } },
+          include: { questions: { where: { deletedAt: null }, orderBy: { orderNum: "asc" } } },
         });
         if (!game) {
           return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
@@ -622,7 +654,7 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
 
         const game = await deps.prisma.quizGame.findUnique({
           where: { id: params.gameId },
-          include: { questions: { orderBy: { orderNum: "asc" } } },
+          include: { questions: { where: { deletedAt: null }, orderBy: { orderNum: "asc" } } },
         });
         if (!game) {
           return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
@@ -757,6 +789,54 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
       }
     )
 
+    // POST /api/game/:gameId/restart
+    .post(
+      "/api/game/:gameId/restart",
+      async ({ params, currentUser, set }) => {
+        if (!currentUser) {
+          return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
+        }
+        if (!isHostRole(currentUser.role)) {
+          return fail(set, 403, "FORBIDDEN", "Only staff or organizer can restart the game");
+        }
+
+        const game = await deps.prisma.quizGame.findUnique({ where: { id: params.gameId } });
+        if (!game) {
+          return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
+        }
+        if (game.status !== "FINISHED" && game.status !== "ROUND_REVEALED") {
+          return fail(
+            set,
+            409,
+            "INVALID_GAME_STATE",
+            `Cannot restart a game while it is ${game.status}`
+          );
+        }
+
+        // Replay keeps the questions but clears the answers and scores behind them.
+        await deps.prisma.$transaction(async (tx) => {
+          await tx.quizAnswer.deleteMany({ where: { question: { gameId: game.id } } });
+          await tx.quizQuestion.updateMany({
+            where: { gameId: game.id },
+            data: { questionStartedAt: null },
+          });
+          await tx.quizGame.update({
+            where: { id: game.id },
+            data: { status: "WAITING", currentQuestionIndex: 0 },
+          });
+        });
+
+        broadcaster.broadcastGame(game.id, { type: "GAME_RESET", gameId: game.id });
+
+        return {
+          game: { ...game, status: "WAITING", currentQuestionIndex: 0 },
+        };
+      },
+      {
+        params: t.Object({ gameId: t.String({ minLength: 1 }) }),
+      }
+    )
+
     // POST /api/game/:gameId/answer
     .post(
       "/api/game/:gameId/answer",
@@ -791,12 +871,12 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
           );
         }
 
-        const currentQ = await deps.prisma.quizQuestion.findFirst({
-          where: {
-            gameId: game.id,
-            orderNum: game.currentQuestionIndex,
-          },
+        // Index the filtered list (never orderNum) so soft-deleted gaps stay harmless.
+        const activeQuestions = await deps.prisma.quizQuestion.findMany({
+          where: { gameId: game.id, deletedAt: null },
+          orderBy: { orderNum: "asc" },
         });
+        const currentQ = activeQuestions[game.currentQuestionIndex];
 
         if (!currentQ || currentQ.id !== body.questionId) {
           return fail(

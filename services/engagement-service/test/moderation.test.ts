@@ -36,6 +36,19 @@ describe("host moderation", () => {
     const list = await call(app, `/api/sessions/${sessionId}/questions`);
     expect(list.data.questions).toHaveLength(0);
 
+    const hostList = await call(app, `/api/sessions/${sessionId}/questions`, { headers: organizer });
+    expect(hostList.data.deletedQuestions).toHaveLength(1);
+
+    const restored = await call(app, `/api/questions/${questionId}/restore`, {
+      method: "POST",
+      headers: organizer,
+    });
+    expect(restored.status).toBe(200);
+
+    const after = await call(app, `/api/sessions/${sessionId}/questions`, { headers: organizer });
+    expect(after.data.questions).toHaveLength(1);
+    expect(after.data.deletedQuestions).toHaveLength(0);
+
     const missing = await call(app, "/api/questions/missing", {
       method: "DELETE",
       headers: organizer,
@@ -131,6 +144,20 @@ describe("host moderation", () => {
 
     const list = await call(app, `/api/sessions/${sessionId}/polls`);
     expect(list.data.polls).toHaveLength(0);
+
+    const hostList = await call(app, `/api/sessions/${sessionId}/polls`, { headers: organizer });
+    expect(hostList.data.deletedPolls).toHaveLength(1);
+    expect(hostList.data.deletedPolls[0].title).toBe("New title");
+
+    const restored = await call(app, `/api/polls/${poll.id}/restore`, {
+      method: "POST",
+      headers: organizer,
+    });
+    expect(restored.status).toBe(200);
+
+    const after = await call(app, `/api/sessions/${sessionId}/polls`, { headers: organizer });
+    expect(after.data.polls).toHaveLength(1);
+    expect(after.data.deletedPolls).toHaveLength(0);
   });
 
   it("edits a question text", async () => {
@@ -202,8 +229,27 @@ describe("host moderation", () => {
     const state = await call(app, `/api/game/${gameId}`, { headers: organizer });
     expect(state.data.game.questions).toHaveLength(1);
     expect(state.data.game.questions[0].content).toBe("Q2");
-    // Renumbered so /answer can still resolve orderNum 0.
-    expect(state.data.game.questions[0].orderNum).toBe(0);
+    expect(state.data.deletedQuestions).toHaveLength(1);
+    expect(state.data.deletedQuestions[0].content).toBe("Q1 edited");
+
+    // Soft delete is reversible: restore puts the question back where it was.
+    const restored = await call(
+      app,
+      `/api/game/${gameId}/question/${first.data.question.id}/restore`,
+      { method: "POST", headers: organizer }
+    );
+    expect(restored.status).toBe(200);
+    expect(restored.data.question.orderNum).toBe(0);
+
+    const after = await call(app, `/api/game/${gameId}`, { headers: organizer });
+    expect(after.data.game.questions).toHaveLength(2);
+    expect(after.data.deletedQuestions).toHaveLength(0);
+
+    const removedAgain = await call(app, `/api/game/${gameId}/question/${first.data.question.id}`, {
+      method: "DELETE",
+      headers: organizer,
+    });
+    expect(removedAgain.status).toBe(204);
 
     await call(app, `/api/game/${gameId}/start`, { method: "POST", headers: organizer });
     const locked = await call(app, `/api/game/${gameId}/question/${state.data.game.questions[0].id}`, {
@@ -211,16 +257,56 @@ describe("host moderation", () => {
       headers: organizer,
     });
     expect(locked.status).toBe(409);
+  });
 
-    const fresh = await call(app, "/api/sessions/session-quiz-reset/game", {
+  it("restarts a finished quiz for a replay", async () => {
+    const { app, fakeAdmissionClient } = makeTestApp();
+    fakeAdmissionClient.allow("user-attendee-mod");
+    const session = "session-quiz-replay";
+
+    const gameRes = await call(app, `/api/sessions/${session}/game`, {
       method: "POST",
       headers: organizer,
     });
-    const deletedGame = await call(app, `/api/game/${fresh.data.game.id}`, {
-      method: "DELETE",
+    const gameId = gameRes.data.game.id;
+    const question = await call(app, `/api/game/${gameId}/question`, {
+      method: "POST",
+      headers: organizer,
+      body: { content: "Replay me", options: ["A", "B"], correctOption: 0 },
+    });
+    await call(app, `/api/game/${gameId}/start`, { method: "POST", headers: organizer });
+
+    // A live question cannot be restarted out from under the players.
+    const tooEarly = await call(app, `/api/game/${gameId}/restart`, {
+      method: "POST",
       headers: organizer,
     });
-    expect(deletedGame.status).toBe(204);
+    expect(tooEarly.status).toBe(409);
+
+    await call(app, `/api/game/${gameId}/answer`, {
+      method: "POST",
+      headers: attendee,
+      body: { questionId: question.data.question.id, selectedOption: 0 },
+    });
+    await call(app, `/api/game/${gameId}/reveal`, { method: "POST", headers: organizer });
+    await call(app, `/api/game/${gameId}/end`, { method: "POST", headers: organizer });
+
+    const before = await call(app, `/api/game/${gameId}/leaderboard`, { headers: organizer });
+    expect(before.data.leaderboard.length).toBeGreaterThan(0);
+
+    const restarted = await call(app, `/api/game/${gameId}/restart`, {
+      method: "POST",
+      headers: organizer,
+    });
+    expect(restarted.status).toBe(200);
+    expect(restarted.data.game.status).toBe("WAITING");
+    expect(restarted.data.game.currentQuestionIndex).toBe(0);
+
+    const after = await call(app, `/api/game/${gameId}/leaderboard`, { headers: organizer });
+    expect(after.data.leaderboard).toHaveLength(0);
+
+    const again = await call(app, `/api/game/${gameId}/start`, { method: "POST", headers: organizer });
+    expect(again.status).toBe(200);
   });
 
   it("returns session counters for the dashboard", async () => {

@@ -11,14 +11,22 @@ export function qaRoutes(deps: Deps, jwtSecret: string) {
     .derive(deriveCurrentUser)
     .get(
       "/api/sessions/:sessionId/questions",
-      async ({ params }) => {
+      async ({ params, currentUser }) => {
         const questions = await deps.prisma.qAQuestion.findMany({
-          where: { sessionId: params.sessionId },
+          where: { sessionId: params.sessionId, deletedAt: null },
           include: {
             votes: { select: { userId: true } },
           },
           orderBy: [{ upvotes: "desc" }, { createdAt: "asc" }],
         });
+
+        // Hosts moderate the list, so they also see what can be restored.
+        const deleted = isHostRole(currentUser?.role)
+          ? await deps.prisma.qAQuestion.findMany({
+              where: { sessionId: params.sessionId, deletedAt: { not: null } },
+              orderBy: { deletedAt: "desc" },
+            })
+          : [];
 
         return {
           sessionId: params.sessionId,
@@ -31,6 +39,15 @@ export function qaRoutes(deps: Deps, jwtSecret: string) {
             createdAt: q.createdAt,
             votedUserIds: q.votes.map((v) => v.userId),
           })),
+          ...(isHostRole(currentUser?.role)
+            ? {
+                deletedQuestions: deleted.map((q) => ({
+                  id: q.id,
+                  content: q.content,
+                  deletedAt: q.deletedAt,
+                })),
+              }
+            : {}),
         };
       },
       {
@@ -87,7 +104,7 @@ export function qaRoutes(deps: Deps, jwtSecret: string) {
         const question = await deps.prisma.qAQuestion.findUnique({
           where: { id: params.questionId },
         });
-        if (!question) {
+        if (!question || question.deletedAt) {
           return fail(set, 404, "QUESTION_NOT_FOUND", "Question was not found");
         }
 
@@ -163,7 +180,7 @@ export function qaRoutes(deps: Deps, jwtSecret: string) {
         const question = await deps.prisma.qAQuestion.findUnique({
           where: { id: params.questionId },
         });
-        if (!question) {
+        if (!question || question.deletedAt) {
           return fail(set, 404, "QUESTION_NOT_FOUND", "Question was not found");
         }
 
@@ -196,17 +213,51 @@ export function qaRoutes(deps: Deps, jwtSecret: string) {
         const question = await deps.prisma.qAQuestion.findUnique({
           where: { id: params.questionId },
         });
-        if (!question) {
+        if (!question || question.deletedAt) {
           return fail(set, 404, "QUESTION_NOT_FOUND", "Question was not found");
         }
 
-        await deps.prisma.qAQuestion.delete({ where: { id: question.id } });
+        // Soft delete: votes and upvotes survive, so a restore is lossless.
+        await deps.prisma.qAQuestion.update({
+          where: { id: question.id },
+          data: { deletedAt: new Date() },
+        });
         broadcaster.broadcastQa(question.sessionId, {
           type: "QUESTION_DELETED",
           questionId: question.id,
         });
 
         set.status = 204;
+      },
+      { params: t.Object({ questionId: t.String({ minLength: 1 }) }) }
+    )
+    .post(
+      "/api/questions/:questionId/restore",
+      async ({ params, currentUser, set }) => {
+        if (!currentUser) {
+          return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
+        }
+        if (!isHostRole(currentUser.role)) {
+          return fail(set, 403, "FORBIDDEN", "Only staff or organizer can restore questions");
+        }
+
+        const question = await deps.prisma.qAQuestion.findUnique({
+          where: { id: params.questionId },
+        });
+        if (!question || !question.deletedAt) {
+          return fail(set, 404, "QUESTION_NOT_FOUND", "Deleted question was not found");
+        }
+
+        const restored = await deps.prisma.qAQuestion.update({
+          where: { id: question.id },
+          data: { deletedAt: null },
+        });
+        broadcaster.broadcastQa(question.sessionId, {
+          type: "NEW_QUESTION",
+          question: restored,
+        });
+
+        return { question: restored };
       },
       { params: t.Object({ questionId: t.String({ minLength: 1 }) }) }
     );

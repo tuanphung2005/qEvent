@@ -19,16 +19,16 @@ export function statsRoutes(deps: Deps, jwtSecret: string) {
 
         const [questions, polls, game] = await Promise.all([
           deps.prisma.qAQuestion.findMany({
-            where: { sessionId: params.sessionId },
+            where: { sessionId: params.sessionId, deletedAt: null },
             include: { votes: { select: { userId: true } } },
           }),
           deps.prisma.poll.findMany({
-            where: { sessionId: params.sessionId },
+            where: { sessionId: params.sessionId, deletedAt: null },
             include: { options: true },
           }),
           deps.prisma.quizGame.findUnique({
             where: { sessionId: params.sessionId },
-            include: { questions: { select: { id: true } } },
+            include: { questions: { where: { deletedAt: null }, select: { id: true } } },
           }),
         ]);
 

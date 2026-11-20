@@ -57,10 +57,16 @@ const schemas: Record<string, JsonSchema> = {
     upvotes: int({ minimum: 0, example: 4 }),
     createdAt: dateTime,
   }),
-  QAQuestionListResponse: obj({
-    sessionId: uuid,
-    questions: arr(ref("QAQuestion")),
-  }),
+  QAQuestionListResponse: obj(
+    {
+      sessionId: uuid,
+      questions: arr(ref("QAQuestion")),
+      deletedQuestions: arr(
+        obj({ id: uuid, content: str(), deletedAt: dateTime }, ["id", "content"])
+      ),
+    },
+    ["sessionId", "questions"]
+  ),
   CreateQuestionRequest: obj({
     content: str({ minLength: 1, maxLength: 500 }),
   }),
@@ -84,10 +90,14 @@ const schemas: Record<string, JsonSchema> = {
     createdAt: dateTime,
     options: arr(ref("PollOption")),
   }),
-  PollListResponse: obj({
-    sessionId: uuid,
-    polls: arr(ref("Poll")),
-  }),
+  PollListResponse: obj(
+    {
+      sessionId: uuid,
+      polls: arr(ref("Poll")),
+      deletedPolls: arr(obj({ id: uuid, title: str(), deletedAt: dateTime }, ["id", "title"])),
+    },
+    ["sessionId", "polls"]
+  ),
   PollResponse: obj({ poll: ref("Poll") }),
   PollVoteResponse: obj({
     pollId: uuid,
@@ -170,7 +180,13 @@ const schemas: Record<string, JsonSchema> = {
     },
     ["id", "sessionId", "status", "currentQuestionIndex"]
   ),
-  GameResponse: obj({ game: ref("Game") }),
+  GameResponse: obj(
+    {
+      game: ref("Game"),
+      deletedQuestions: arr(ref("DeletedGameQuestion")),
+    },
+    ["game"]
+  ),
   AddQuestionRequest: obj({
     content: str({ minLength: 1, maxLength: 500 }),
     options: arr(str({ minLength: 1 }), { minItems: 2, maxItems: 6 }),
@@ -187,6 +203,17 @@ const schemas: Record<string, JsonSchema> = {
     []
   ),
   QuizQuestionResponse: obj({ question: ref("GameQuestion") }),
+  DeletedGameQuestion: obj(
+    {
+      id: uuid,
+      content: str({ example: "Which service owns the check-in ledger?" }),
+      deletedAt: dateTime,
+    },
+    ["id", "content"]
+  ),
+  RestoreGameQuestionResponse: obj({
+    question: ref("GameQuestion"),
+  }),
   StartGameResponse: obj({
     game: ref("Game"),
     currentQuestion: ref("GameQuestion"),
@@ -477,15 +504,34 @@ const paths = {
       tags: ["qa"],
       summary: "Delete a question (host only)",
       description:
-        "Staff and organizers can remove an inappropriate question. Its votes are removed by cascade.",
+        "Soft delete: the question and its votes stay in the database and appear in `deletedQuestions` for hosts.",
       operationId: "deleteQuestion",
       security: bearer,
       parameters: [idParameter("questionId")],
       responses: {
-        "204": { description: "Question deleted." },
+        "204": { description: "Question archived." },
         "401": unauthorized,
         "403": forbidden,
         "404": fail("The question does not exist.", "QUESTION_NOT_FOUND", "Question was not found"),
+      },
+    },
+  },
+  "/api/questions/{questionId}/restore": {
+    post: {
+      tags: ["qa"],
+      summary: "Restore a soft-deleted question (host only)",
+      operationId: "restoreQuestion",
+      security: bearer,
+      parameters: [idParameter("questionId")],
+      responses: {
+        "200": ok("Question restored.", "CreateQuestionResponse"),
+        "401": unauthorized,
+        "403": forbidden,
+        "404": fail(
+          "No deleted question with that id.",
+          "QUESTION_NOT_FOUND",
+          "Deleted question was not found"
+        ),
       },
     },
   },
@@ -587,15 +633,35 @@ const paths = {
     delete: {
       tags: ["polls"],
       summary: "Delete a poll (host only)",
-      description: "Removes the poll with its options and votes.",
+      description:
+        "Soft delete: the poll keeps its options and votes and appears in `deletedPolls` for hosts.",
       operationId: "deletePoll",
       security: bearer,
       parameters: [idParameter("pollId")],
       responses: {
-        "204": { description: "Poll deleted." },
+        "204": { description: "Poll archived." },
         "401": unauthorized,
         "403": forbidden,
         "404": fail("The poll does not exist.", "POLL_NOT_FOUND", "Poll was not found"),
+      },
+    },
+  },
+  "/api/polls/{pollId}/restore": {
+    post: {
+      tags: ["polls"],
+      summary: "Restore a soft-deleted poll (host only)",
+      operationId: "restorePoll",
+      security: bearer,
+      parameters: [idParameter("pollId")],
+      responses: {
+        "200": ok("Poll restored.", "PollResponse"),
+        "401": unauthorized,
+        "403": forbidden,
+        "404": fail(
+          "No deleted poll with that id.",
+          "POLL_NOT_FOUND",
+          "Deleted poll was not found"
+        ),
       },
     },
   },
@@ -617,6 +683,8 @@ const paths = {
     get: {
       tags: ["game"],
       summary: "Read the game for a session",
+      description:
+        "Hosts also receive the editable question list and the soft-deleted questions; attendees get counters only.",
       operationId: "getSessionGame",
       parameters: [idParameter("sessionId")],
       responses: {
@@ -712,12 +780,13 @@ const paths = {
     delete: {
       tags: ["game"],
       summary: "Delete a quiz question while WAITING (host only)",
-      description: "Remaining questions are renumbered so indexes stay contiguous.",
+      description:
+        "Soft delete: the question and its answers stay in the database and can be restored from `deletedQuestions`.",
       operationId: "deleteGameQuestion",
       security: bearer,
       parameters: [idParameter("gameId"), idParameter("questionId")],
       responses: {
-        "204": { description: "Question deleted." },
+        "204": { description: "Question archived." },
         "401": unauthorized,
         "403": forbidden,
         "404": gameNotFound,
@@ -729,36 +798,37 @@ const paths = {
       },
     },
   },
+  "/api/game/{gameId}/question/{questionId}/restore": {
+    post: {
+      tags: ["game"],
+      summary: "Restore a soft-deleted quiz question while WAITING (host only)",
+      operationId: "restoreGameQuestion",
+      security: bearer,
+      parameters: [idParameter("gameId"), idParameter("questionId")],
+      responses: {
+        "200": ok("Question restored.", "RestoreGameQuestionResponse"),
+        "401": unauthorized,
+        "403": forbidden,
+        "404": gameNotFound,
+        "409": fail(
+          "The game is not WAITING.",
+          "INVALID_GAME_STATE",
+          "Cannot restore questions when game is QUESTION_ACTIVE"
+        ),
+      },
+    },
+  },
   "/api/game/{gameId}": {
     get: {
       tags: ["game"],
       summary: "Read game state (hosts also see correct answers)",
       description:
-        "Attendees never receive `correctOption` before ROUND_REVEALED; hosts receive the full question list.",
+        "Attendees never receive `correctOption` before ROUND_REVEALED; hosts receive the full question list plus soft-deleted ones.",
       operationId: "getGame",
       parameters: [idParameter("gameId")],
       responses: {
         "200": ok("Game state for the caller's role.", "GameResponse"),
         "404": gameNotFound,
-      },
-    },
-    delete: {
-      tags: ["game"],
-      summary: "Delete a quiz game while WAITING or FINISHED (host only)",
-      description: "Resets the session's quiz so a fresh game can be created.",
-      operationId: "deleteGame",
-      security: bearer,
-      parameters: [idParameter("gameId")],
-      responses: {
-        "204": { description: "Game deleted with its questions and answers." },
-        "401": unauthorized,
-        "403": forbidden,
-        "404": gameNotFound,
-        "409": fail(
-          "The game is live or revealing.",
-          "INVALID_GAME_STATE",
-          "Cannot delete a game while it is QUESTION_ACTIVE"
-        ),
       },
     },
   },
@@ -841,6 +911,28 @@ const paths = {
         "403": forbidden,
         "404": gameNotFound,
         "409": fail("The game is already finished.", "INVALID_GAME_STATE", "Game is already finished"),
+      },
+    },
+  },
+  "/api/game/{gameId}/restart": {
+    post: {
+      tags: ["game"],
+      summary: "Replay a finished round (host only)",
+      description:
+        "Returns the game to WAITING with index 0 and clears the previous answers and scores; questions are kept.",
+      operationId: "restartGame",
+      security: bearer,
+      parameters: [idParameter("gameId")],
+      responses: {
+        "200": ok("Game reset for a replay.", "GameResponse"),
+        "401": unauthorized,
+        "403": forbidden,
+        "404": gameNotFound,
+        "409": fail(
+          "The round is still running.",
+          "INVALID_GAME_STATE",
+          "Cannot restart a game while it is QUESTION_ACTIVE"
+        ),
       },
     },
   },

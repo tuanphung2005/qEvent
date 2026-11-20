@@ -13,7 +13,7 @@ export function pollRoutes(deps: Deps, jwtSecret: string) {
       "/api/sessions/:sessionId/polls",
       async ({ params, currentUser }) => {
         const polls = await deps.prisma.poll.findMany({
-          where: { sessionId: params.sessionId },
+          where: { sessionId: params.sessionId, deletedAt: null },
           include: {
             options: {
               include: {
@@ -23,6 +23,14 @@ export function pollRoutes(deps: Deps, jwtSecret: string) {
           },
           orderBy: { createdAt: "desc" },
         });
+
+        // Hosts moderate polls, so they also see what can be restored.
+        const deleted = isHostRole(currentUser?.role)
+          ? await deps.prisma.poll.findMany({
+              where: { sessionId: params.sessionId, deletedAt: { not: null } },
+              orderBy: { deletedAt: "desc" },
+            })
+          : [];
 
         return {
           sessionId: params.sessionId,
@@ -50,6 +58,15 @@ export function pollRoutes(deps: Deps, jwtSecret: string) {
               userVotedOptionId,
             };
           }),
+          ...(isHostRole(currentUser?.role)
+            ? {
+                deletedPolls: deleted.map((p) => ({
+                  id: p.id,
+                  title: p.title,
+                  deletedAt: p.deletedAt,
+                })),
+              }
+            : {}),
         };
       },
       {
@@ -111,7 +128,7 @@ export function pollRoutes(deps: Deps, jwtSecret: string) {
           where: { id: params.pollId },
           include: { options: true },
         });
-        if (!poll) {
+        if (!poll || poll.deletedAt) {
           return fail(set, 404, "POLL_NOT_FOUND", "Poll was not found");
         }
         if (!poll.isActive) {
@@ -220,7 +237,7 @@ export function pollRoutes(deps: Deps, jwtSecret: string) {
           where: { id: params.pollId },
           include: { options: true },
         });
-        if (!poll) {
+        if (!poll || poll.deletedAt) {
           return fail(set, 404, "POLL_NOT_FOUND", "Poll was not found");
         }
 
@@ -284,17 +301,54 @@ export function pollRoutes(deps: Deps, jwtSecret: string) {
         const poll = await deps.prisma.poll.findUnique({
           where: { id: params.pollId },
         });
-        if (!poll) {
+        if (!poll || poll.deletedAt) {
           return fail(set, 404, "POLL_NOT_FOUND", "Poll was not found");
         }
 
-        await deps.prisma.poll.delete({ where: { id: poll.id } });
+        // Soft delete: options and votes survive, so a restore is lossless.
+        await deps.prisma.poll.update({
+          where: { id: poll.id },
+          data: { deletedAt: new Date() },
+        });
         broadcaster.broadcastQa(poll.sessionId, {
           type: "POLL_DELETED",
           pollId: poll.id,
         });
 
         set.status = 204;
+      },
+      {
+        params: t.Object({ pollId: t.String({ minLength: 1 }) }),
+      }
+    )
+    .post(
+      "/api/polls/:pollId/restore",
+      async ({ params, currentUser, set }) => {
+        if (!currentUser) {
+          return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
+        }
+        if (!isHostRole(currentUser.role)) {
+          return fail(set, 403, "FORBIDDEN", "Only staff or organizer can restore polls");
+        }
+
+        const poll = await deps.prisma.poll.findUnique({
+          where: { id: params.pollId },
+        });
+        if (!poll || !poll.deletedAt) {
+          return fail(set, 404, "POLL_NOT_FOUND", "Deleted poll was not found");
+        }
+
+        const restored = await deps.prisma.poll.update({
+          where: { id: poll.id },
+          data: { deletedAt: null },
+          include: { options: true },
+        });
+        broadcaster.broadcastQa(poll.sessionId, {
+          type: "POLL_CREATED",
+          poll: restored,
+        });
+
+        return { poll: restored };
       },
       {
         params: t.Object({ pollId: t.String({ minLength: 1 }) }),
