@@ -80,11 +80,13 @@ model Ticket {
   qrSecret     String
   checkedInAt  DateTime?
   createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @default(now()) @updatedAt
   order        Order        @relation(fields: [orderId], references: [id])
   user         User         @relation(fields: [userId], references: [id])
   checkinLogs  CheckinLog[]
 
   @@index([userId, eventId])
+  @@index([eventId, updatedAt])
 }
 
 model CheckinLog {
@@ -99,4 +101,5 @@ model CheckinLog {
   ticket     Ticket   @relation(fields: [ticketId], references: [id])
 
   @@index([ticketId])
+  @@index([scannedAt])
 }

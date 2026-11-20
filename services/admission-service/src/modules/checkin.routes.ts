@@ -32,19 +32,20 @@ export function checkinRoutes(deps: Deps, secret: string) {
     .post(
       "/checkins/sync-offline",
       async ({ body, currentUser, set }) => {
-        const result = await syncOffline(deps, currentUser, body.logs);
+        const result = await syncOffline(deps, currentUser, body.eventId, body.logs);
         set.status = result.status as typeof set.status;
         return result.body;
       },
       {
         body: t.Object({
+          eventId: t.String({ minLength: 1 }),
           logs: t.Array(
             t.Object({
               ticketId: t.String({ minLength: 1 }),
               scannedAt: t.String({ minLength: 1 }),
               deviceId: t.Optional(t.String()),
             }),
-            { minItems: 1 }
+            { minItems: 1, maxItems: 500 }
           ),
         }),
       }

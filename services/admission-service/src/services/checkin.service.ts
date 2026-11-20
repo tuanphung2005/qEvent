@@ -132,47 +132,69 @@ type ScanResult = {
   logId?: string;
 };
 
+/** A device clock can drift; anything further ahead than this is not trusted. */
+const FUTURE_SKEW_MS = 5 * 60_000;
+
 export async function syncOffline(
   deps: Deps,
   user: CurrentUser | null,
+  eventId: string,
   scans: OfflineScan[]
 ): Promise<ServiceResult> {
   if (!isStaffOrOrganizer(user)) {
     return { status: 403, body: { code: "FORBIDDEN", message: "Staff role is required" } };
   }
 
-  const ordered = [...scans].sort(
-    (a, b) => new Date(a.scannedAt).getTime() - new Date(b.scannedAt).getTime()
-  );
+  const now = deps.now();
+  const time = (scan: OfflineScan) => {
+    const value = new Date(scan.scannedAt).getTime();
+    return Number.isNaN(value) ? 0 : value;
+  };
+  const ordered = [...scans].sort((a, b) => time(a) - time(b));
 
   const results: ScanResult[] = [];
   let synced = 0;
   let conflicts = 0;
   let duplicates = 0;
 
+  // Two prefetch queries replace two lookups per scan.
+  const ticketIds = [...new Set(ordered.map((scan) => scan.ticketId))];
+  const tickets = ticketIds.length
+    ? await deps.prisma.ticket.findMany({
+        where: { id: { in: ticketIds } },
+        include: { user: { select: { fullName: true } } },
+      })
+    : [];
+  const byTicketId = new Map(tickets.map((ticket) => [ticket.id, ticket]));
+
+  const keyOf = (scan: OfflineScan, deviceId: string, scannedAt: Date) =>
+    sha256(`${scan.ticketId}|${deviceId}|${scannedAt.toISOString()}`);
+
   for (const scan of ordered) {
     const scannedAt = new Date(scan.scannedAt);
-    if (Number.isNaN(scannedAt.getTime())) {
+    if (Number.isNaN(scannedAt.getTime()) || scannedAt.getTime() > now.getTime() + FUTURE_SKEW_MS) {
       results.push({ ticketId: scan.ticketId, status: "ERROR", reason: "INVALID_TIMESTAMP" });
       continue;
     }
 
     const deviceId = scan.deviceId ?? "offline_device";
-    const scanKey = sha256(`${scan.ticketId}|${deviceId}|${scannedAt.toISOString()}`);
+    const scanKey = keyOf(scan, deviceId, scannedAt);
+
+    const ticket = byTicketId.get(scan.ticketId);
+    if (!ticket) {
+      results.push({ ticketId: scan.ticketId, status: "ERROR", reason: "TICKET_NOT_FOUND" });
+      continue;
+    }
+    // Offline payloads carry no signed QR, so the event is the only scope check left.
+    if (ticket.eventId !== eventId) {
+      results.push({ ticketId: scan.ticketId, status: "ERROR", reason: "EVENT_MISMATCH" });
+      continue;
+    }
 
     const replay = await deps.prisma.checkinLog.findUnique({ where: { scanKey } });
     if (replay) {
       duplicates++;
       results.push({ ticketId: scan.ticketId, status: "DUPLICATE", logId: replay.id });
-      continue;
-    }
-
-    const ticket = await deps.prisma.ticket.findUnique({
-      where: { id: scan.ticketId },
-      include: { user: true },
-    });
-    if (!ticket) {
-      results.push({ ticketId: scan.ticketId, status: "ERROR", reason: "TICKET_NOT_FOUND" });
       continue;
     }
 

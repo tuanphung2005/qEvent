@@ -108,6 +108,19 @@ describe("staff read endpoints", () => {
     );
     expect(search.data.tickets).toHaveLength(2);
 
+    // `since` is the offline cache delta: a cut-off in the future has nothing to send.
+    const future = new Date(Date.now() + 60 * 60_000).toISOString();
+    const delta = await call(app, `/api/tickets?eventId=${id}&since=${future}`, {
+      token: staff.token,
+    });
+    expect(delta.status).toBe(200);
+    expect(delta.data.tickets).toHaveLength(0);
+
+    const badSince = await call(app, `/api/tickets?eventId=${id}&since=nope`, {
+      token: staff.token,
+    });
+    expect(badSince.status).toBe(422);
+
     const detail = await call(app, `/api/tickets/${ticketId}`, { token: staff.token });
     expect(detail.status).toBe(200);
     expect(detail.data.ticket.id).toBe(ticketId);

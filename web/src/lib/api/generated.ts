@@ -460,7 +460,7 @@ export interface paths {
         put?: never;
         /**
          * Synchronize offline check-in logs
-         * @description Requires STAFF or ORGANIZER. Scans are applied in chronological order. The first scan per ticket wins; later scans are reported as CONFLICT. Replayed scans are reported as DUPLICATE and do not change state.
+         * @description Requires STAFF or ORGANIZER. Scans are applied in chronological order and must belong to `eventId`; a ticket from another event is reported as ERROR/EVENT_MISMATCH. Timestamps more than 5 minutes in the future are rejected. The first scan per ticket wins; later scans are reported as CONFLICT. Replayed scans are reported as DUPLICATE and do not change state.
          */
         post: operations["syncOfflineCheckins"];
         delete?: never;
@@ -1302,6 +1302,8 @@ export interface components {
             };
         };
         OfflineSyncRequest: {
+            /** Format: uuid */
+            eventId: string;
             logs: {
                 ticketId: string;
                 /** Format: date-time */
@@ -1390,6 +1392,8 @@ export interface components {
             checkedInAt: string | null;
             /** Format: date-time */
             createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
             attendee: components["schemas"]["Attendee"];
         };
         StaffTicketListResponse: {
@@ -3497,6 +3501,8 @@ export interface operations {
                 status?: "PENDING_PAYMENT" | "PAID" | "CHECKED_IN" | "CANCELLED";
                 q?: string;
                 cursor?: string;
+                /** @description Only tickets changed at or after this time (offline cache refresh). */
+                since?: string;
                 limit?: number;
             };
             header?: never;
@@ -3523,6 +3529,7 @@ export interface operations {
                      *           "orderStatus": "CONFIRMED",
                      *           "checkedInAt": "2026-11-09T08:00:00.000Z",
                      *           "createdAt": "2026-11-09T08:00:00.000Z",
+                     *           "updatedAt": "2026-11-09T08:00:00.000Z",
                      *           "attendee": {
                      *             "id": "00000000-0000-4000-8000-000000000015",
                      *             "email": "attendee@qevent.dev",
@@ -3619,6 +3626,7 @@ export interface operations {
                      *         "orderStatus": "CONFIRMED",
                      *         "checkedInAt": "2026-11-09T08:00:00.000Z",
                      *         "createdAt": "2026-11-09T08:00:00.000Z",
+                     *         "updatedAt": "2026-11-09T08:00:00.000Z",
                      *         "attendee": {
                      *           "id": "00000000-0000-4000-8000-000000000019",
                      *           "email": "attendee@qevent.dev",
@@ -3919,6 +3927,7 @@ export interface operations {
             content: {
                 /**
                  * @example {
+                 *       "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
                  *       "logs": [
                  *         {
                  *           "ticketId": "1b4d7f9a-3c6e-4a2b-8d5f-7e9c1a3b5d20",

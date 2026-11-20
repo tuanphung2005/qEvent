@@ -85,6 +85,7 @@ export const ticketFixture: TicketListItem = {
   orderStatus: "CONFIRMED",
   checkedInAt: null,
   createdAt: "2026-11-10T03:00:00.000Z",
+  updatedAt: "2026-11-10T03:00:00.000Z",
   attendee,
 };
 

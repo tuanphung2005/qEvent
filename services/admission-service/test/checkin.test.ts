@@ -239,7 +239,7 @@ describe("offline check-in sync", () => {
     const first = await call(app, "/api/checkins/sync-offline", {
       method: "POST",
       token: staff.token,
-      body: { logs },
+      body: { eventId: ticket.eventId, logs },
     });
     expect(first.status).toBe(200);
     expect(first.data.processed).toBe(2);
@@ -250,7 +250,7 @@ describe("offline check-in sync", () => {
     const replay = await call(app, "/api/checkins/sync-offline", {
       method: "POST",
       token: staff.token,
-      body: { logs },
+      body: { eventId: ticket.eventId, logs },
     });
     expect(replay.status).toBe(200);
     expect(replay.data.duplicates).toBe(2);
@@ -269,6 +269,7 @@ describe("offline check-in sync", () => {
       method: "POST",
       token: staff.token,
       body: {
+        eventId: ticket.eventId,
         logs: [
           {
             ticketId: ticket.id,
@@ -286,6 +287,7 @@ describe("offline check-in sync", () => {
       method: "POST",
       token: staff.token,
       body: {
+        eventId: ticket.eventId,
         logs: [
           {
             ticketId: ticket.id,
@@ -302,6 +304,48 @@ describe("offline check-in sync", () => {
     expect(stored.checkedInAt?.getTime()).toBe(base);
   });
 
+  it("rejects tickets from another event and timestamps from the future", async () => {
+    const buyer = await registerAttendee(app);
+    const staff = await registerStaff(app);
+    const { ticket } = await issueTicket(buyer.token);
+
+    const foreign = await call(app, "/api/checkins/sync-offline", {
+      method: "POST",
+      token: staff.token,
+      body: {
+        eventId: "another-event",
+        logs: [{ ticketId: ticket.id, scannedAt: new Date().toISOString(), deviceId: "gate-x" }],
+      },
+    });
+    expect(foreign.status).toBe(200);
+    expect(foreign.data.results[0]).toMatchObject({
+      status: "ERROR",
+      reason: "EVENT_MISMATCH",
+    });
+    const untouched = await prisma.ticket.findUniqueOrThrow({ where: { id: ticket.id } });
+    expect(untouched.status).toBe("PAID");
+
+    const future = await call(app, "/api/checkins/sync-offline", {
+      method: "POST",
+      token: staff.token,
+      body: {
+        eventId: ticket.eventId,
+        logs: [
+          {
+            ticketId: ticket.id,
+            scannedAt: new Date(Date.now() + 24 * 60 * 60_000).toISOString(),
+            deviceId: "gate-x",
+          },
+        ],
+      },
+    });
+    expect(future.status).toBe(200);
+    expect(future.data.results[0]).toMatchObject({
+      status: "ERROR",
+      reason: "INVALID_TIMESTAMP",
+    });
+  });
+
   it("reports unknown tickets and rejects non-staff callers", async () => {
     const staff = await registerStaff(app);
     const attendee = await registerAttendee(app);
@@ -310,6 +354,7 @@ describe("offline check-in sync", () => {
       method: "POST",
       token: staff.token,
       body: {
+        eventId: "event-1",
         logs: [{ ticketId: crypto.randomUUID(), scannedAt: new Date().toISOString() }],
       },
     });
@@ -321,6 +366,7 @@ describe("offline check-in sync", () => {
       method: "POST",
       token: staff.token,
       body: {
+        eventId: "event-1",
         logs: [{ ticketId: crypto.randomUUID(), scannedAt: "not-a-date" }],
       },
     });
@@ -334,6 +380,7 @@ describe("offline check-in sync", () => {
       method: "POST",
       token: attendee.token,
       body: {
+        eventId: "event-1",
         logs: [{ ticketId: crypto.randomUUID(), scannedAt: new Date().toISOString() }],
       },
     });

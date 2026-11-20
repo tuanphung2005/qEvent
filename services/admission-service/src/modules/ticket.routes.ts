@@ -3,7 +3,7 @@ import { Prisma, TicketStatus } from "@prisma/client";
 import type { Deps } from "../deps";
 import { createJwtAuth, deriveCurrentUser, isStaffOrOrganizer } from "../lib/auth";
 import { fail } from "../lib/http";
-import { pageResult, pageSize } from "../lib/pagination";
+import { pageResult, pageSize, parseSince } from "../lib/pagination";
 import { buildQrToken } from "../lib/qr";
 
 export function ticketRoutes(deps: Deps, secret: string) {
@@ -21,8 +21,14 @@ export function ticketRoutes(deps: Deps, secret: string) {
         }
 
         const limit = pageSize(query);
+        const since = parseSince(query.since);
+        if (query.since && !since) {
+          return fail(set, 422, "INVALID_SINCE", "since must be an ISO date-time");
+        }
+
         const where: Prisma.TicketWhereInput = { eventId: query.eventId };
         if (query.status) where.status = query.status as TicketStatus;
+        if (since) where.updatedAt = { gte: since };
         if (query.q) {
           where.OR = [
             { id: { contains: query.q } },
@@ -53,6 +59,7 @@ export function ticketRoutes(deps: Deps, secret: string) {
             orderStatus: ticket.order.status,
             checkedInAt: ticket.checkedInAt,
             createdAt: ticket.createdAt,
+            updatedAt: ticket.updatedAt,
             attendee: ticket.user,
           })),
           nextCursor,
@@ -64,6 +71,7 @@ export function ticketRoutes(deps: Deps, secret: string) {
           status: t.Optional(t.String({ minLength: 1 })),
           q: t.Optional(t.String({ minLength: 1, maxLength: 100 })),
           cursor: t.Optional(t.String({ minLength: 1 })),
+          since: t.Optional(t.String({ minLength: 1 })),
           limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
         }),
       }

@@ -12,7 +12,9 @@ type JwtVerifier = {
 };
 
 export function createJwtAuth(secret: string) {
-  return jwt({ name: "jwtAuth", secret, exp: "12h" });
+  // 24h covers a full event day (gate open to close) so staff are not logged out
+  // mid-shift; there is no refresh token yet.
+  return jwt({ name: "jwtAuth", secret, exp: "24h" });
 }
 
 export async function deriveCurrentUser({

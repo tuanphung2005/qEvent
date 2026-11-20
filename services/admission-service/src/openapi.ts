@@ -162,6 +162,7 @@ const schemas: Record<string, JsonSchema> = {
     }),
   }),
   OfflineSyncRequest: obj({
+    eventId: uuid,
     logs: arr(
       obj(
         {
@@ -171,7 +172,7 @@ const schemas: Record<string, JsonSchema> = {
         },
         ["ticketId", "scannedAt"]
       ),
-      { minItems: 1 }
+      { minItems: 1, maxItems: 500 }
     ),
   }),
   OfflineSyncResult: obj(
@@ -229,6 +230,7 @@ const schemas: Record<string, JsonSchema> = {
     orderStatus: str({ example: "CONFIRMED" }),
     checkedInAt: nullableDateTime,
     createdAt: dateTime,
+    updatedAt: dateTime,
     attendee: ref("Attendee"),
   }),
   StaffTicketListResponse: obj({
@@ -737,6 +739,13 @@ const paths = {
           schema: { type: "string" },
         },
         {
+          name: "since",
+          in: "query",
+          required: false,
+          schema: { type: "string", format: "date-time" },
+          description: "Only tickets changed at or after this time (offline cache refresh).",
+        },
+        {
           name: "limit",
           in: "query",
           required: false,
@@ -971,7 +980,7 @@ const paths = {
       tags: ["checkins"],
       summary: "Synchronize offline check-in logs",
       description:
-        "Requires STAFF or ORGANIZER. Scans are applied in chronological order. The first scan per ticket wins; later scans are reported as CONFLICT. Replayed scans are reported as DUPLICATE and do not change state.",
+        "Requires STAFF or ORGANIZER. Scans are applied in chronological order and must belong to `eventId`; a ticket from another event is reported as ERROR/EVENT_MISMATCH. Timestamps more than 5 minutes in the future are rejected. The first scan per ticket wins; later scans are reported as CONFLICT. Replayed scans are reported as DUPLICATE and do not change state.",
       operationId: "syncOfflineCheckins",
       security: bearer,
       requestBody: body("OfflineSyncRequest"),
