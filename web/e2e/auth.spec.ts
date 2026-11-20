@@ -27,13 +27,16 @@ test.describe("đăng nhập", () => {
     await expect(page).toHaveURL(/\/login/);
   });
 
-  test("attendee bị chặn bằng màn hình 403", async ({ page }) => {
+  test("attendee bị chặn ngay tại form đăng nhập", async ({ page }) => {
     await page.goto("/login");
     await page.getByLabel("Email").fill(CREDENTIALS.attendee.email);
     await page.getByLabel("Mật khẩu").fill(CREDENTIALS.attendee.password);
     await page.getByRole("button", { name: "Đăng nhập" }).click();
 
-    await expect(page.getByText("Không có quyền truy cập")).toBeVisible();
+    await expect(page.getByRole("alert")).toContainText(
+      "Tài khoản khách tham dự không có quyền dùng giao diện nhân sự",
+    );
+    await expect(page).toHaveURL(/\/login/);
     // Console shell (sidebar) must not render for an attendee.
     await expect(page.getByRole("link", { name: "Tổng quan" })).toHaveCount(0);
   });

@@ -144,6 +144,24 @@ bun run e2e
 
 Script đăng ký một attendee mới, chạy order → QR → check-in → staff lists/stats → Q&A/poll/quiz → WebSocket auth, và fail nếu một bước bắt buộc sai. Cần `bun run seed` và `bun run demo:seed` trước.
 
+### E2E giao diện (Playwright)
+
+Playwright chạy trên console thật, gọi API thật qua gateway — không mock.
+
+```bash
+bun --cwd web e2e                  # toàn bộ spec
+bun --cwd web e2e:smoke            # chỉ luồng đăng nhập
+```
+
+| Biến | Mặc định | Ý nghĩa |
+|---|---|---|
+| `E2E_WEB_BASE` | `http://localhost:5173` | Vite dev server (mặc định) hoặc `http://localhost:8080` cho bản Docker |
+| `E2E_API_BASE` | `http://localhost:8000` | Gateway |
+
+Phạm vi hiện tại: `auth`, `dashboard`, `events` (tạo sự kiện + phòng/phiên/loại vé), `orders`, `tickets` (danh sách, chi tiết, mã QR), `checkins`, `scan`, `engagement` (Q&A/poll/quiz), `settings`, cộng thêm `a11y.spec.ts` quét axe + lỗi console trên **mọi** màn hình console.
+
+Chạy trước khi commit: `bun --cwd web typecheck && bun --cwd web lint && bun --cwd web test && bun --cwd web e2e`.
+
 ### Đo cô lập lỗi (dùng cho báo cáo)
 
 ```bash

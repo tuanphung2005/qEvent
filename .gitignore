@@ -32,6 +32,11 @@ coverage/
 out/
 build/
 .vercel
+web/test-results/
+web/playwright-report/
+
+# Playwright MCP artifacts (screenshots/snapshots from browser tooling)
+.playwright-mcp/
 
 # Debug & Logs
 npm-debug.*
