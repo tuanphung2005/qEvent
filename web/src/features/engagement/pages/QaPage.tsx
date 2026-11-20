@@ -24,10 +24,24 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/features/auth/auth-context";
-import { AlertTriangle, ChevronUp, Clock, MessageSquare, Pencil, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronUp,
+  Clock,
+  MessageSquare,
+  Pencil,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 import { useOutletContext, useParams } from "react-router";
-import { useDeleteQuestion, useQuestions, useToggleVote, useUpdateQuestion } from "../api";
+import {
+  useDeleteQuestion,
+  useQuestions,
+  useRestoreQuestion,
+  useToggleVote,
+  useUpdateQuestion,
+} from "../api";
 import type { QAQuestion } from "../types";
 
 type OutletCtx = {
@@ -47,6 +61,7 @@ export function QaPage() {
   const { data, isLoading, error } = useQuestions(sessionId, pollingInterval);
   const toggleVoteMutation = useToggleVote(sessionId ?? "");
   const deleteMutation = useDeleteQuestion(sessionId ?? "");
+  const restoreMutation = useRestoreQuestion(sessionId ?? "");
   const updateMutation = useUpdateQuestion(sessionId ?? "");
 
   const [questionToDelete, setQuestionToDelete] = useState<QAQuestion | null>(null);
@@ -54,6 +69,7 @@ export function QaPage() {
   const [editContent, setEditContent] = useState("");
 
   const rawQuestions = data?.questions ?? [];
+  const deletedQuestions = data?.deletedQuestions ?? [];
   // Sort descending by upvotes, then latest
   const sortedQuestions = [...rawQuestions].sort((a, b) => {
     if (b.upvotes !== a.upvotes) return b.upvotes - a.upvotes;
@@ -157,7 +173,7 @@ export function QaPage() {
                       variant="ghost"
                       size="icon"
                       aria-label="Xoá câu hỏi"
-                      className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      className="h-8 w-8 text-muted-foreground hover:bg-destructive-subtle hover:text-destructive"
                       onClick={() => setQuestionToDelete(q)}
                     >
                       <Trash2 className="size-4" />
@@ -168,6 +184,39 @@ export function QaPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Soft-deleted questions can be restored by staff */}
+      {isStaffOrOrganizer && deletedQuestions.length > 0 && (
+        <Card className="border-card-border">
+          <CardContent className="p-4">
+            <p className="mb-2 text-sm font-semibold text-foreground">
+              Câu hỏi đã xoá ({deletedQuestions.length})
+            </p>
+            <div className="space-y-2">
+              {deletedQuestions.map((question) => (
+                <div
+                  key={question.id}
+                  className="flex items-center justify-between gap-3 rounded-lg bg-secondary p-3"
+                >
+                  <p className="min-w-0 truncate text-sm text-muted-foreground line-through">
+                    {question.content}
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 shrink-0 gap-1.5"
+                    disabled={restoreMutation.isPending}
+                    onClick={() => restoreMutation.mutate(question.id)}
+                  >
+                    <RotateCcw className="size-4" />
+                    Khôi phục
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Edit question dialog */}
@@ -231,8 +280,8 @@ export function QaPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Xác nhận xoá câu hỏi?</AlertDialogTitle>
             <AlertDialogDescription>
-              Câu hỏi này sẽ bị gỡ bỏ khỏi bảng tương tác của phiên. Hành động này không thể hoàn
-              tác.
+              Câu hỏi này sẽ ẩn khỏi bảng tương tác của phiên. Khôi phục được ở mục “Câu hỏi đã
+              xoá”.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

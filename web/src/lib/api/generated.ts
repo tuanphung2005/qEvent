@@ -562,7 +562,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a question (host only)
-         * @description Staff and organizers can remove an inappropriate question. Its votes are removed by cascade.
+         * @description Soft delete: the question and its votes stay in the database and appear in `deletedQuestions` for hosts.
          */
         delete: operations["deleteQuestion"];
         options?: never;
@@ -572,6 +572,23 @@ export interface paths {
          * @description Staff and organizers can reword a question; votes and author are kept.
          */
         patch: operations["updateQuestion"];
+        trace?: never;
+    };
+    "/api/questions/{questionId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore a soft-deleted question (host only) */
+        post: operations["restoreQuestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/sessions/{sessionId}/polls": {
@@ -624,7 +641,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a poll (host only)
-         * @description Removes the poll with its options and votes.
+         * @description Soft delete: the poll keeps its options and votes and appears in `deletedPolls` for hosts.
          */
         delete: operations["deletePoll"];
         options?: never;
@@ -636,6 +653,23 @@ export interface paths {
         patch: operations["updatePoll"];
         trace?: never;
     };
+    "/api/polls/{pollId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore a soft-deleted poll (host only) */
+        post: operations["restorePoll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sessions/{sessionId}/game": {
         parameters: {
             query?: never;
@@ -643,7 +677,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read the game for a session */
+        /**
+         * Read the game for a session
+         * @description Hosts also receive the editable question list and the soft-deleted questions; attendees get counters only.
+         */
         get: operations["getSessionGame"];
         put?: never;
         /** Create or return the session's quiz game (host only) */
@@ -683,13 +720,30 @@ export interface paths {
         post?: never;
         /**
          * Delete a quiz question while WAITING (host only)
-         * @description Remaining questions are renumbered so indexes stay contiguous.
+         * @description Soft delete: the question and its answers stay in the database and can be restored from `deletedQuestions`.
          */
         delete: operations["deleteGameQuestion"];
         options?: never;
         head?: never;
         /** Edit a quiz question while WAITING (host only) */
         patch: operations["updateGameQuestion"];
+        trace?: never;
+    };
+    "/api/game/{gameId}/question/{questionId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore a soft-deleted quiz question while WAITING (host only) */
+        post: operations["restoreGameQuestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/game/{gameId}": {
@@ -701,16 +755,12 @@ export interface paths {
         };
         /**
          * Read game state (hosts also see correct answers)
-         * @description Attendees never receive `correctOption` before ROUND_REVEALED; hosts receive the full question list.
+         * @description Attendees never receive `correctOption` before ROUND_REVEALED; hosts receive the full question list plus soft-deleted ones.
          */
         get: operations["getGame"];
         put?: never;
         post?: never;
-        /**
-         * Delete a quiz game while WAITING or FINISHED (host only)
-         * @description Resets the session's quiz so a fresh game can be created.
-         */
-        delete: operations["deleteGame"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -778,6 +828,26 @@ export interface paths {
         put?: never;
         /** Finish the game (host only) */
         post: operations["endGame"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/{gameId}/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replay a finished round (host only)
+         * @description Returns the game to WAITING with index 0 and clears the previous answers and scores; questions are kept.
+         */
+        post: operations["restartGame"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1459,6 +1529,13 @@ export interface components {
             /** Format: uuid */
             sessionId: string;
             questions: components["schemas"]["QAQuestion"][];
+            deletedQuestions?: {
+                /** Format: uuid */
+                id: string;
+                content: string;
+                /** Format: date-time */
+                deletedAt?: string;
+            }[];
         };
         CreateQuestionRequest: {
             content: string;
@@ -1499,6 +1576,13 @@ export interface components {
             /** Format: uuid */
             sessionId: string;
             polls: components["schemas"]["Poll"][];
+            deletedPolls?: {
+                /** Format: uuid */
+                id: string;
+                title: string;
+                /** Format: date-time */
+                deletedAt?: string;
+            }[];
         };
         PollResponse: {
             poll: components["schemas"]["Poll"];
@@ -1586,6 +1670,7 @@ export interface components {
         };
         GameResponse: {
             game: components["schemas"]["Game"];
+            deletedQuestions?: components["schemas"]["DeletedGameQuestion"][];
         };
         AddQuestionRequest: {
             content: string;
@@ -1600,6 +1685,17 @@ export interface components {
             timeLimitSec?: number;
         };
         QuizQuestionResponse: {
+            question: components["schemas"]["GameQuestion"];
+        };
+        DeletedGameQuestion: {
+            /** Format: uuid */
+            id: string;
+            /** @example Which service owns the check-in ledger? */
+            content: string;
+            /** Format: date-time */
+            deletedAt?: string;
+        };
+        RestoreGameQuestionResponse: {
             question: components["schemas"]["GameQuestion"];
         };
         StartGameResponse: {
@@ -3999,6 +4095,13 @@ export interface operations {
                      *           "upvotes": 4,
                      *           "createdAt": "2026-11-14T08:00:00.000Z"
                      *         }
+                     *       ],
+                     *       "deletedQuestions": [
+                     *         {
+                     *           "id": "00000000-0000-4000-8000-000000000005",
+                     *           "content": "string",
+                     *           "deletedAt": "2026-11-14T08:00:00.000Z"
+                     *         }
                      *       ]
                      *     }
                      */
@@ -4036,9 +4139,9 @@ export interface operations {
                     /**
                      * @example {
                      *       "question": {
-                     *         "id": "00000000-0000-4000-8000-000000000005",
-                     *         "sessionId": "00000000-0000-4000-8000-000000000006",
-                     *         "userId": "00000000-0000-4000-8000-000000000007",
+                     *         "id": "00000000-0000-4000-8000-000000000006",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000007",
+                     *         "userId": "00000000-0000-4000-8000-000000000008",
                      *         "content": "How does the circuit breaker recover?",
                      *         "upvotes": 4,
                      *         "createdAt": "2026-11-14T08:00:00.000Z"
@@ -4112,7 +4215,7 @@ export interface operations {
                 content: {
                     /**
                      * @example {
-                     *       "questionId": "00000000-0000-4000-8000-000000000011",
+                     *       "questionId": "00000000-0000-4000-8000-000000000015",
                      *       "upvotes": 5,
                      *       "hasVoted": true
                      *     }
@@ -4166,7 +4269,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Question deleted. */
+            /** @description Question archived. */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -4221,9 +4324,9 @@ export interface operations {
                     /**
                      * @example {
                      *       "question": {
-                     *         "id": "00000000-0000-4000-8000-000000000008",
-                     *         "sessionId": "00000000-0000-4000-8000-000000000009",
-                     *         "userId": "00000000-0000-4000-8000-000000000010",
+                     *         "id": "00000000-0000-4000-8000-000000000009",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000010",
+                     *         "userId": "00000000-0000-4000-8000-000000000011",
                      *         "content": "How does the circuit breaker recover?",
                      *         "upvotes": 4,
                      *         "createdAt": "2026-11-14T08:00:00.000Z"
@@ -4253,6 +4356,57 @@ export interface operations {
             422: components["responses"]["EngagementValidationFailed"];
         };
     };
+    restoreQuestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Question restored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "question": {
+                     *         "id": "00000000-0000-4000-8000-000000000012",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000013",
+                     *         "userId": "00000000-0000-4000-8000-000000000014",
+                     *         "content": "How does the circuit breaker recover?",
+                     *         "upvotes": 4,
+                     *         "createdAt": "2026-11-14T08:00:00.000Z"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["CreateQuestionResponse"];
+                };
+            };
+            401: components["responses"]["EngagementUnauthorized"];
+            403: components["responses"]["EngagementForbidden"];
+            /** @description No deleted question with that id. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "QUESTION_NOT_FOUND",
+                     *       "message": "Deleted question was not found"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EngagementErrorBody"];
+                };
+            };
+        };
+    };
     listPolls: {
         parameters: {
             query?: never;
@@ -4272,22 +4426,29 @@ export interface operations {
                 content: {
                     /**
                      * @example {
-                     *       "sessionId": "00000000-0000-4000-8000-000000000012",
+                     *       "sessionId": "00000000-0000-4000-8000-000000000016",
                      *       "polls": [
                      *         {
-                     *           "id": "00000000-0000-4000-8000-000000000013",
-                     *           "sessionId": "00000000-0000-4000-8000-000000000014",
+                     *           "id": "00000000-0000-4000-8000-000000000017",
+                     *           "sessionId": "00000000-0000-4000-8000-000000000018",
                      *           "title": "How was the keynote?",
                      *           "isActive": true,
                      *           "createdAt": "2026-11-14T08:00:00.000Z",
                      *           "options": [
                      *             {
-                     *               "id": "00000000-0000-4000-8000-000000000015",
-                     *               "pollId": "00000000-0000-4000-8000-000000000016",
+                     *               "id": "00000000-0000-4000-8000-000000000019",
+                     *               "pollId": "00000000-0000-4000-8000-000000000020",
                      *               "content": "Very good",
                      *               "voteCount": 12
                      *             }
                      *           ]
+                     *         }
+                     *       ],
+                     *       "deletedPolls": [
+                     *         {
+                     *           "id": "00000000-0000-4000-8000-000000000021",
+                     *           "title": "string",
+                     *           "deletedAt": "2026-11-14T08:00:00.000Z"
                      *         }
                      *       ]
                      *     }
@@ -4329,15 +4490,15 @@ export interface operations {
                     /**
                      * @example {
                      *       "poll": {
-                     *         "id": "00000000-0000-4000-8000-000000000017",
-                     *         "sessionId": "00000000-0000-4000-8000-000000000018",
+                     *         "id": "00000000-0000-4000-8000-000000000022",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000023",
                      *         "title": "How was the keynote?",
                      *         "isActive": true,
                      *         "createdAt": "2026-11-14T08:00:00.000Z",
                      *         "options": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000019",
-                     *             "pollId": "00000000-0000-4000-8000-000000000020",
+                     *             "id": "00000000-0000-4000-8000-000000000024",
+                     *             "pollId": "00000000-0000-4000-8000-000000000025",
                      *             "content": "Very good",
                      *             "voteCount": 12
                      *           }
@@ -4381,7 +4542,7 @@ export interface operations {
             content: {
                 /**
                  * @example {
-                 *       "optionId": "00000000-0000-4000-8000-000000000021"
+                 *       "optionId": "00000000-0000-4000-8000-000000000026"
                  *     }
                  */
                 "application/json": components["schemas"]["PollVoteRequest"];
@@ -4396,8 +4557,8 @@ export interface operations {
                 content: {
                     /**
                      * @example {
-                     *       "pollId": "00000000-0000-4000-8000-000000000022",
-                     *       "optionId": "00000000-0000-4000-8000-000000000023",
+                     *       "pollId": "00000000-0000-4000-8000-000000000027",
+                     *       "optionId": "00000000-0000-4000-8000-000000000028",
                      *       "voted": true
                      *     }
                      */
@@ -4460,7 +4621,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Poll deleted. */
+            /** @description Poll archived. */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -4519,15 +4680,15 @@ export interface operations {
                     /**
                      * @example {
                      *       "poll": {
-                     *         "id": "00000000-0000-4000-8000-000000000024",
-                     *         "sessionId": "00000000-0000-4000-8000-000000000025",
+                     *         "id": "00000000-0000-4000-8000-000000000029",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000030",
                      *         "title": "How was the keynote?",
                      *         "isActive": true,
                      *         "createdAt": "2026-11-14T08:00:00.000Z",
                      *         "options": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000026",
-                     *             "pollId": "00000000-0000-4000-8000-000000000027",
+                     *             "id": "00000000-0000-4000-8000-000000000031",
+                     *             "pollId": "00000000-0000-4000-8000-000000000032",
                      *             "content": "Very good",
                      *             "voteCount": 12
                      *           }
@@ -4573,6 +4734,64 @@ export interface operations {
             422: components["responses"]["EngagementValidationFailed"];
         };
     };
+    restorePoll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pollId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Poll restored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "poll": {
+                     *         "id": "00000000-0000-4000-8000-000000000033",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000034",
+                     *         "title": "How was the keynote?",
+                     *         "isActive": true,
+                     *         "createdAt": "2026-11-14T08:00:00.000Z",
+                     *         "options": [
+                     *           {
+                     *             "id": "00000000-0000-4000-8000-000000000035",
+                     *             "pollId": "00000000-0000-4000-8000-000000000036",
+                     *             "content": "Very good",
+                     *             "voteCount": 12
+                     *           }
+                     *         ]
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["PollResponse"];
+                };
+            };
+            401: components["responses"]["EngagementUnauthorized"];
+            403: components["responses"]["EngagementForbidden"];
+            /** @description No deleted poll with that id. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "POLL_NOT_FOUND",
+                     *       "message": "Deleted poll was not found"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EngagementErrorBody"];
+                };
+            };
+        };
+    };
     getSessionGame: {
         parameters: {
             query?: never;
@@ -4593,14 +4812,14 @@ export interface operations {
                     /**
                      * @example {
                      *       "game": {
-                     *         "id": "00000000-0000-4000-8000-000000000031",
-                     *         "sessionId": "00000000-0000-4000-8000-000000000032",
+                     *         "id": "00000000-0000-4000-8000-000000000040",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000041",
                      *         "status": "WAITING",
                      *         "currentQuestionIndex": 0,
                      *         "totalQuestions": 3,
                      *         "questions": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000033",
+                     *             "id": "00000000-0000-4000-8000-000000000042",
                      *             "orderNum": 0,
                      *             "content": "Which algorithm prevents double check-in?",
                      *             "options": [
@@ -4612,7 +4831,7 @@ export interface operations {
                      *           }
                      *         ],
                      *         "currentQuestion": {
-                     *           "id": "00000000-0000-4000-8000-000000000034",
+                     *           "id": "00000000-0000-4000-8000-000000000043",
                      *           "orderNum": 0,
                      *           "content": "Which algorithm prevents double check-in?",
                      *           "options": [
@@ -4622,7 +4841,14 @@ export interface operations {
                      *           "timeLimitSec": 30,
                      *           "questionStartedAt": "2026-11-14T08:00:00.000Z"
                      *         }
-                     *       }
+                     *       },
+                     *       "deletedQuestions": [
+                     *         {
+                     *           "id": "00000000-0000-4000-8000-000000000044",
+                     *           "content": "Which service owns the check-in ledger?",
+                     *           "deletedAt": "2026-11-14T08:00:00.000Z"
+                     *         }
+                     *       ]
                      *     }
                      */
                     "application/json": components["schemas"]["GameResponse"];
@@ -4665,14 +4891,14 @@ export interface operations {
                     /**
                      * @example {
                      *       "game": {
-                     *         "id": "00000000-0000-4000-8000-000000000035",
-                     *         "sessionId": "00000000-0000-4000-8000-000000000036",
+                     *         "id": "00000000-0000-4000-8000-000000000045",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000046",
                      *         "status": "WAITING",
                      *         "currentQuestionIndex": 0,
                      *         "totalQuestions": 3,
                      *         "questions": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000037",
+                     *             "id": "00000000-0000-4000-8000-000000000047",
                      *             "orderNum": 0,
                      *             "content": "Which algorithm prevents double check-in?",
                      *             "options": [
@@ -4684,7 +4910,7 @@ export interface operations {
                      *           }
                      *         ],
                      *         "currentQuestion": {
-                     *           "id": "00000000-0000-4000-8000-000000000038",
+                     *           "id": "00000000-0000-4000-8000-000000000048",
                      *           "orderNum": 0,
                      *           "content": "Which algorithm prevents double check-in?",
                      *           "options": [
@@ -4694,7 +4920,14 @@ export interface operations {
                      *           "timeLimitSec": 30,
                      *           "questionStartedAt": "2026-11-14T08:00:00.000Z"
                      *         }
-                     *       }
+                     *       },
+                     *       "deletedQuestions": [
+                     *         {
+                     *           "id": "00000000-0000-4000-8000-000000000049",
+                     *           "content": "Which service owns the check-in ledger?",
+                     *           "deletedAt": "2026-11-14T08:00:00.000Z"
+                     *         }
+                     *       ]
                      *     }
                      */
                     "application/json": components["schemas"]["GameResponse"];
@@ -4709,14 +4942,14 @@ export interface operations {
                     /**
                      * @example {
                      *       "game": {
-                     *         "id": "00000000-0000-4000-8000-000000000039",
-                     *         "sessionId": "00000000-0000-4000-8000-000000000040",
+                     *         "id": "00000000-0000-4000-8000-000000000050",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000051",
                      *         "status": "WAITING",
                      *         "currentQuestionIndex": 0,
                      *         "totalQuestions": 3,
                      *         "questions": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000041",
+                     *             "id": "00000000-0000-4000-8000-000000000052",
                      *             "orderNum": 0,
                      *             "content": "Which algorithm prevents double check-in?",
                      *             "options": [
@@ -4728,7 +4961,7 @@ export interface operations {
                      *           }
                      *         ],
                      *         "currentQuestion": {
-                     *           "id": "00000000-0000-4000-8000-000000000042",
+                     *           "id": "00000000-0000-4000-8000-000000000053",
                      *           "orderNum": 0,
                      *           "content": "Which algorithm prevents double check-in?",
                      *           "options": [
@@ -4738,7 +4971,14 @@ export interface operations {
                      *           "timeLimitSec": 30,
                      *           "questionStartedAt": "2026-11-14T08:00:00.000Z"
                      *         }
-                     *       }
+                     *       },
+                     *       "deletedQuestions": [
+                     *         {
+                     *           "id": "00000000-0000-4000-8000-000000000054",
+                     *           "content": "Which service owns the check-in ledger?",
+                     *           "deletedAt": "2026-11-14T08:00:00.000Z"
+                     *         }
+                     *       ]
                      *     }
                      */
                     "application/json": components["schemas"]["GameResponse"];
@@ -4782,7 +5022,7 @@ export interface operations {
                     /**
                      * @example {
                      *       "question": {
-                     *         "id": "00000000-0000-4000-8000-000000000043",
+                     *         "id": "00000000-0000-4000-8000-000000000055",
                      *         "orderNum": 0,
                      *         "content": "Which algorithm prevents double check-in?",
                      *         "options": [
@@ -4853,7 +5093,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Question deleted. */
+            /** @description Question archived. */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -4929,7 +5169,7 @@ export interface operations {
                     /**
                      * @example {
                      *       "question": {
-                     *         "id": "00000000-0000-4000-8000-000000000044",
+                     *         "id": "00000000-0000-4000-8000-000000000056",
                      *         "orderNum": 0,
                      *         "content": "Which algorithm prevents double check-in?",
                      *         "options": [
@@ -4988,6 +5228,76 @@ export interface operations {
             422: components["responses"]["EngagementValidationFailed"];
         };
     };
+    restoreGameQuestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                gameId: string;
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Question restored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "question": {
+                     *         "id": "00000000-0000-4000-8000-000000000057",
+                     *         "orderNum": 0,
+                     *         "content": "Which algorithm prevents double check-in?",
+                     *         "options": [
+                     *           "string"
+                     *         ],
+                     *         "correctOption": 0,
+                     *         "timeLimitSec": 30,
+                     *         "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["RestoreGameQuestionResponse"];
+                };
+            };
+            401: components["responses"]["EngagementUnauthorized"];
+            403: components["responses"]["EngagementForbidden"];
+            /** @description The quiz game does not exist. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "GAME_NOT_FOUND",
+                     *       "message": "Quiz game was not found"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EngagementErrorBody"];
+                };
+            };
+            /** @description The game is not WAITING. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "INVALID_GAME_STATE",
+                     *       "message": "Cannot restore questions when game is QUESTION_ACTIVE"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EngagementErrorBody"];
+                };
+            };
+        };
+    };
     getGame: {
         parameters: {
             query?: never;
@@ -5008,14 +5318,14 @@ export interface operations {
                     /**
                      * @example {
                      *       "game": {
-                     *         "id": "00000000-0000-4000-8000-000000000045",
-                     *         "sessionId": "00000000-0000-4000-8000-000000000046",
+                     *         "id": "00000000-0000-4000-8000-000000000058",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000059",
                      *         "status": "WAITING",
                      *         "currentQuestionIndex": 0,
                      *         "totalQuestions": 3,
                      *         "questions": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000047",
+                     *             "id": "00000000-0000-4000-8000-000000000060",
                      *             "orderNum": 0,
                      *             "content": "Which algorithm prevents double check-in?",
                      *             "options": [
@@ -5027,7 +5337,7 @@ export interface operations {
                      *           }
                      *         ],
                      *         "currentQuestion": {
-                     *           "id": "00000000-0000-4000-8000-000000000048",
+                     *           "id": "00000000-0000-4000-8000-000000000061",
                      *           "orderNum": 0,
                      *           "content": "Which algorithm prevents double check-in?",
                      *           "options": [
@@ -5037,7 +5347,14 @@ export interface operations {
                      *           "timeLimitSec": 30,
                      *           "questionStartedAt": "2026-11-14T08:00:00.000Z"
                      *         }
-                     *       }
+                     *       },
+                     *       "deletedQuestions": [
+                     *         {
+                     *           "id": "00000000-0000-4000-8000-000000000062",
+                     *           "content": "Which service owns the check-in ledger?",
+                     *           "deletedAt": "2026-11-14T08:00:00.000Z"
+                     *         }
+                     *       ]
                      *     }
                      */
                     "application/json": components["schemas"]["GameResponse"];
@@ -5053,58 +5370,6 @@ export interface operations {
                      * @example {
                      *       "code": "GAME_NOT_FOUND",
                      *       "message": "Quiz game was not found"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["EngagementErrorBody"];
-                };
-            };
-        };
-    };
-    deleteGame: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                gameId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Game deleted with its questions and answers. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["EngagementUnauthorized"];
-            403: components["responses"]["EngagementForbidden"];
-            /** @description The quiz game does not exist. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "GAME_NOT_FOUND",
-                     *       "message": "Quiz game was not found"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["EngagementErrorBody"];
-                };
-            };
-            /** @description The game is live or revealing. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "INVALID_GAME_STATE",
-                     *       "message": "Cannot delete a game while it is QUESTION_ACTIVE"
                      *     }
                      */
                     "application/json": components["schemas"]["EngagementErrorBody"];
@@ -5132,14 +5397,14 @@ export interface operations {
                     /**
                      * @example {
                      *       "game": {
-                     *         "id": "00000000-0000-4000-8000-000000000049",
-                     *         "sessionId": "00000000-0000-4000-8000-000000000050",
+                     *         "id": "00000000-0000-4000-8000-000000000063",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000064",
                      *         "status": "WAITING",
                      *         "currentQuestionIndex": 0,
                      *         "totalQuestions": 3,
                      *         "questions": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000051",
+                     *             "id": "00000000-0000-4000-8000-000000000065",
                      *             "orderNum": 0,
                      *             "content": "Which algorithm prevents double check-in?",
                      *             "options": [
@@ -5151,7 +5416,7 @@ export interface operations {
                      *           }
                      *         ],
                      *         "currentQuestion": {
-                     *           "id": "00000000-0000-4000-8000-000000000052",
+                     *           "id": "00000000-0000-4000-8000-000000000066",
                      *           "orderNum": 0,
                      *           "content": "Which algorithm prevents double check-in?",
                      *           "options": [
@@ -5163,7 +5428,7 @@ export interface operations {
                      *         }
                      *       },
                      *       "currentQuestion": {
-                     *         "id": "00000000-0000-4000-8000-000000000053",
+                     *         "id": "00000000-0000-4000-8000-000000000067",
                      *         "orderNum": 0,
                      *         "content": "Which algorithm prevents double check-in?",
                      *         "options": [
@@ -5247,14 +5512,14 @@ export interface operations {
                     /**
                      * @example {
                      *       "game": {
-                     *         "id": "00000000-0000-4000-8000-000000000054",
-                     *         "sessionId": "00000000-0000-4000-8000-000000000055",
+                     *         "id": "00000000-0000-4000-8000-000000000068",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000069",
                      *         "status": "WAITING",
                      *         "currentQuestionIndex": 0,
                      *         "totalQuestions": 3,
                      *         "questions": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000056",
+                     *             "id": "00000000-0000-4000-8000-000000000070",
                      *             "orderNum": 0,
                      *             "content": "Which algorithm prevents double check-in?",
                      *             "options": [
@@ -5266,7 +5531,7 @@ export interface operations {
                      *           }
                      *         ],
                      *         "currentQuestion": {
-                     *           "id": "00000000-0000-4000-8000-000000000057",
+                     *           "id": "00000000-0000-4000-8000-000000000071",
                      *           "orderNum": 0,
                      *           "content": "Which algorithm prevents double check-in?",
                      *           "options": [
@@ -5337,14 +5602,14 @@ export interface operations {
                     /**
                      * @example {
                      *       "game": {
-                     *         "id": "00000000-0000-4000-8000-000000000058",
-                     *         "sessionId": "00000000-0000-4000-8000-000000000059",
+                     *         "id": "00000000-0000-4000-8000-000000000072",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000073",
                      *         "status": "WAITING",
                      *         "currentQuestionIndex": 0,
                      *         "totalQuestions": 3,
                      *         "questions": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000060",
+                     *             "id": "00000000-0000-4000-8000-000000000074",
                      *             "orderNum": 0,
                      *             "content": "Which algorithm prevents double check-in?",
                      *             "options": [
@@ -5356,7 +5621,7 @@ export interface operations {
                      *           }
                      *         ],
                      *         "currentQuestion": {
-                     *           "id": "00000000-0000-4000-8000-000000000061",
+                     *           "id": "00000000-0000-4000-8000-000000000075",
                      *           "orderNum": 0,
                      *           "content": "Which algorithm prevents double check-in?",
                      *           "options": [
@@ -5368,7 +5633,7 @@ export interface operations {
                      *         }
                      *       },
                      *       "currentQuestion": {
-                     *         "id": "00000000-0000-4000-8000-000000000062",
+                     *         "id": "00000000-0000-4000-8000-000000000076",
                      *         "orderNum": 0,
                      *         "content": "Which algorithm prevents double check-in?",
                      *         "options": [
@@ -5431,14 +5696,14 @@ export interface operations {
                     /**
                      * @example {
                      *       "game": {
-                     *         "id": "00000000-0000-4000-8000-000000000063",
-                     *         "sessionId": "00000000-0000-4000-8000-000000000064",
+                     *         "id": "00000000-0000-4000-8000-000000000077",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000078",
                      *         "status": "WAITING",
                      *         "currentQuestionIndex": 0,
                      *         "totalQuestions": 3,
                      *         "questions": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000065",
+                     *             "id": "00000000-0000-4000-8000-000000000079",
                      *             "orderNum": 0,
                      *             "content": "Which algorithm prevents double check-in?",
                      *             "options": [
@@ -5450,7 +5715,7 @@ export interface operations {
                      *           }
                      *         ],
                      *         "currentQuestion": {
-                     *           "id": "00000000-0000-4000-8000-000000000066",
+                     *           "id": "00000000-0000-4000-8000-000000000080",
                      *           "orderNum": 0,
                      *           "content": "Which algorithm prevents double check-in?",
                      *           "options": [
@@ -5460,7 +5725,14 @@ export interface operations {
                      *           "timeLimitSec": 30,
                      *           "questionStartedAt": "2026-11-14T08:00:00.000Z"
                      *         }
-                     *       }
+                     *       },
+                     *       "deletedQuestions": [
+                     *         {
+                     *           "id": "00000000-0000-4000-8000-000000000081",
+                     *           "content": "Which service owns the check-in ledger?",
+                     *           "deletedAt": "2026-11-14T08:00:00.000Z"
+                     *         }
+                     *       ]
                      *     }
                      */
                     "application/json": components["schemas"]["GameResponse"];
@@ -5500,6 +5772,102 @@ export interface operations {
             };
         };
     };
+    restartGame: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                gameId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Game reset for a replay. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "game": {
+                     *         "id": "00000000-0000-4000-8000-000000000082",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000083",
+                     *         "status": "WAITING",
+                     *         "currentQuestionIndex": 0,
+                     *         "totalQuestions": 3,
+                     *         "questions": [
+                     *           {
+                     *             "id": "00000000-0000-4000-8000-000000000084",
+                     *             "orderNum": 0,
+                     *             "content": "Which algorithm prevents double check-in?",
+                     *             "options": [
+                     *               "string"
+                     *             ],
+                     *             "correctOption": 0,
+                     *             "timeLimitSec": 30,
+                     *             "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                     *           }
+                     *         ],
+                     *         "currentQuestion": {
+                     *           "id": "00000000-0000-4000-8000-000000000085",
+                     *           "orderNum": 0,
+                     *           "content": "Which algorithm prevents double check-in?",
+                     *           "options": [
+                     *             "string"
+                     *           ],
+                     *           "correctOption": 0,
+                     *           "timeLimitSec": 30,
+                     *           "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                     *         }
+                     *       },
+                     *       "deletedQuestions": [
+                     *         {
+                     *           "id": "00000000-0000-4000-8000-000000000086",
+                     *           "content": "Which service owns the check-in ledger?",
+                     *           "deletedAt": "2026-11-14T08:00:00.000Z"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["GameResponse"];
+                };
+            };
+            401: components["responses"]["EngagementUnauthorized"];
+            403: components["responses"]["EngagementForbidden"];
+            /** @description The quiz game does not exist. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "GAME_NOT_FOUND",
+                     *       "message": "Quiz game was not found"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EngagementErrorBody"];
+                };
+            };
+            /** @description The round is still running. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "INVALID_GAME_STATE",
+                     *       "message": "Cannot restart a game while it is QUESTION_ACTIVE"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EngagementErrorBody"];
+                };
+            };
+        };
+    };
     submitGameAnswer: {
         parameters: {
             query?: never;
@@ -5513,7 +5881,7 @@ export interface operations {
             content: {
                 /**
                  * @example {
-                 *       "questionId": "00000000-0000-4000-8000-000000000067",
+                 *       "questionId": "00000000-0000-4000-8000-000000000087",
                  *       "selectedOption": 0,
                  *       "userId": "string",
                  *       "responseTimeMs": 1
@@ -5618,11 +5986,11 @@ export interface operations {
                 content: {
                     /**
                      * @example {
-                     *       "gameId": "00000000-0000-4000-8000-000000000068",
+                     *       "gameId": "00000000-0000-4000-8000-000000000088",
                      *       "leaderboard": [
                      *         {
                      *           "rank": 1,
-                     *           "userId": "00000000-0000-4000-8000-000000000069",
+                     *           "userId": "00000000-0000-4000-8000-000000000089",
                      *           "totalScore": 2750,
                      *           "correctCount": 3
                      *         }
@@ -5668,17 +6036,17 @@ export interface operations {
                 content: {
                     /**
                      * @example {
-                     *       "sessionId": "00000000-0000-4000-8000-000000000028",
+                     *       "sessionId": "00000000-0000-4000-8000-000000000037",
                      *       "questions": {
                      *         "total": 12,
                      *         "topQuestion": {
-                     *           "id": "00000000-0000-4000-8000-000000000029",
+                     *           "id": "00000000-0000-4000-8000-000000000038",
                      *           "content": "How does the circuit breaker recover?",
                      *           "upvotes": 7
                      *         }
                      *       },
                      *       "activePoll": {
-                     *         "id": "00000000-0000-4000-8000-000000000030",
+                     *         "id": "00000000-0000-4000-8000-000000000039",
                      *         "title": "How was the keynote?",
                      *         "isActive": true,
                      *         "totalVotes": 31

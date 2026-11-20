@@ -34,6 +34,7 @@ import {
   Play,
   Plus,
   Radio,
+  RotateCcw,
   Square,
   Trash2,
   Trophy,
@@ -43,11 +44,12 @@ import { useOutletContext, useParams } from "react-router";
 import {
   useAddGameQuestion,
   useCreateSessionGame,
-  useDeleteGame,
   useDeleteGameQuestion,
   useEndGame,
   useGameLeaderboard,
   useNextGameQuestion,
+  useRestartGame,
+  useRestoreGameQuestion,
   useRevealGameAnswer,
   useSessionGame,
   useStartGame,
@@ -74,6 +76,7 @@ export function QuizPage() {
 
   const { data: gameData, isLoading, error } = useSessionGame(sessionId, pollingInterval);
   const game = gameData?.game ?? null;
+  const deletedQuestions = gameData?.deletedQuestions ?? [];
 
   // Leaderboard query
   const { data: lbData } = useGameLeaderboard(game?.id, pollingInterval);
@@ -84,11 +87,12 @@ export function QuizPage() {
   const addQuestionMutation = useAddGameQuestion(sessionId ?? "", game?.id ?? "");
   const updateQuestionMutation = useUpdateGameQuestion(sessionId ?? "");
   const deleteQuestionMutation = useDeleteGameQuestion(sessionId ?? "");
-  const deleteGameMutation = useDeleteGame(sessionId ?? "");
+  const restoreQuestionMutation = useRestoreGameQuestion(sessionId ?? "");
   const startMutation = useStartGame(sessionId ?? "");
   const revealMutation = useRevealGameAnswer(sessionId ?? "");
   const nextMutation = useNextGameQuestion(sessionId ?? "");
   const endMutation = useEndGame(sessionId ?? "");
+  const restartMutation = useRestartGame(sessionId ?? "");
 
   // Modal / Confirm States
   const [openQuestionForm, setOpenQuestionForm] = useState(false);
@@ -99,7 +103,7 @@ export function QuizPage() {
   const [timeLimit, setTimeLimit] = useState(30);
 
   const [questionToDelete, setQuestionToDelete] = useState<GameQuestion | null>(null);
-  const [confirmAction, setConfirmAction] = useState<"next" | "end" | "delete-game" | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"next" | "end" | "restart" | null>(null);
 
   const isStaffOrOrganizer = user?.role === "STAFF" || user?.role === "ORGANIZER";
 
@@ -234,7 +238,7 @@ export function QuizPage() {
               </CardTitle>
               {game.status === "WAITING" && <Badge variant="secondary">Đang chuẩn bị</Badge>}
               {game.status === "QUESTION_ACTIVE" && (
-                <Badge variant="secondary" className="bg-warning/10 text-warning">
+                <Badge variant="secondary" className="bg-warning-subtle text-warning">
                   <span
                     className="size-2 animate-pulse rounded-full bg-warning"
                     aria-hidden="true"
@@ -243,7 +247,7 @@ export function QuizPage() {
                 </Badge>
               )}
               {game.status === "ROUND_REVEALED" && (
-                <Badge variant="secondary" className="bg-success/10 text-success">
+                <Badge variant="secondary" className="bg-success-subtle text-success">
                   Đã công bố đáp án
                 </Badge>
               )}
@@ -322,7 +326,7 @@ export function QuizPage() {
                                     variant="ghost"
                                     size="icon"
                                     aria-label={`Xoá lựa chọn ${String.fromCharCode(65 + idx)}`}
-                                    className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                    className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-destructive-subtle hover:text-destructive"
                                     onClick={() => removeOption(idx)}
                                   >
                                     <Trash2 className="size-4" />
@@ -386,18 +390,6 @@ export function QuizPage() {
                 </>
               )}
 
-              {(game.status === "WAITING" || game.status === "FINISHED") && (
-                <Button
-                  variant="outline"
-                  className="h-8 gap-1.5 text-destructive hover:bg-destructive/10"
-                  disabled={deleteGameMutation.isPending}
-                  onClick={() => setConfirmAction("delete-game")}
-                >
-                  <Trash2 className="size-4" />
-                  <span>Xoá game</span>
-                </Button>
-              )}
-
               {game.status === "QUESTION_ACTIVE" && (
                 <Button
                   className="h-10 gap-1.5"
@@ -422,7 +414,7 @@ export function QuizPage() {
                   </Button>
                   <Button
                     variant="outline"
-                    className="h-10 gap-1.5 text-destructive hover:bg-destructive/10"
+                    className="h-10 gap-1.5 text-destructive hover:bg-destructive-subtle"
                     disabled={endMutation.isPending}
                     onClick={() => setConfirmAction("end")}
                   >
@@ -430,6 +422,18 @@ export function QuizPage() {
                     <span>Kết thúc Game</span>
                   </Button>
                 </>
+              )}
+
+              {(game.status === "FINISHED" || game.status === "ROUND_REVEALED") && (
+                <Button
+                  variant="outline"
+                  className="h-8 gap-1.5"
+                  disabled={restartMutation.isPending || startMutation.isPending}
+                  onClick={() => setConfirmAction("restart")}
+                >
+                  <RotateCcw className="size-4" />
+                  <span>Chơi lại</span>
+                </Button>
               )}
             </div>
           )}
@@ -460,7 +464,7 @@ export function QuizPage() {
                     key={`opt-${currentQ.id ?? "q"}-${idx}`}
                     className={`flex items-center gap-3 rounded-xl p-3.5 transition-colors ${
                       isRevealed && isCorrect
-                        ? "bg-success/10 font-semibold text-success"
+                        ? "bg-success-subtle font-semibold text-success"
                         : "bg-secondary text-foreground"
                     }`}
                   >
@@ -524,7 +528,7 @@ export function QuizPage() {
                           variant="ghost"
                           size="icon"
                           aria-label={`Xoá câu hỏi ${index + 1}`}
-                          className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          className="h-8 w-8 text-muted-foreground hover:bg-destructive-subtle hover:text-destructive"
                           onClick={() => setQuestionToDelete(question)}
                         >
                           <Trash2 className="size-4" />
@@ -535,6 +539,46 @@ export function QuizPage() {
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Soft-deleted questions can be restored while the game has not started */}
+      {game.status === "WAITING" && deletedQuestions.length > 0 && (
+        <Card className="bg-card shadow-sm">
+          <CardHeader className="p-4 sm:p-6 pb-2">
+            <CardTitle className="text-base font-semibold text-foreground">
+              Câu hỏi đã xoá ({deletedQuestions.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-2">
+            <p className="mb-2 text-sm text-muted-foreground">
+              Khôi phục để đưa câu hỏi trở lại danh sách, giữ nguyên đáp án đã ghi nhận.
+            </p>
+            <div className="space-y-2">
+              {deletedQuestions.map((question) => (
+                <div
+                  key={question.id}
+                  className="flex items-center justify-between gap-3 rounded-lg bg-secondary p-3"
+                >
+                  <p className="min-w-0 truncate text-sm text-muted-foreground line-through">
+                    {question.content}
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 shrink-0 gap-1.5"
+                    disabled={restoreQuestionMutation.isPending}
+                    onClick={() =>
+                      restoreQuestionMutation.mutate({ gameId: game.id, questionId: question.id })
+                    }
+                  >
+                    <RotateCcw className="size-4" />
+                    Khôi phục
+                  </Button>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -599,15 +643,15 @@ export function QuizPage() {
             <AlertDialogTitle>
               {confirmAction === "next"
                 ? "Chuyển sang câu hỏi tiếp theo?"
-                : confirmAction === "delete-game"
-                  ? "Xoá Quiz game?"
+                : confirmAction === "restart"
+                  ? "Chơi lại Quiz game?"
                   : "Kết thúc trò chơi Quiz?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmAction === "next"
                 ? "Khán giả sẽ được chuyển ngay sang câu hỏi kế tiếp và không thể tiếp tục gửi đáp án cho câu hỏi này."
-                : confirmAction === "delete-game"
-                  ? "Toàn bộ câu hỏi và câu trả lời của game này sẽ bị xoá để tạo game mới. Hành động này không thể hoàn tác."
+                : confirmAction === "restart"
+                  ? "Điểm và câu trả lời của lượt trước sẽ bị xoá; câu hỏi được giữ nguyên và game bắt đầu lại từ câu đầu."
                   : "Game sẽ chính thức khép lại và hiển thị bảng xếp hạng chung cuộc cho toàn bộ phiên."}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -620,8 +664,10 @@ export function QuizPage() {
                   nextMutation.mutate(game.id);
                 } else if (confirmAction === "end") {
                   endMutation.mutate(game.id);
-                } else if (confirmAction === "delete-game") {
-                  deleteGameMutation.mutate(game.id);
+                } else if (confirmAction === "restart") {
+                  restartMutation.mutate(game.id, {
+                    onSuccess: () => startMutation.mutate(game.id),
+                  });
                 }
                 setConfirmAction(null);
               }}
@@ -641,7 +687,7 @@ export function QuizPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Xoá câu hỏi Quiz?</AlertDialogTitle>
             <AlertDialogDescription>
-              “{questionToDelete?.content}” sẽ bị xoá khỏi game và các câu còn lại được đánh số lại.
+              “{questionToDelete?.content}” sẽ ẩn khỏi game. Khôi phục được ở mục “Câu hỏi đã xoá”.
               Chỉ xoá được khi game chưa bắt đầu.
             </AlertDialogDescription>
           </AlertDialogHeader>

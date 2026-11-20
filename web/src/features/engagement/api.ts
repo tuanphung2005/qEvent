@@ -94,6 +94,21 @@ export function useDeleteQuestion(sessionId: string) {
 /**
  * G3: Polls Queries and Mutations
  */
+export function useRestoreQuestion(sessionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (questionId: string) =>
+      unwrap(
+        await api.POST("/api/questions/{questionId}/restore", {
+          params: { path: { questionId } },
+        }),
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.engagement.questions(sessionId) });
+    },
+  });
+}
+
 export function usePolls(sessionId: string | undefined, refetchInterval?: number | false) {
   return useQuery({
     queryKey: qk.engagement.polls(sessionId ?? "none"),
@@ -156,6 +171,17 @@ export function useDeletePoll(sessionId: string) {
 /**
  * G4: Quiz Game Queries and Mutations
  */
+export function useRestorePoll(sessionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (pollId: string) =>
+      unwrap(await api.POST("/api/polls/{pollId}/restore", { params: { path: { pollId } } })),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.engagement.polls(sessionId) });
+    },
+  });
+}
+
 export function useSessionGame(sessionId: string | undefined, refetchInterval?: number | false) {
   return useQuery({
     queryKey: qk.engagement.game(sessionId ?? "none"),
@@ -283,6 +309,22 @@ export function useEndGame(sessionId: string) {
   });
 }
 
+export function useRestartGame(sessionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (gameId: string) =>
+      unwrap(
+        await api.POST("/api/game/{gameId}/restart", {
+          params: { path: { gameId } },
+        }),
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.engagement.game(sessionId) });
+      queryClient.invalidateQueries({ queryKey: ["game", "leaderboard"] });
+    },
+  });
+}
+
 export function useDeleteGameQuestion(sessionId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -298,14 +340,17 @@ export function useDeleteGameQuestion(sessionId: string) {
   });
 }
 
-export function useDeleteGame(sessionId: string) {
+export function useRestoreGameQuestion(sessionId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (gameId: string) =>
-      unwrap(await api.DELETE("/api/game/{gameId}", { params: { path: { gameId } } })),
+    mutationFn: async ({ gameId, questionId }: { gameId: string; questionId: string }) =>
+      unwrap(
+        await api.POST("/api/game/{gameId}/question/{questionId}/restore", {
+          params: { path: { gameId, questionId } },
+        }),
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.engagement.game(sessionId) });
-      queryClient.invalidateQueries({ queryKey: ["game", "leaderboard"] });
     },
   });
 }

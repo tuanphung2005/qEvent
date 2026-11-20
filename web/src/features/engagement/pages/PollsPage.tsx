@@ -26,10 +26,10 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth/auth-context";
-import { Activity, AlertTriangle, Pencil, Plus, Power, Trash2 } from "lucide-react";
+import { Activity, AlertTriangle, Pencil, Plus, Power, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useOutletContext, useParams } from "react-router";
-import { useCreatePoll, useDeletePoll, usePolls, useUpdatePoll } from "../api";
+import { useCreatePoll, useDeletePoll, usePolls, useRestorePoll, useUpdatePoll } from "../api";
 import type { Poll } from "../types";
 
 type OutletCtx = {
@@ -49,6 +49,7 @@ export function PollsPage() {
   const createPollMutation = useCreatePoll(sessionId ?? "");
   const updatePollMutation = useUpdatePoll(sessionId ?? "");
   const deletePollMutation = useDeletePoll(sessionId ?? "");
+  const restorePollMutation = useRestorePoll(sessionId ?? "");
 
   // One dialog serves create and edit; `editingPoll` is null while creating.
   const [openForm, setOpenForm] = useState(false);
@@ -58,6 +59,7 @@ export function PollsPage() {
   const [pollToDelete, setPollToDelete] = useState<Poll | null>(null);
 
   const polls = data?.polls ?? [];
+  const deletedPolls = data?.deletedPolls ?? [];
   const isStaffOrOrganizer = user?.role === "STAFF" || user?.role === "ORGANIZER";
 
   const handleAddOption = () => {
@@ -278,7 +280,7 @@ export function PollsPage() {
                         {poll.title}
                       </CardTitle>
                       {poll.isActive ? (
-                        <Badge variant="secondary" className="bg-success/10 text-success">
+                        <Badge variant="secondary" className="bg-success-subtle text-success">
                           Đang mở
                         </Badge>
                       ) : (
@@ -321,7 +323,7 @@ export function PollsPage() {
                         variant="ghost"
                         size="sm"
                         aria-label={`Xoá khảo sát ${poll.title}`}
-                        className="h-8 gap-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        className="h-8 gap-1.5 text-muted-foreground hover:bg-destructive-subtle hover:text-destructive"
                         onClick={() => setPollToDelete(poll)}
                       >
                         <Trash2 className="size-4" />
@@ -360,6 +362,39 @@ export function PollsPage() {
         </div>
       )}
 
+      {/* Soft-deleted polls can be restored by staff */}
+      {isStaffOrOrganizer && deletedPolls.length > 0 && (
+        <Card className="border-card-border">
+          <CardContent className="p-4">
+            <p className="mb-2 text-sm font-semibold text-foreground">
+              Khảo sát đã xoá ({deletedPolls.length})
+            </p>
+            <div className="space-y-2">
+              {deletedPolls.map((poll) => (
+                <div
+                  key={poll.id}
+                  className="flex items-center justify-between gap-3 rounded-lg bg-secondary p-3"
+                >
+                  <p className="min-w-0 truncate text-sm text-muted-foreground line-through">
+                    {poll.title}
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 shrink-0 gap-1.5"
+                    disabled={restorePollMutation.isPending}
+                    onClick={() => restorePollMutation.mutate(poll.id)}
+                  >
+                    <RotateCcw className="size-4" />
+                    Khôi phục
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Delete confirmation */}
       <AlertDialog
         open={Boolean(pollToDelete)}
@@ -369,8 +404,8 @@ export function PollsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Xoá khảo sát?</AlertDialogTitle>
             <AlertDialogDescription>
-              “{pollToDelete?.title}” cùng toàn bộ phiếu bình chọn sẽ bị xoá. Hành động này không
-              thể hoàn tác.
+              “{pollToDelete?.title}” sẽ ẩn khỏi phiên, phiếu bình chọn được giữ nguyên. Khôi phục
+              được ở mục “Khảo sát đã xoá”.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
