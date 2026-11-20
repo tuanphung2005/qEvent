@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { jwt } from "@elysiajs/jwt";
 import { ServiceCircuitBreakers, ServiceName } from "./circuit-breaker";
+import { createFailureLimiter } from "./rate-limit";
 import { extractWsToken } from "./ws-token";
 
 export interface GatewayConfig {
@@ -21,9 +22,16 @@ export interface GatewayConfig {
 }
 
 export function getConfigFromEnv(): GatewayConfig {
+  const jwtSecret =
+    process.env.JWT_SECRET ??
+    (process.env.NODE_ENV === "production" ? undefined : "qevent_dev_jwt_secret_change_me");
+  if (!jwtSecret) {
+    throw new Error("JWT_SECRET is required in production");
+  }
+
   return {
     port: Number(process.env.PORT || 8000),
-    jwtSecret: process.env.JWT_SECRET || "qevent_super_jwt_secret_key_2026",
+    jwtSecret,
     eventServiceUrl: process.env.EVENT_SERVICE_URL || "http://localhost:3001",
     admissionServiceUrl: process.env.ADMISSION_SERVICE_URL || "http://localhost:3002",
     engagementServiceUrl: process.env.ENGAGEMENT_SERVICE_URL || "http://localhost:3003",
@@ -37,6 +45,10 @@ export function createGatewayApp(customConfig?: Partial<GatewayConfig>) {
   };
 
   const circuitBreakers = new ServiceCircuitBreakers(config.circuitBreakerOptions);
+  // Brute force guard: 10 failed logins per IP in 5 minutes, and 20 sign-ups per
+  // minute. In-memory only; enough while the gateway runs as one process.
+  const loginLimiter = createFailureLimiter({ windowMs: 5 * 60_000, max: 10 });
+  const registerLimiter = createFailureLimiter({ windowMs: 60_000, max: 20 });
 
   const getTargetService = (pathname: string): { service: ServiceName; baseUrl: string } | null => {
     if (pathname.startsWith("/api/events")) {
@@ -168,11 +180,30 @@ export function createGatewayApp(customConfig?: Partial<GatewayConfig>) {
       },
     })
     // All HTTP routes reverse proxy with JWT & Circuit Breaker
-    .all("/api/*", async ({ request, jwt, set }) => {
+    .all("/api/*", async ({ request, jwt, set, server }) => {
       const url = new URL(request.url);
       const target = getTargetService(url.pathname);
       const startedAt = performance.now();
       const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID();
+      const clientIp = server?.requestIP?.(request)?.address ?? "unknown";
+      const isLogin = request.method === "POST" && url.pathname === "/api/auth/login";
+      const isRegister = request.method === "POST" && url.pathname === "/api/auth/register";
+
+      if (isLogin && loginLimiter.blocked(clientIp)) {
+        set.status = 429;
+        return {
+          code: "TOO_MANY_ATTEMPTS",
+          message: "Too many failed logins. Try again in a few minutes.",
+        };
+      }
+      if (isRegister && registerLimiter.blocked(clientIp)) {
+        set.status = 429;
+        return {
+          code: "TOO_MANY_ATTEMPTS",
+          message: "Too many sign-ups from this network. Try again later.",
+        };
+      }
+      if (isRegister) registerLimiter.record(clientIp);
 
       if (!target) {
         set.status = 404;
@@ -256,6 +287,11 @@ export function createGatewayApp(customConfig?: Partial<GatewayConfig>) {
 
         // Forward response status, headers and body
         const responseHeaders = new Headers(upstreamResponse.headers);
+
+        if (isLogin) {
+          if (upstreamResponse.status === 401) loginLimiter.record(clientIp);
+          else if (upstreamResponse.ok) loginLimiter.reset(clientIp);
+        }
         // Clean hop-by-hop headers
         responseHeaders.delete("transfer-encoding");
         responseHeaders.delete("connection");
