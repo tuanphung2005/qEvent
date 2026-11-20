@@ -62,7 +62,9 @@ jobs:
           bun-version: latest
 
       - name: Start gateway and services
-        run: docker compose up -d --build
+        run: |
+          cp .env.example .env
+          docker compose up -d --build
         working-directory: .
 
       - name: Wait for gateway health

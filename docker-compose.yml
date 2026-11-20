@@ -5,10 +5,10 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password123
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-password123}"
       POSTGRES_DB: qevent_event
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - event_data:/var/lib/postgresql/data
     healthcheck:
@@ -23,10 +23,10 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password123
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-password123}"
       POSTGRES_DB: qevent_admission
     ports:
-      - "5434:5432"
+      - "127.0.0.1:5434:5432"
     volumes:
       - admission_data:/var/lib/postgresql/data
     healthcheck:
@@ -41,10 +41,10 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password123
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-password123}"
       POSTGRES_DB: qevent_engagement
     ports:
-      - "5435:5432"
+      - "127.0.0.1:5435:5432"
     volumes:
       - engagement_data:/var/lib/postgresql/data
     healthcheck:
@@ -60,9 +60,10 @@ services:
     container_name: qevent-event-service
     restart: unless-stopped
     environment:
-      DATABASE_URL: "postgresql://postgres:password123@postgres-event:5432/qevent_event?schema=public"
-      INTERNAL_SERVICE_TOKEN: "qevent_internal_service_token_2026"
+      DATABASE_URL: "postgresql://postgres:${POSTGRES_PASSWORD:-password123}@postgres-event:5432/qevent_event?schema=public"
+      INTERNAL_SERVICE_TOKEN: "${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is required - copy .env.example to .env}"
       PORT: 3001
+      NODE_ENV: production
     depends_on:
       postgres-event:
         condition: service_healthy
@@ -74,12 +75,13 @@ services:
     container_name: qevent-admission-service
     restart: unless-stopped
     environment:
-      DATABASE_URL: "postgresql://postgres:password123@postgres-admission:5432/qevent_admission?schema=public"
+      DATABASE_URL: "postgresql://postgres:${POSTGRES_PASSWORD:-password123}@postgres-admission:5432/qevent_admission?schema=public"
       EVENT_SERVICE_URL: "http://event-service:3001"
-      JWT_SECRET: "qevent_super_jwt_secret_key_2026"
-      INTERNAL_SERVICE_TOKEN: "qevent_internal_service_token_2026"
+      JWT_SECRET: "${JWT_SECRET:?JWT_SECRET is required - copy .env.example to .env}"
+      INTERNAL_SERVICE_TOKEN: "${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is required - copy .env.example to .env}"
       KEYS_DIR: "/app/keys"
       PORT: 3002
+      NODE_ENV: production
     volumes:
       - admission_keys:/app/keys
     depends_on:
@@ -95,12 +97,13 @@ services:
     container_name: qevent-engagement-service
     restart: unless-stopped
     environment:
-      DATABASE_URL: "postgresql://postgres:password123@postgres-engagement:5432/qevent_engagement?schema=public"
+      DATABASE_URL: "postgresql://postgres:${POSTGRES_PASSWORD:-password123}@postgres-engagement:5432/qevent_engagement?schema=public"
       EVENT_SERVICE_URL: "http://event-service:3001"
       ADMISSION_SERVICE_URL: "http://admission-service:3002"
-      JWT_SECRET: "qevent_super_jwt_secret_key_2026"
-      INTERNAL_SERVICE_TOKEN: "qevent_internal_service_token_2026"
+      JWT_SECRET: "${JWT_SECRET:?JWT_SECRET is required - copy .env.example to .env}"
+      INTERNAL_SERVICE_TOKEN: "${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is required - copy .env.example to .env}"
       PORT: 3003
+      NODE_ENV: production
     depends_on:
       postgres-engagement:
         condition: service_healthy
@@ -119,7 +122,8 @@ services:
       - "8000:8000"
     environment:
       PORT: 8000
-      JWT_SECRET: "qevent_super_jwt_secret_key_2026"
+      NODE_ENV: production
+      JWT_SECRET: "${JWT_SECRET:?JWT_SECRET is required - copy .env.example to .env}"
       EVENT_SERVICE_URL: "http://event-service:3001"
       ADMISSION_SERVICE_URL: "http://admission-service:3002"
       ENGAGEMENT_SERVICE_URL: "http://engagement-service:3003"
