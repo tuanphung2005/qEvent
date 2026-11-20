@@ -1,3 +1,4 @@
+import { EventSelect } from "@/components/event-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,13 +9,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Sidebar,
   SidebarContent,
@@ -125,24 +119,13 @@ export function AppShell() {
           {eventsLoading ? (
             <Skeleton className="h-8 w-[200px] md:w-[240px]" />
           ) : (
-            <Select
-              value={eventId ?? ""}
-              onValueChange={(value) => value && setEventId(value)}
-              disabled={events.length === 0}
-            >
-              <SelectTrigger aria-label="Sự kiện đang chọn" className="w-[200px] md:w-[240px]">
-                <SelectValue
-                  placeholder={events.length === 0 ? "Chưa có sự kiện" : "Chọn sự kiện"}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {events.map((event) => (
-                  <SelectItem key={event.id} value={event.id}>
-                    {event.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <EventSelect
+              events={events}
+              value={eventId}
+              onValueChange={setEventId}
+              label="Sự kiện đang chọn"
+              className="w-[200px] md:w-[240px]"
+            />
           )}
 
           <div className="ml-auto flex items-center gap-2">

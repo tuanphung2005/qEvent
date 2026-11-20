@@ -1,13 +1,7 @@
+import { EventSelect } from "@/components/event-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth/auth-context";
 import { useEventContext } from "@/lib/event-context";
@@ -64,24 +58,13 @@ export function SettingsPage() {
           {isLoading ? (
             <Skeleton className="w-full max-w-[420px]" />
           ) : (
-            <Select
-              value={eventId ?? ""}
-              onValueChange={(value) => value && setEventId(value)}
-              disabled={events.length === 0}
-            >
-              <SelectTrigger aria-label="Sự kiện mặc định" className="w-full max-w-[420px]">
-                <SelectValue
-                  placeholder={events.length === 0 ? "Chưa có sự kiện" : "Chọn sự kiện"}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {events.map((event) => (
-                  <SelectItem key={event.id} value={event.id}>
-                    {event.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <EventSelect
+              events={events}
+              value={eventId}
+              onValueChange={setEventId}
+              label="Sự kiện mặc định"
+              className="w-full max-w-[420px]"
+            />
           )}
         </CardContent>
       </Card>

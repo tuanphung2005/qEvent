@@ -1,3 +1,4 @@
+import { EventSelect } from "@/components/event-select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,13 +23,6 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toApiError } from "@/lib/api/errors";
 import { useEventContext } from "@/lib/event-context";
@@ -77,18 +71,12 @@ export function DashboardPage() {
             </EmptyHeader>
             <EmptyContent>
               {events.length > 0 ? (
-                <Select onValueChange={(value) => value && setEventId(value)}>
-                  <SelectTrigger aria-label="Chọn sự kiện" className="h-8 w-[320px]">
-                    <SelectValue placeholder="Chọn sự kiện" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {events.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <EventSelect
+                  events={events}
+                  onValueChange={setEventId}
+                  label="Chọn sự kiện"
+                  className="h-8 w-[320px]"
+                />
               ) : eventsLoading ? (
                 <Skeleton className="h-8 w-[320px]" />
               ) : (

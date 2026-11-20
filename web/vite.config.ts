@@ -16,6 +16,20 @@ export default defineConfig({
       "/ws": { target: "ws://localhost:8000", ws: true },
     },
   },
+  build: {
+    // Charts are the heaviest dependency and only the dashboard/engagement need
+    // them; keeping them out of the entry chunk shortens first load.
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          charts: ["recharts"],
+          query: ["@tanstack/react-query"],
+          react: ["react", "react-dom", "react-router"],
+          ui: ["radix-ui", "lucide-react", "sonner"],
+        },
+      },
+    },
+  },
   test: {
     environment: "jsdom",
     globals: true,
