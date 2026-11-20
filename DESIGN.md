@@ -13,8 +13,12 @@ colors:
   border: "#D9D9D9"
   border-subtle: "#F0F0F0"
   success: "#237804"
-  warning: "#AD6800"
+  success-subtle: "#F6FFED"
+  warning: "#995F00"
+  warning-subtle: "#FFFBE6"
   error: "#CF1322"
+  error-subtle: "#FFF1F0"
+  placeholder: "#6B6B6B"
   overlay: "rgba(0, 0, 0, 0.45)"
 typography:
   display:
@@ -115,7 +119,7 @@ reserved for state, and every screen shows more rows per viewport than a marketi
 - **High-visibility status hierarchy.** Colour is semantic only: blue = action/selection, green =
   valid, amber = warning/duplicate/offline, red = invalid/cancelled.
 - **AA contrast, no pale greys.** Primary text `#1F1F1F`, secondary `#595959` (7:1 and 6:1 on white).
-  Placeholders may be faint, real copy may not.
+  Placeholder text uses `#6B6B6B` (5.3:1): it is still copy a user has to read.
 - **No blur, no dark mode.** Flat scrims, no glassmorphism, light theme only.
 
 ## Colors
@@ -141,9 +145,13 @@ reserved for state, and every screen shows more rows per viewport than a marketi
 
 ### Functional / Semantic
 
-- **Valid Green** (`#237804` on `#F6FFED` 10% tint): successful scan, confirmed order, paid ticket.
-- **Warning Amber** (`#AD6800` on tint): duplicate scan, offline queue, pending reconciliation.
-- **Error Red** (`#CF1322` on tint): fraudulent ticket, cancelled, failed payment.
+- **Valid Green** (`#237804` on `#F6FFED` tint): successful scan, confirmed order, paid ticket.
+- **Warning Amber** (`#995F00` on `#FFFBE6` tint): duplicate scan, offline queue, pending
+  reconciliation. antd's `#AD6800` is only 4.41:1 on white; this shade keeps 5.2:1.
+- **Error Red** (`#CF1322` on `#FFF1F0` tint): fraudulent ticket, cancelled, failed payment.
+
+Status chips use the `-subtle` tint tokens, never a 10% alpha of the text colour: a 10% tint over
+the `#F5F5F5` canvas drops green to 4.48:1.
 
 ### Named Rules
 

@@ -329,7 +329,7 @@ export function DashboardPage() {
                     variant="secondary"
                     className={
                       session.isLive
-                        ? "bg-success/10 text-success"
+                        ? "bg-success-subtle text-success"
                         : "bg-secondary text-secondary-foreground"
                     }
                   >

@@ -29,12 +29,16 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-placeholder: var(--placeholder);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-subtle: var(--destructive-subtle);
   --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
   --color-warning-foreground: var(--warning-foreground);
   --color-border: var(--border);
   --color-card-border: var(--card-border);
@@ -104,14 +108,20 @@
   --secondary-foreground: #1f1f1f;
   --muted: #fafafa;
   --muted-foreground: #595959;
+  /* Placeholder copy is still copy: 5.3:1 on white, unlike antd's #bfbfbf. */
+  --placeholder: #6b6b6b;
   --accent: #e6f4ff;
   --accent-foreground: #0958d9;
 
   --destructive: #cf1322;
-  /* 700-shade greens/ambers: AA (4.5:1) as text on white and on their /10 tint. */
+  --destructive-subtle: #fff1f0;
+  /* 700-shade green/amber: AA (4.5:1) as text on white and on the -subtle tint. */
   --success: #237804;
+  --success-subtle: #f6ffed;
   --success-foreground: #f6ffed;
-  --warning: #ad6800;
+  /* antd amber-700 #ad6800 is only 4.41:1 on white; #995f00 keeps 5.2:1. */
+  --warning: #995f00;
+  --warning-subtle: #fffbe6;
   --warning-foreground: #fffbe6;
 
   --border: #d9d9d9;

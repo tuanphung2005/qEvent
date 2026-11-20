@@ -76,19 +76,22 @@ export function EngagementShell() {
         {/* Realtime Status Banner */}
         <div className="flex items-center gap-2">
           {realtimeStatus === "open" && (
-            <Badge variant="secondary" className="h-9 gap-1.5 bg-success/10 text-success">
+            <Badge variant="secondary" className="h-9 gap-1.5 bg-success-subtle text-success">
               <CheckCircle2 className="size-4" />
               <span>Realtime đã kết nối</span>
             </Badge>
           )}
           {(realtimeStatus === "connecting" || realtimeStatus === "reconnecting") && (
-            <Badge variant="secondary" className="h-9 gap-1.5 bg-warning/10 text-warning">
+            <Badge variant="secondary" className="h-9 gap-1.5 bg-warning-subtle text-warning">
               <Radio className="size-4 animate-pulse" />
               <span>Đang kết nối lại...</span>
             </Badge>
           )}
           {(realtimeStatus === "fallback" || realtimeStatus === "offline") && (
-            <Badge variant="secondary" className="h-9 gap-1.5 bg-destructive/10 text-destructive">
+            <Badge
+              variant="secondary"
+              className="h-9 gap-1.5 bg-destructive-subtle text-destructive"
+            >
               <AlertTriangle className="size-4" />
               <span>Chuyển sang Polling</span>
             </Badge>
@@ -126,7 +129,7 @@ export function EngagementShell() {
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-foreground">{activeSession.title}</span>
                 {activeSession.isLive ? (
-                  <Badge variant="secondary" className="bg-success/10 text-success">
+                  <Badge variant="secondary" className="bg-success-subtle text-success">
                     Đang diễn ra
                   </Badge>
                 ) : (

@@ -316,7 +316,7 @@ export function CheckinsPage() {
                         key={row.id}
                         className={
                           row.syncStatus === "CONFLICT" || row.isOffline
-                            ? "bg-warning/10"
+                            ? "bg-warning-subtle"
                             : undefined
                         }
                       >
@@ -349,7 +349,7 @@ export function CheckinsPage() {
                               {statusLabel(row.syncStatus)}
                             </Badge>
                             {row.isOffline ? (
-                              <Badge variant="secondary" className="bg-warning/10 text-warning">
+                              <Badge variant="secondary" className="bg-warning-subtle text-warning">
                                 Ngoại tuyến
                               </Badge>
                             ) : null}

@@ -158,7 +158,7 @@ function TicketTypeDialog({
               </Field>
             </div>
             {Number.isFinite(quota) && quota > maxCapacity ? (
-              <Alert className="bg-warning/10 text-warning">
+              <Alert className="bg-warning-subtle text-warning">
                 <AlertTriangle />
                 <AlertDescription className="text-warning">
                   Quota {formatNumber(quota)} vượt sức chứa sự kiện ({formatNumber(maxCapacity)}).
@@ -219,7 +219,7 @@ export function TicketTypesTab() {
       </header>
 
       {overCapacity.length > 0 ? (
-        <Alert className="bg-warning/10 text-warning">
+        <Alert className="bg-warning-subtle text-warning">
           <AlertTriangle />
           <AlertTitle className="text-warning">Có loại vé vượt sức chứa sự kiện</AlertTitle>
           <AlertDescription className="text-warning">

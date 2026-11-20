@@ -4,15 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/features/auth/auth-context";
 import { toApiError } from "@/lib/api/errors";
 import { formatRange } from "@/lib/format/date";
 import { formatNumber } from "@/lib/format/money";
 import { statusToneClass } from "@/lib/format/status-label";
 import { routes } from "@/lib/routes";
+import { cn } from "cn";
 import { AlertTriangle } from "lucide-react";
-import { Link, Outlet, useLocation, useNavigate, useParams } from "react-router";
+import { Link, Outlet, useLocation, useParams } from "react-router";
 import { useEvent } from "../api";
 import { EVENT_PHASE, type EventTabContext, eventPhase } from "../types";
 
@@ -36,7 +36,6 @@ export function EventDetailLayout() {
   const { eventId } = useParams<{ eventId: string }>();
   const { user } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
   const query = useEvent(eventId);
 
   if (!eventId) {
@@ -135,12 +134,6 @@ export function EventDetailLayout() {
   const tab = currentTab(location.pathname);
   const context: EventTabContext = { event };
 
-  const goTab = (value: string) => {
-    const target = TABS.find((item) => item.value === value);
-    if (!target) return;
-    navigate(`${routes.event(event.id)}${target.suffix}`);
-  };
-
   return (
     <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -170,15 +163,34 @@ export function EventDetailLayout() {
         ) : null}
       </header>
 
-      <Tabs value={tab} onValueChange={goTab}>
-        <TabsList variant="line" className="w-fit max-w-full justify-start overflow-x-auto">
-          {TABS.map((item) => (
-            <TabsTrigger key={item.value} value={item.value} className="px-3">
+      {/*
+        Route tabs, not an ARIA tablist: each label is a real URL, so links keep
+        the keyboard contract honest (Radix tabs without panels left every
+        trigger at tabindex=-1 and pointed aria-controls at nothing).
+      */}
+      <nav
+        aria-label="Khu vực sự kiện"
+        className="flex h-8 w-fit max-w-full items-center justify-start overflow-x-auto border-b border-card-border"
+      >
+        {TABS.map((item) => {
+          const active = item.value === tab;
+          return (
+            <Link
+              key={item.value}
+              to={`${routes.event(event.id)}${item.suffix}`}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "relative inline-flex h-[calc(100%-1px)] items-center justify-center px-3 py-1 text-sm whitespace-nowrap transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/20",
+                active
+                  ? "font-medium text-primary after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:bg-primary"
+                  : "text-foreground/80",
+              )}
+            >
               {item.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+            </Link>
+          );
+        })}
+      </nav>
 
       <Outlet context={context} />
     </div>

@@ -80,7 +80,7 @@ export function LoginPage() {
             <form onSubmit={onSubmit} noValidate>
               <FieldGroup>
                 {sessionMessage ? (
-                  <Alert className="bg-warning/10 text-warning">
+                  <Alert className="bg-warning-subtle text-warning">
                     <AlertDescription className="text-warning">{sessionMessage}</AlertDescription>
                   </Alert>
                 ) : null}

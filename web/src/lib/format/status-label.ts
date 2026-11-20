@@ -48,11 +48,11 @@ export function statusToneClass(tone: StatusTone): string {
     case "info":
       return "bg-accent text-accent-foreground";
     case "success":
-      return "bg-success/10 text-success";
+      return "bg-success-subtle text-success";
     case "warning":
-      return "bg-warning/10 text-warning";
+      return "bg-warning-subtle text-warning";
     case "error":
-      return "bg-destructive/10 text-destructive";
+      return "bg-destructive-subtle text-destructive";
     default:
       return "bg-secondary text-secondary-foreground";
   }

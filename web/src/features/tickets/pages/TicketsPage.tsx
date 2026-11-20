@@ -303,7 +303,7 @@ export function TicketsPage() {
                             variant="link"
                             size="sm"
                             onClick={() => void copyId(ticket.id)}
-                            aria-label={`Copy mã vé ${ticket.id}`}
+                            aria-label={`Copy mã vé ${formatTicketCode(ticket.id)}`}
                             className="h-auto p-0 font-mono font-semibold"
                           >
                             {formatTicketCode(ticket.id)}

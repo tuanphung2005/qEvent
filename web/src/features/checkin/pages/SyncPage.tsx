@@ -39,7 +39,7 @@ export function SyncPage() {
         </div>
         <Badge
           variant="secondary"
-          className={online ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}
+          className={online ? "bg-success-subtle text-success" : "bg-warning-subtle text-warning"}
         >
           {online ? "Đang trực tuyến" : "Đang ngoại tuyến"}
         </Badge>

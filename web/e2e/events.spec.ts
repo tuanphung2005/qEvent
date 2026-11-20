@@ -49,7 +49,10 @@ test.describe("sự kiện", () => {
     await page.getByRole("link", { name: "Xem" }).first().click();
     await expect(page.getByRole("link", { name: "Sửa sự kiện" })).toHaveCount(0);
 
-    await page.getByRole("tab", { name: "Phòng" }).click();
+    await page
+      .getByRole("navigation", { name: "Khu vực sự kiện" })
+      .getByRole("link", { name: "Phòng" })
+      .click();
     await expect(page.getByRole("heading", { name: "Phòng" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Thêm phòng" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Sửa" })).toHaveCount(0);
