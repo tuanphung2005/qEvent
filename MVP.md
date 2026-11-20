@@ -293,8 +293,9 @@ model QAQuestion {
     1. Kiểm tra chữ ký RSA & hạn TOTP ($\le 30\text{s}$). Nếu sai $\to$ `400 INVALID_TICKET`.
     2. Nếu `status == CHECKED_IN` $\to$ `409 ALREADY_CHECKED_IN`.
     3. Nếu `status == PAID` $\to$ Cập nhật `Ticket.status = CHECKED_IN`, lưu `CheckinLog` (`isOffline: false`) $\to$ `200 OK`.
-* **`POST /api/checkin/sync` (Đồng bộ ngoại tuyến & Xử lý xung đột)**:
-  * Body: `{ logs: [{ ticketId: string, scannedAt: string, deviceId: string }] }`
+* **`POST /api/checkins/sync-offline` (Đồng bộ ngoại tuyến & Xử lý xung đột)**:
+  * Body: `{ eventId: string, logs: [{ ticketId: string, scannedAt: string, deviceId: string }] }` (tối đa 500 log/lần)
+  * `eventId` là bắt buộc: vé của sự kiện khác bị trả `ERROR/EVENT_MISMATCH`. `scannedAt` lệch quá +5 phút so với giờ máy chủ bị trả `ERROR/INVALID_TIMESTAMP`.
   * Thuật toán: Sắp xếp theo `scannedAt` tăng dần. Lượt quét đầu tiên được ghi nhận `CHECKED_IN`, các lượt quét sau có cùng `ticketId` đánh dấu `syncStatus = CONFLICT`.
 
 ### 5.3. Realtime Live Q&A Engine (Elysia WebSocket)
@@ -328,7 +329,7 @@ model QAQuestion {
   * **Không hợp lệ (Red)**: Nền chuyển màu đỏ (`#EF4444`), rung dài liên tục (`notificationAsync(Error)`), hiển thị "MÃ KHÔNG HỢP LỆ HOẶC HẾT HẠN".
 * **Đồng bộ hàng đợi**:
   * Hiển thị Badge đếm số lượng vé chờ sync (`Pending count`) trên góc màn hình (thiết kế phẳng, không viền, bóng đáy).
-  * Nút "Đồng bộ vé" gọi `POST /api/checkin/sync` ngay khi kết nối mạng phục hồi.
+  * Nút "Đồng bộ vé" gọi `POST /api/checkins/sync-offline` ngay khi kết nối mạng phục hồi.
 
 ---
 
@@ -363,7 +364,7 @@ model QAQuestion {
 >    - 400 nếu chữ ký sai hoặc mã quá hạn.
 >    - 409 nếu vé đã ở trạng thái CHECKED_IN (Vé trùng lặp).
 >    - 200 nếu hợp lệ, cập nhật Ticket.status = CHECKED_IN và tạo CheckinLog.
-> 4. Route POST /api/checkin/sync: Nhận mảng logs từ thiết bị quét ngoại tuyến, đối soát theo thời gian scannedAt. Lượt đầu hợp lệ, lượt sau cùng ticketId đánh dấu syncStatus = 'CONFLICT'.
+> 4. Route POST /api/checkins/sync-offline: Nhận mảng logs từ thiết bị quét ngoại tuyến, đối soát theo thời gian scannedAt. Lượt đầu hợp lệ, lượt sau cùng ticketId đánh dấu syncStatus = 'CONFLICT'.
 > 5. Viết test mẫu (Bun test) kiểm tra việc ngăn chặn check-in lặp lại 2 lần cùng một vé.
 > ```
 
@@ -389,7 +390,7 @@ model QAQuestion {
 >    - Quét mã bằng CameraView từ expo-camera.
 >    - Bộ nhớ ngoại tuyến bằng expo-sqlite (lưu danh sách vé cache và hàng đợi scan).
 >    - Phản hồi đa giác quan: Đổi màu nền (Xanh/Vàng/Đỏ), rung bằng expo-haptics, âm thanh Ting bằng expo-av.
->    - Giám sát mạng bằng expo-network và nút đồng bộ lên POST /api/checkin/sync.
+>    - Giám sát mạng bằng expo-network và nút đồng bộ lên POST /api/checkins/sync-offline.
 > ```
 
 ---
