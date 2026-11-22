@@ -63,9 +63,13 @@ export function LoginPage() {
     <main className="flex min-h-dvh items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-[420px]">
         <div className="mb-6 flex items-center gap-3">
-          <span className="flex size-11 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-            qE
-          </span>
+          <img
+            src="/icon-192.png"
+            alt=""
+            width={44}
+            height={44}
+            className="size-11 shrink-0 rounded-lg"
+          />
           <div>
             <p className="text-sm font-semibold text-foreground">qEvent</p>
             <p className="text-xs text-muted-foreground">Console vận hành sự kiện</p>

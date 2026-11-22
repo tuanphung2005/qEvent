@@ -76,10 +76,18 @@ export function AppShell() {
     <SidebarProvider style={SIDEBAR_WIDTH} defaultOpen={wide}>
       <Sidebar collapsible="icon">
         <SidebarHeader>
-          <Link to={routes.dashboard()} className="flex h-10 items-center gap-2 px-2">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
-              qE
-            </span>
+          <Link
+            to={routes.dashboard()}
+            aria-label="qEvent"
+            className="flex h-10 items-center gap-2 px-2"
+          >
+            <img
+              src="/icon-64.png"
+              alt=""
+              width={32}
+              height={32}
+              className="size-8 shrink-0 rounded-md"
+            />
             <span className="truncate text-sm font-semibold text-foreground group-data-[collapsible=icon]:hidden">
               qEvent
             </span>
