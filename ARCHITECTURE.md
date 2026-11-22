@@ -389,7 +389,7 @@ qEvent/
 ├── scripts/                      e2e-smoke, seed-demo-activity, fault-injection,
 │                                 order-fault / lost-response experiments
 ├── docs/                         plans, evidence JSON, team guides
-├── plans/                        microservice migration + AI integration specs
+├── plans/                        microservice migration spec (historical)
 ├── postman/                      collection that runs through the gateway
 ├── docker-compose.yml            3 databases + 3 services + gateway + web
 └── DESIGN.md · PRODUCT.md · MVP.md · README.md

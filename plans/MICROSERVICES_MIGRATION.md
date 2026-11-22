@@ -1,10 +1,13 @@
 # Kế hoạch chuyển qEvent sang microservices
 
+> **Tài liệu lịch sử.** Kế hoạch đã hoàn tất; hệ thống hiện tại là `gateway/` + 3 service.
+> Các đường dẫn `backend/` bên dưới thuộc monolith đã bị xoá — xem `ARCHITECTURE.md` cho kiến trúc hiện tại.
+
 - Ngày: 2026-11-04
 - Nhóm: 4 người; tối thiểu 3 service nghiệp vụ, không tính API Gateway.
 - Mức kế hoạch: Tiêu chuẩn, dựa trên khảo sát source hiện tại.
 - Commit khảo sát: `c06bc0fa666b0c7f1c7b27efe99a419491188a72`.
-- Trạng thái: Đã lập kế hoạch; chưa triển khai các service mới.
+- Trạng thái: Đã hoàn tất; giữ làm hồ sơ thiết kế.
 - Cách lưu: Ghi trực tiếp theo yêu cầu của người dùng. Đây là kế hoạch kỹ thuật thông thường, không phải artifact đã được helper provenance của GitNexus chứng nhận.
 
 ## 1. Mục tiêu và phạm vi

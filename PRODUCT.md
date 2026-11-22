@@ -4,7 +4,7 @@
 
 ## Platform
 
-android
+web
 
 ## Users
 - **Event Attendees (Khách tham dự)**: Arrive at event venues needing fast access to their tickets, clear entrance status, and a dynamic 30-second TOTP QR code (RSA-256) that prevents screenshot fraud even in spotty connectivity. During the event, participate in live Q&A sessions with real-time upvoting.
@@ -37,9 +37,9 @@ Hybrid Check-in architecture combining RSA-256 + 30-second TOTP Dynamic QR codes
 - **Identity Palette**: Primary Blue/Indigo (`#2563EB`), Success Emerald (`#10B981`), Warning Amber (`#F59E0B`), Error Red (`#EF4444`).
 
 ## Evidence on Hand
-- Full MVP technical specification in [MVP.md](file:///D:/outsourced/qEvent/MVP.md)
-- Complete functional mobile codebase in [app/](file:///D:/outsourced/qEvent/app) with Expo Router routes: `(auth)/login.tsx`, `(attendee)/tickets.tsx`, `(attendee)/ticket/[id].tsx`, `(attendee)/qa.tsx`, `(staff)/scanner.tsx`, `(staff)/sync-status.tsx`.
-- Backend server in [backend/](file:///D:/outsourced/qEvent/backend) with ElysiaJS + Prisma + PostgreSQL.
+- Web staff/attendee console in [web/](web/) — React 19 + Vite, feature modules under `web/src/features/*`.
+- API gateway in [gateway/](gateway/) and three ElysiaJS + Prisma services in [services/](services/): `event-service`, `admission-service`, `engagement-service`.
+- Architecture and execution flows in [ARCHITECTURE.md](ARCHITECTURE.md); legacy mobile/monolith spec kept in [MVP.md](MVP.md) for reference only.
 
 ## Product Principles
 1. **Gate Speed is Non-Negotiable**: Every millisecond saved at check-in reduces attendee queuing frustration; feedback must be immediate and multi-sensory.
