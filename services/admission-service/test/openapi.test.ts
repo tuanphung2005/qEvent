@@ -9,6 +9,7 @@ const expectedOperations: Record<string, string[]> = {
   "/api/auth/register": ["post"],
   "/api/auth/login": ["post"],
   "/api/auth/me": ["get"],
+  "/api/users": ["get"],
   "/api/orders": ["get", "post"],
   "/api/orders/{id}": ["get"],
   "/api/tickets": ["get"],
@@ -23,6 +24,7 @@ const expectedOperations: Record<string, string[]> = {
 
 const protectedOperations: Array<[string, string, "bearerAuth" | "serviceToken"]> = [
   ["/api/auth/me", "get", "bearerAuth"],
+  ["/api/users", "get", "bearerAuth"],
   ["/api/orders", "get", "bearerAuth"],
   ["/api/orders", "post", "bearerAuth"],
   ["/api/orders/{id}", "get", "bearerAuth"],
