@@ -107,17 +107,28 @@ function toSessionData(session: SessionInput) {
   };
 }
 
-export async function listEvents(deps: Deps) {
+export async function listEvents(deps: Deps, hostUserId?: string) {
   const events = await deps.prisma.event.findMany({
+    where: hostUserId ? { hosts: { some: { userId: hostUserId } } } : undefined,
     include: eventInclude,
     orderBy: { startTime: "asc" },
   });
   return events.map(serializeEvent);
 }
 
-export async function getEvent(deps: Deps, id: string): Promise<ServiceResult> {
+export async function getEvent(
+  deps: Deps,
+  id: string,
+  hostUserId?: string
+): Promise<ServiceResult> {
   const event = await deps.prisma.event.findUnique({ where: { id }, include: eventInclude });
   if (!event) return eventNotFound();
+  if (hostUserId && !(await isEventHost(deps, id, hostUserId))) {
+    return {
+      status: 403,
+      body: { code: "EVENT_FORBIDDEN", message: "Host is not assigned to this event" },
+    };
+  }
   return { status: 200, body: { event: serializeEvent(event) } };
 }
 
@@ -346,7 +357,11 @@ export async function getInternalEvent(deps: Deps, id: string): Promise<ServiceR
   return getEvent(deps, id);
 }
 
-export async function getInternalSession(deps: Deps, id: string): Promise<ServiceResult> {
+export async function getInternalSession(
+  deps: Deps,
+  id: string,
+  hostUserId?: string
+): Promise<ServiceResult> {
   const session = await deps.prisma.session.findUnique({
     where: { id },
     include: { event: { select: { id: true, name: true, startTime: true, endTime: true } } },
@@ -365,7 +380,54 @@ export async function getInternalSession(deps: Deps, id: string): Promise<Servic
         endTime: session.endTime,
         isLive: session.isLive,
         event: session.event,
+        hostAssigned: hostUserId
+          ? await isEventHost(deps, session.event.id, hostUserId)
+          : false,
       },
     },
   };
+}
+
+export async function isEventHost(deps: Deps, eventId: string, userId: string): Promise<boolean> {
+  const row = await deps.prisma.eventHost.findUnique({
+    where: { eventId_userId: { eventId, userId } },
+    select: { id: true },
+  });
+  return Boolean(row);
+}
+
+export async function listEventHosts(deps: Deps, eventId: string): Promise<ServiceResult> {
+  const event = await deps.prisma.event.findUnique({ where: { id: eventId }, select: { id: true } });
+  if (!event) return eventNotFound();
+  const hosts = await deps.prisma.eventHost.findMany({
+    where: { eventId },
+    orderBy: { createdAt: "asc" },
+  });
+  return { status: 200, body: { eventId, hosts } };
+}
+
+export async function assignEventHost(
+  deps: Deps,
+  eventId: string,
+  userId: string
+): Promise<ServiceResult> {
+  const event = await deps.prisma.event.findUnique({ where: { id: eventId }, select: { id: true } });
+  if (!event) return eventNotFound();
+  const host = await deps.prisma.eventHost.upsert({
+    where: { eventId_userId: { eventId, userId } },
+    update: {},
+    create: { eventId, userId },
+  });
+  return { status: 201, body: { host } };
+}
+
+export async function unassignEventHost(
+  deps: Deps,
+  eventId: string,
+  userId: string
+): Promise<ServiceResult> {
+  const event = await deps.prisma.event.findUnique({ where: { id: eventId }, select: { id: true } });
+  if (!event) return eventNotFound();
+  await deps.prisma.eventHost.deleteMany({ where: { eventId, userId } });
+  return { status: 204, body: null };
 }

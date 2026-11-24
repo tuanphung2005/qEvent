@@ -238,6 +238,46 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Event"
+    EventHost:
+      type: object
+      required:
+        - id
+        - eventId
+        - userId
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        eventId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+    EventHostListResponse:
+      type: object
+      required:
+        - eventId
+        - hosts
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        hosts:
+          type: array
+          items:
+            $ref: "#/components/schemas/EventHost"
+    EventHostResponse:
+      type: object
+      required:
+        - host
+      properties:
+        host:
+          $ref: "#/components/schemas/EventHost"
     RoomRequest:
       type: object
       required:
@@ -494,6 +534,7 @@ components:
             - startTime
             - endTime
             - isLive
+            - hostAssigned
             - event
           properties:
             id:
@@ -512,6 +553,8 @@ components:
               type: string
               format: date-time
             isLive:
+              type: boolean
+            hostAssigned:
               type: boolean
             event:
               type: object
@@ -791,6 +834,8 @@ paths:
                       quota: 500
                       soldCount: 12
                       available: 488
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           description: The event does not exist.
           content:
@@ -947,7 +992,7 @@ paths:
                 $ref: "#/components/schemas/RoomResponse"
               example:
                 room:
-                  id: 00000000-0000-4000-8000-000000000016
+                  id: 00000000-0000-4000-8000-000000000023
                   name: Main Hall
                   capacity: 500
         "401":
@@ -1015,7 +1060,7 @@ paths:
                 $ref: "#/components/schemas/SessionResponse"
               example:
                 session:
-                  id: 00000000-0000-4000-8000-000000000017
+                  id: 00000000-0000-4000-8000-000000000024
                   title: Opening Keynote
                   speaker: Alex Nguyen
                   startTime: 2026-11-09T08:00:00.000Z
@@ -1091,7 +1136,7 @@ paths:
                 $ref: "#/components/schemas/TicketTypeResponse"
               example:
                 ticketType:
-                  id: 00000000-0000-4000-8000-000000000018
+                  id: 00000000-0000-4000-8000-000000000025
                   name: Standard
                   price: 25
                   quota: 500
@@ -1162,7 +1207,7 @@ paths:
                 $ref: "#/components/schemas/RoomResponse"
               example:
                 room:
-                  id: 00000000-0000-4000-8000-000000000013
+                  id: 00000000-0000-4000-8000-000000000020
                   name: Main Hall
                   capacity: 500
         "401":
@@ -1224,7 +1269,7 @@ paths:
                 $ref: "#/components/schemas/SessionResponse"
               example:
                 session:
-                  id: 00000000-0000-4000-8000-000000000014
+                  id: 00000000-0000-4000-8000-000000000021
                   title: Opening Keynote
                   speaker: Alex Nguyen
                   startTime: 2026-11-09T08:00:00.000Z
@@ -1294,7 +1339,7 @@ paths:
                 $ref: "#/components/schemas/TicketTypeResponse"
               example:
                 ticketType:
-                  id: 00000000-0000-4000-8000-000000000015
+                  id: 00000000-0000-4000-8000-000000000022
                   name: Standard
                   price: 25
                   quota: 500
@@ -1315,6 +1360,155 @@ paths:
                 message: Event was not found
         "422":
           $ref: "#/components/responses/ValidationFailed"
+  "/api/events/{id}/hosts":
+    get:
+      tags:
+        - events
+      summary: List hosts assigned to an event
+      operationId: listEventHosts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-user-role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - ORGANIZER
+          description: Forwarded by the API Gateway after JWT verification. The service rejects other roles with 403.
+      responses:
+        "200":
+          description: Hosts assigned to the event.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventHostListResponse"
+              example:
+                eventId: 00000000-0000-4000-8000-000000000013
+                hosts:
+                  - id: 00000000-0000-4000-8000-000000000014
+                    eventId: 00000000-0000-4000-8000-000000000015
+                    userId: 00000000-0000-4000-8000-000000000016
+                    createdAt: 2026-11-09T08:00:00.000Z
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The event does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: EVENT_NOT_FOUND
+                message: Event was not found
+  "/api/events/{id}/hosts/{userId}":
+    put:
+      tags:
+        - events
+      summary: Assign a HOST to an event
+      operationId: assignEventHost
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-user-role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - ORGANIZER
+          description: Forwarded by the API Gateway after JWT verification. The service rejects other roles with 403.
+      responses:
+        "201":
+          description: Host assigned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventHostResponse"
+              example:
+                host:
+                  id: 00000000-0000-4000-8000-000000000017
+                  eventId: 00000000-0000-4000-8000-000000000018
+                  userId: 00000000-0000-4000-8000-000000000019
+                  createdAt: 2026-11-09T08:00:00.000Z
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The event does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: EVENT_NOT_FOUND
+                message: Event was not found
+    delete:
+      tags:
+        - events
+      summary: Remove a HOST from an event
+      operationId: unassignEventHost
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-user-role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - ORGANIZER
+          description: Forwarded by the API Gateway after JWT verification. The service rejects other roles with 403.
+      responses:
+        "204":
+          description: Host assignment removed.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The event does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: EVENT_NOT_FOUND
+                message: Event was not found
   /internal/reservations:
     post:
       tags:
@@ -1344,10 +1538,10 @@ paths:
                 $ref: "#/components/schemas/ReservationResponse"
               example:
                 reservation:
-                  id: 00000000-0000-4000-8000-000000000022
+                  id: 00000000-0000-4000-8000-000000000029
                   operationId: 3f6f2f0e-9b2a-4c6d-8e1a-2b3c4d5e6f70
-                  eventId: 00000000-0000-4000-8000-000000000023
-                  ticketTypeId: 00000000-0000-4000-8000-000000000024
+                  eventId: 00000000-0000-4000-8000-000000000030
+                  ticketTypeId: 00000000-0000-4000-8000-000000000031
                   quantity: 1
                   status: CONFIRMED
                   expiresAt: 2026-11-09T08:00:00.000Z
@@ -1361,10 +1555,10 @@ paths:
                 $ref: "#/components/schemas/ReservationResponse"
               example:
                 reservation:
-                  id: 00000000-0000-4000-8000-000000000019
+                  id: 00000000-0000-4000-8000-000000000026
                   operationId: 3f6f2f0e-9b2a-4c6d-8e1a-2b3c4d5e6f70
-                  eventId: 00000000-0000-4000-8000-000000000020
-                  ticketTypeId: 00000000-0000-4000-8000-000000000021
+                  eventId: 00000000-0000-4000-8000-000000000027
+                  ticketTypeId: 00000000-0000-4000-8000-000000000028
                   quantity: 1
                   status: CONFIRMED
                   expiresAt: 2026-11-09T08:00:00.000Z
@@ -1430,10 +1624,10 @@ paths:
                 $ref: "#/components/schemas/ReservationResponse"
               example:
                 reservation:
-                  id: 00000000-0000-4000-8000-000000000025
+                  id: 00000000-0000-4000-8000-000000000032
                   operationId: 3f6f2f0e-9b2a-4c6d-8e1a-2b3c4d5e6f70
-                  eventId: 00000000-0000-4000-8000-000000000026
-                  ticketTypeId: 00000000-0000-4000-8000-000000000027
+                  eventId: 00000000-0000-4000-8000-000000000033
+                  ticketTypeId: 00000000-0000-4000-8000-000000000034
                   quantity: 1
                   status: CONFIRMED
                   expiresAt: 2026-11-09T08:00:00.000Z
@@ -1474,7 +1668,7 @@ paths:
                 $ref: "#/components/schemas/EventResponse"
               example:
                 event:
-                  id: 00000000-0000-4000-8000-000000000028
+                  id: 00000000-0000-4000-8000-000000000035
                   name: Tech Summit Vietnam 2026
                   venue: Saigon Exhibition and Convention Center
                   startTime: 2026-11-09T08:00:00.000Z
@@ -1483,11 +1677,11 @@ paths:
                   reservedCount: 12
                   createdAt: 2026-11-09T08:00:00.000Z
                   rooms:
-                    - id: 00000000-0000-4000-8000-000000000029
+                    - id: 00000000-0000-4000-8000-000000000036
                       name: Main Hall
                       capacity: 500
                   sessions:
-                    - id: 00000000-0000-4000-8000-000000000030
+                    - id: 00000000-0000-4000-8000-000000000037
                       title: Opening Keynote
                       speaker: Alex Nguyen
                       startTime: 2026-11-09T08:00:00.000Z
@@ -1526,6 +1720,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: "When provided, the response says whether this user is an assigned host."
       responses:
         "200":
           description: Session found.
@@ -1535,14 +1736,15 @@ paths:
                 $ref: "#/components/schemas/InternalSessionResponse"
               example:
                 session:
-                  id: 00000000-0000-4000-8000-000000000031
+                  id: 00000000-0000-4000-8000-000000000038
                   title: Opening Keynote
                   speaker: Alex Nguyen
                   startTime: 2026-11-09T08:00:00.000Z
                   endTime: 2026-11-09T08:00:00.000Z
                   isLive: true
+                  hostAssigned: true
                   event:
-                    id: 00000000-0000-4000-8000-000000000032
+                    id: 00000000-0000-4000-8000-000000000039
                     name: Tech Summit Vietnam 2026
                     startTime: 2026-11-09T08:00:00.000Z
                     endTime: 2026-11-09T08:00:00.000Z

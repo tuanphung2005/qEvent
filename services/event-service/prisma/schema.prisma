@@ -20,6 +20,18 @@ model Event {
   rooms         Room[]
   sessions      Session[]
   ticketTypes   TicketType[]
+  hosts         EventHost[]
+}
+
+model EventHost {
+  id        String   @id @default(uuid())
+  eventId   String
+  userId    String
+  createdAt DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId])
 }
 
 model Room {
