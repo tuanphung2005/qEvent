@@ -14,9 +14,18 @@ export function EngagementShell() {
   const { sessionId } = useParams<{ sessionId?: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { event, isLoading: eventLoading } = useEventContext();
+  const { event, events, setEventId, isLoading: eventLoading } = useEventContext();
 
-  const sessions = event?.sessions ?? [];
+  // Deep links from the presenter may arrive without ?eventId=. Resolve the
+  // event that owns the session instead of showing an empty "no sessions" card.
+  const sessionEvent =
+    event ?? events.find((item) => item.sessions.some((item) => item.id === sessionId)) ?? null;
+  const sessions = sessionEvent?.sessions ?? [];
+
+  useEffect(() => {
+    if (!sessionId || event) return;
+    if (sessionEvent) setEventId(sessionEvent.id);
+  }, [sessionId, event, sessionEvent, setEventId]);
   const activeSession = sessions.find((s) => s.id === sessionId) ?? sessions[0] ?? null;
 
   // Realtime hook for the active session

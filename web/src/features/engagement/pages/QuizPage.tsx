@@ -105,7 +105,8 @@ export function QuizPage() {
   const [questionToDelete, setQuestionToDelete] = useState<GameQuestion | null>(null);
   const [confirmAction, setConfirmAction] = useState<"next" | "end" | "restart" | null>(null);
 
-  const isStaffOrOrganizer = user?.role === "STAFF" || user?.role === "ORGANIZER";
+  const isStaffOrOrganizer =
+    user?.role === "STAFF" || user?.role === "HOST" || user?.role === "ORGANIZER";
 
   const openCreateQuestion = () => {
     setEditingQuestion(null);

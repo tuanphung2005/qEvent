@@ -41,6 +41,7 @@ export const initialGame: Game = {
   sessionId: sessionFixture.id,
   status: "WAITING",
   currentQuestionIndex: 0,
+  displayMode: "FULL",
   totalQuestions: 2,
   questions: [
     {
@@ -231,6 +232,12 @@ export const handlers = [
   http.delete("/api/game/:gameId", () => {
     game = null;
     return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.patch("/api/game/:gameId/settings", async ({ request }) => {
+    const body = (await request.json()) as { displayMode?: "FULL" | "LETTERS" };
+    if (game && body.displayMode) game.displayMode = body.displayMode;
+    return HttpResponse.json({ game });
   }),
 
   http.post("/api/game/:gameId/start", () => {
