@@ -5,6 +5,7 @@ import { EventDetailLayout } from "./pages/EventDetailLayout";
 import { EventNewPage } from "./pages/EventNewPage";
 import { EventOverviewPage } from "./pages/EventOverviewPage";
 import { EventsPage } from "./pages/EventsPage";
+import { HostsTab } from "./pages/HostsTab";
 import { RoomsTab } from "./pages/RoomsTab";
 import { SessionsTab } from "./pages/SessionsTab";
 import { TicketTypesTab } from "./pages/TicketTypesTab";
@@ -20,6 +21,7 @@ export const routes: RouteObject[] = [
       { path: "rooms", element: <RoomsTab /> },
       { path: "sessions", element: <SessionsTab /> },
       { path: "ticket-types", element: <TicketTypesTab /> },
+      { path: "hosts", element: <HostsTab /> },
     ],
   },
 ];
