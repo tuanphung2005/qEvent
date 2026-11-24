@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import type { Deps } from "../deps";
 import { createJwtAuth, deriveCurrentUser, isHostRole } from "../lib/auth";
 import { fail } from "../lib/http";
+import { requireHostSession } from "../lib/host-access";
 
 export function statsRoutes(deps: Deps, jwtSecret: string) {
   return new Elysia({ tags: ["stats"] })
@@ -16,6 +17,9 @@ export function statsRoutes(deps: Deps, jwtSecret: string) {
         if (!isHostRole(currentUser.role)) {
           return fail(set, 403, "FORBIDDEN", "Only staff or organizer can read session stats");
         }
+
+        const denied = await requireHostSession(deps, currentUser, set, params.sessionId);
+        if (denied) return denied;
 
         const [questions, polls, game] = await Promise.all([
           deps.prisma.qAQuestion.findMany({

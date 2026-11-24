@@ -60,6 +60,8 @@ model QuizGame {
   sessionId            String         @unique
   status               String         @default("WAITING")
   currentQuestionIndex Int            @default(0)
+  /** FULL = question + options on attendee phones; LETTERS = answer keys only. */
+  displayMode          String         @default("FULL")
   questions            QuizQuestion[]
 }
 

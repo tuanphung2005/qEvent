@@ -196,4 +196,45 @@ describe("BR-6 session access guard", () => {
     expect(res.status).toBe(503);
     expect(res.data.code).toBe("EVENT_SERVICE_UNAVAILABLE");
   });
+
+  it("lets a HOST account drive the session but keeps ATTENDEE out", async () => {
+    const { app, fakeEventClient } = makeTestApp();
+    fakeEventClient.assignHost("session-1", "user-host-br6");
+    const host = { "x-user-id": "user-host-br6", "x-user-role": "HOST" };
+
+    const created = await call(app, "/api/sessions/session-1/polls", {
+      method: "POST",
+      headers: host,
+      body: { title: "Host opens a poll", options: ["A", "B"] },
+    });
+    expect(created.status).toBe(201);
+
+    const edited = await call(app, `/api/polls/${created.data.poll.id}`, {
+      method: "PATCH",
+      headers: host,
+      body: { title: "Host edits the poll" },
+    });
+    expect(edited.status).toBe(200);
+    expect(edited.data.poll.title).toBe("Host edits the poll");
+
+    const denied = await call(app, "/api/sessions/session-1/polls", {
+      method: "POST",
+      headers: attendee,
+      body: { title: "Attendee tries the same", options: ["A", "B"] },
+    });
+    expect(denied.status).toBe(403);
+  });
+
+  it("rejects a HOST on an event they are not assigned to", async () => {
+    const { app } = makeTestApp();
+    const host = { "x-user-id": "user-host-unassigned", "x-user-role": "HOST" };
+
+    const created = await call(app, "/api/sessions/session-1/polls", {
+      method: "POST",
+      headers: host,
+      body: { title: "Not my event", options: ["A", "B"] },
+    });
+    expect(created.status).toBe(403);
+    expect(created.data.code).toBe("EVENT_NOT_ASSIGNED");
+  });
 });

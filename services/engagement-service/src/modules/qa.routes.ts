@@ -3,6 +3,7 @@ import type { Deps } from "../deps";
 import { createJwtAuth, deriveCurrentUser, isHostRole } from "../lib/auth";
 import { AccessError, requireSessionAccess } from "../lib/br6";
 import { fail } from "../lib/http";
+import { requireHostSession } from "../lib/host-access";
 import { broadcaster } from "../lib/broadcast";
 
 export function qaRoutes(deps: Deps, jwtSecret: string) {
@@ -11,7 +12,10 @@ export function qaRoutes(deps: Deps, jwtSecret: string) {
     .derive(deriveCurrentUser)
     .get(
       "/api/sessions/:sessionId/questions",
-      async ({ params, currentUser }) => {
+      async ({ params, currentUser, set }) => {
+        const denied = await requireHostSession(deps, currentUser, set, params.sessionId);
+        if (denied) return denied;
+
         const questions = await deps.prisma.qAQuestion.findMany({
           where: { sessionId: params.sessionId, deletedAt: null },
           include: {
@@ -184,6 +188,9 @@ export function qaRoutes(deps: Deps, jwtSecret: string) {
           return fail(set, 404, "QUESTION_NOT_FOUND", "Question was not found");
         }
 
+        const denied = await requireHostSession(deps, currentUser, set, question.sessionId);
+        if (denied) return denied;
+
         const updated = await deps.prisma.qAQuestion.update({
           where: { id: question.id },
           data: { content: body.content.trim() },
@@ -217,6 +224,9 @@ export function qaRoutes(deps: Deps, jwtSecret: string) {
           return fail(set, 404, "QUESTION_NOT_FOUND", "Question was not found");
         }
 
+        const denied = await requireHostSession(deps, currentUser, set, question.sessionId);
+        if (denied) return denied;
+
         // Soft delete: votes and upvotes survive, so a restore is lossless.
         await deps.prisma.qAQuestion.update({
           where: { id: question.id },
@@ -247,6 +257,9 @@ export function qaRoutes(deps: Deps, jwtSecret: string) {
         if (!question || !question.deletedAt) {
           return fail(set, 404, "QUESTION_NOT_FOUND", "Deleted question was not found");
         }
+
+        const denied = await requireHostSession(deps, currentUser, set, question.sessionId);
+        if (denied) return denied;
 
         const restored = await deps.prisma.qAQuestion.update({
           where: { id: question.id },

@@ -11,6 +11,7 @@ type JwtVerifier = {
 type AuthenticatedData = {
   authenticated?: boolean;
   userId?: string;
+  role?: string;
   authPromise?: Promise<unknown>;
 };
 
@@ -22,6 +23,7 @@ async function authenticate(
     jwtAuth?: JwtVerifier;
     authenticated?: boolean;
     userId?: string;
+    role?: string;
   };
 
   if (!data.request) return { ok: false, reason: "NO_REQUEST" };
@@ -33,12 +35,13 @@ async function authenticate(
   const payload = await data.jwtAuth.verify(token);
   if (!payload || typeof payload !== "object") return { ok: false, reason: "INVALID_TOKEN" };
 
-  const claims = payload as { sub?: unknown; id?: unknown; userId?: unknown };
+  const claims = payload as { sub?: unknown; id?: unknown; userId?: unknown; role?: unknown };
   const userId = claims.sub ?? claims.id ?? claims.userId;
   if (typeof userId !== "string") return { ok: false, reason: "NO_USER_ID" };
 
   data.authenticated = true;
   data.userId = userId;
+  data.role = typeof claims.role === "string" ? claims.role : "ATTENDEE";
   return { ok: true };
 }
 
@@ -79,6 +82,32 @@ export function wsRoutes(deps: Deps, jwtSecret: string) {
         }
 
         if (message.type === "JOIN_SESSION" && message.sessionId) {
+          const data = ws.data as AuthenticatedData;
+          if (data.role === "HOST" && data.userId) {
+            try {
+              const session = await deps.eventClient.getSession(message.sessionId, data.userId);
+              if (!session.hostAssigned) {
+                ws.send(
+                  JSON.stringify({
+                    type: "ERROR",
+                    code: "EVENT_NOT_ASSIGNED",
+                    message: "Host is not assigned to this event",
+                  })
+                );
+                return;
+              }
+            } catch {
+              ws.send(
+                JSON.stringify({
+                  type: "ERROR",
+                  code: "EVENT_SERVICE_UNAVAILABLE",
+                  message: "Cannot verify host assignment",
+                })
+              );
+              return;
+            }
+          }
+
           const unsubscribe = broadcaster.subscribeQa(message.sessionId, {
             send: (data: string) => ws.send(data),
           });
@@ -112,6 +141,32 @@ export function wsRoutes(deps: Deps, jwtSecret: string) {
           if (!game) {
             ws.send(JSON.stringify({ type: "ERROR", error: "GAME_NOT_FOUND" }));
             return;
+          }
+
+          const data = ws.data as AuthenticatedData;
+          if (data.role === "HOST" && data.userId) {
+            try {
+              const session = await deps.eventClient.getSession(game.sessionId, data.userId);
+              if (!session.hostAssigned) {
+                ws.send(
+                  JSON.stringify({
+                    type: "ERROR",
+                    code: "EVENT_NOT_ASSIGNED",
+                    message: "Host is not assigned to this event",
+                  })
+                );
+                return;
+              }
+            } catch {
+              ws.send(
+                JSON.stringify({
+                  type: "ERROR",
+                  code: "EVENT_SERVICE_UNAVAILABLE",
+                  message: "Cannot verify host assignment",
+                })
+              );
+              return;
+            }
           }
 
           const unsubscribe = broadcaster.subscribeGame(message.gameId, {

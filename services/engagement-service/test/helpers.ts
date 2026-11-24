@@ -35,6 +35,7 @@ export class FakeEventClient implements EventClient {
   private sessions = new Map<string, SessionAccessInfo>();
   private failures = new Set<string>();
   private missing = new Set<string>();
+  private hosts = new Map<string, Set<string>>();
 
   /** By default every session is live and maps to an event with the same id. */
   constructor() {}
@@ -42,6 +43,13 @@ export class FakeEventClient implements EventClient {
   setSession(sessionId: string, eventId: string, isLive = true) {
     this.sessions.set(sessionId, { sessionId, eventId, isLive });
     this.failures.delete(sessionId);
+    return this;
+  }
+
+  assignHost(sessionId: string, userId: string) {
+    const users = this.hosts.get(sessionId) ?? new Set<string>();
+    users.add(userId);
+    this.hosts.set(sessionId, users);
     return this;
   }
 
@@ -60,16 +68,17 @@ export class FakeEventClient implements EventClient {
     return this;
   }
 
-  async getSession(sessionId: string): Promise<SessionAccessInfo> {
+  async getSession(sessionId: string, userId?: string): Promise<SessionAccessInfo> {
     if (this.missing.has(sessionId)) {
       throw new SessionNotFoundError(sessionId);
     }
     if (this.failures.has(sessionId)) {
       throw new Error("event service unreachable");
     }
+    const hostAssigned = Boolean(userId && this.hosts.get(sessionId)?.has(userId));
     const configured = this.sessions.get(sessionId);
-    if (configured) return configured;
-    return { sessionId, eventId: sessionId, isLive: true };
+    if (configured) return { ...configured, hostAssigned };
+    return { sessionId, eventId: sessionId, isLive: true, hostAssigned };
   }
 }
 
@@ -361,6 +370,7 @@ export class InMemoryPrisma {
         sessionId: args.data.sessionId,
         status: args.data.status ?? "WAITING",
         currentQuestionIndex: args.data.currentQuestionIndex ?? 0,
+        displayMode: args.data.displayMode ?? "FULL",
       };
       this.quizGames.push(item);
       return { ...item, questions: [] };
