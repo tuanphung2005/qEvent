@@ -25,6 +25,13 @@ export const organizer: User = {
   role: "ORGANIZER",
 };
 
+export const host: User = {
+  id: "0f7a1b2c-0000-4000-8000-000000000004",
+  email: "host@qevent.com",
+  fullName: "Alex Nguyen",
+  role: "HOST",
+};
+
 export const staff: User = {
   id: "0f7a1b2c-0000-4000-8000-000000000002",
   email: "staff1@qevent.com",

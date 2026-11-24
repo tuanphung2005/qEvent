@@ -264,6 +264,22 @@ export function useStartGame(sessionId: string) {
   });
 }
 
+export function useUpdateGameDisplay(sessionId: string, gameId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (displayMode: "FULL" | "LETTERS") =>
+      unwrap(
+        await api.PATCH("/api/game/{gameId}/settings", {
+          params: { path: { gameId } },
+          body: { displayMode },
+        }),
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.engagement.game(sessionId) });
+    },
+  });
+}
+
 export function useRevealGameAnswer(sessionId: string) {
   const queryClient = useQueryClient();
   return useMutation({

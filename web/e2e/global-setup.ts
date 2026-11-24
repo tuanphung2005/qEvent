@@ -2,6 +2,7 @@ const API_BASE = process.env.E2E_API_BASE ?? "http://localhost:8000";
 
 export const CREDENTIALS = {
   organizer: { email: "organizer@qevent.com", password: "password123" },
+  host: { email: "host@qevent.com", password: "password123" },
   staff: { email: "staff1@qevent.com", password: "password123" },
   attendee: { email: "attendee@qevent.com", password: "password123" },
 } as const;

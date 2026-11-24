@@ -25,6 +25,7 @@ const LABELS: Record<string, Entry> = {
   FINISHED: { label: "Đã kết thúc", tone: "neutral" },
   // Roles
   ORGANIZER: { label: "Ban tổ chức", tone: "info" },
+  HOST: { label: "Người dẫn phiên", tone: "info" },
   STAFF: { label: "Nhân sự soát vé", tone: "neutral" },
   ATTENDEE: { label: "Khách tham dự", tone: "neutral" },
 };
