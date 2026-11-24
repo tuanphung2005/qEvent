@@ -23,6 +23,7 @@ export const routes = {
   eventRooms: (eventId: string) => `/events/${eventId}/rooms`,
   eventSessions: (eventId: string) => `/events/${eventId}/sessions`,
   eventTicketTypes: (eventId: string) => `/events/${eventId}/ticket-types`,
+  eventHosts: (eventId: string) => `/events/${eventId}/hosts`,
   orders: (f?: ListFilter) => withQuery("/orders", f),
   order: (orderId: string) => `/orders/${orderId}`,
   tickets: (f?: ListFilter) => withQuery("/tickets", f),
@@ -32,5 +33,6 @@ export const routes = {
   sync: () => "/sync",
   engagement: (sessionId: string, tab: "qa" | "polls" | "quiz" = "qa") =>
     `/engagement/${sessionId}${tab === "qa" ? "" : `/${tab}`}`,
+  present: (sessionId?: string) => (sessionId ? `/present/${sessionId}` : "/present"),
   settings: () => "/settings",
 } as const;

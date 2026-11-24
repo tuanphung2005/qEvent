@@ -173,6 +173,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/events/{id}/hosts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List hosts assigned to an event */
+        get: operations["listEventHosts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/events/{id}/hosts/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Assign a HOST to an event */
+        put: operations["assignEventHost"];
+        post?: never;
+        /** Remove a HOST from an event */
+        delete: operations["unassignEventHost"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/reservations": {
         parameters: {
             query?: never;
@@ -298,6 +333,26 @@ export interface paths {
         put?: never;
         /** Log in and issue a JWT */
         post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List accounts for organizer assignment pickers
+         * @description Requires ORGANIZER. Returns id, email, full name and role only; credentials and hashes are never exposed.
+         */
+        get: operations["listUsers"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -691,6 +746,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/game/{gameId}/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Choose what attendee phones show during a quiz */
+        patch: operations["updateGameSettings"];
+        trace?: never;
+    };
     "/api/game/{gameId}/question": {
         parameters: {
             query?: never;
@@ -1008,6 +1080,24 @@ export interface components {
         EventListResponse: {
             events: components["schemas"]["Event"][];
         };
+        EventHost: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            eventId: string;
+            /** Format: uuid */
+            userId: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        EventHostListResponse: {
+            /** Format: uuid */
+            eventId: string;
+            hosts: components["schemas"]["EventHost"][];
+        };
+        EventHostResponse: {
+            host: components["schemas"]["EventHost"];
+        };
         RoomRequest: {
             name: string;
             capacity: number;
@@ -1116,6 +1206,7 @@ export interface components {
                 /** Format: date-time */
                 endTime: string;
                 isLive: boolean;
+                hostAssigned: boolean;
                 event: {
                     /** Format: uuid */
                     id: string;
@@ -1183,7 +1274,10 @@ export interface components {
             email: string;
             fullName: string;
             /** @enum {string} */
-            role: "ORGANIZER" | "STAFF" | "ATTENDEE";
+            role: "ORGANIZER" | "HOST" | "STAFF" | "ATTENDEE";
+        };
+        UserListResponse: {
+            users: components["schemas"]["User"][];
         };
         AuthResponse: {
             /** @description JWT valid for 12 hours. */
@@ -1667,6 +1761,8 @@ export interface components {
             status: "WAITING" | "QUESTION_ACTIVE" | "ROUND_REVEALED" | "FINISHED";
             /** @example 0 */
             currentQuestionIndex: number;
+            /** @enum {string} */
+            displayMode?: "FULL" | "LETTERS";
             /** @example 3 */
             totalQuestions?: number;
             questions?: components["schemas"]["GameQuestion"][];
@@ -1681,6 +1777,10 @@ export interface components {
             options: string[];
             correctOption: number;
             timeLimitSec: number;
+        };
+        UpdateGameSettingsRequest: {
+            /** @enum {string} */
+            displayMode: "FULL" | "LETTERS";
         };
         UpdateGameQuestionRequest: {
             content?: string;
@@ -1879,7 +1979,7 @@ export interface components {
                 "application/json": components["schemas"]["EngagementErrorBody"];
             };
         };
-        /** @description The caller is not a STAFF or ORGANIZER for the host-only action. */
+        /** @description The caller is not a STAFF, HOST or ORGANIZER for the host-only action. */
         EngagementForbidden: {
             headers: {
                 [name: string]: unknown;
@@ -2226,6 +2326,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventResponse"];
                 };
             };
+            403: components["responses"]["Forbidden"];
             /** @description The event does not exist. */
             404: {
                 headers: {
@@ -2403,7 +2504,7 @@ export interface operations {
                     /**
                      * @example {
                      *       "room": {
-                     *         "id": "00000000-0000-4000-8000-000000000016",
+                     *         "id": "00000000-0000-4000-8000-000000000023",
                      *         "name": "Main Hall",
                      *         "capacity": 500
                      *       }
@@ -2469,7 +2570,7 @@ export interface operations {
                     /**
                      * @example {
                      *       "session": {
-                     *         "id": "00000000-0000-4000-8000-000000000017",
+                     *         "id": "00000000-0000-4000-8000-000000000024",
                      *         "title": "Opening Keynote",
                      *         "speaker": "Alex Nguyen",
                      *         "startTime": "2026-11-09T08:00:00.000Z",
@@ -2550,7 +2651,7 @@ export interface operations {
                     /**
                      * @example {
                      *       "ticketType": {
-                     *         "id": "00000000-0000-4000-8000-000000000018",
+                     *         "id": "00000000-0000-4000-8000-000000000025",
                      *         "name": "Standard",
                      *         "price": 25,
                      *         "quota": 500,
@@ -2630,7 +2731,7 @@ export interface operations {
                     /**
                      * @example {
                      *       "room": {
-                     *         "id": "00000000-0000-4000-8000-000000000013",
+                     *         "id": "00000000-0000-4000-8000-000000000020",
                      *         "name": "Main Hall",
                      *         "capacity": 500
                      *       }
@@ -2695,7 +2796,7 @@ export interface operations {
                     /**
                      * @example {
                      *       "session": {
-                     *         "id": "00000000-0000-4000-8000-000000000014",
+                     *         "id": "00000000-0000-4000-8000-000000000021",
                      *         "title": "Opening Keynote",
                      *         "speaker": "Alex Nguyen",
                      *         "startTime": "2026-11-09T08:00:00.000Z",
@@ -2775,7 +2876,7 @@ export interface operations {
                     /**
                      * @example {
                      *       "ticketType": {
-                     *         "id": "00000000-0000-4000-8000-000000000015",
+                     *         "id": "00000000-0000-4000-8000-000000000022",
                      *         "name": "Standard",
                      *         "price": 25,
                      *         "quota": 500,
@@ -2805,6 +2906,155 @@ export interface operations {
                 };
             };
             422: components["responses"]["ValidationFailed"];
+        };
+    };
+    listEventHosts: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Forwarded by the API Gateway after JWT verification. The service rejects other roles with 403. */
+                "x-user-role": "ORGANIZER";
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hosts assigned to the event. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "eventId": "00000000-0000-4000-8000-000000000013",
+                     *       "hosts": [
+                     *         {
+                     *           "id": "00000000-0000-4000-8000-000000000014",
+                     *           "eventId": "00000000-0000-4000-8000-000000000015",
+                     *           "userId": "00000000-0000-4000-8000-000000000016",
+                     *           "createdAt": "2026-11-09T08:00:00.000Z"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EventHostListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The event does not exist. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "EVENT_NOT_FOUND",
+                     *       "message": "Event was not found"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    assignEventHost: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Forwarded by the API Gateway after JWT verification. The service rejects other roles with 403. */
+                "x-user-role": "ORGANIZER";
+            };
+            path: {
+                id: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Host assigned. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "host": {
+                     *         "id": "00000000-0000-4000-8000-000000000017",
+                     *         "eventId": "00000000-0000-4000-8000-000000000018",
+                     *         "userId": "00000000-0000-4000-8000-000000000019",
+                     *         "createdAt": "2026-11-09T08:00:00.000Z"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EventHostResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The event does not exist. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "EVENT_NOT_FOUND",
+                     *       "message": "Event was not found"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    unassignEventHost: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Forwarded by the API Gateway after JWT verification. The service rejects other roles with 403. */
+                "x-user-role": "ORGANIZER";
+            };
+            path: {
+                id: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Host assignment removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The event does not exist. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "EVENT_NOT_FOUND",
+                     *       "message": "Event was not found"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     createReservation: {
@@ -2837,10 +3087,10 @@ export interface operations {
                     /**
                      * @example {
                      *       "reservation": {
-                     *         "id": "00000000-0000-4000-8000-000000000022",
+                     *         "id": "00000000-0000-4000-8000-000000000029",
                      *         "operationId": "3f6f2f0e-9b2a-4c6d-8e1a-2b3c4d5e6f70",
-                     *         "eventId": "00000000-0000-4000-8000-000000000023",
-                     *         "ticketTypeId": "00000000-0000-4000-8000-000000000024",
+                     *         "eventId": "00000000-0000-4000-8000-000000000030",
+                     *         "ticketTypeId": "00000000-0000-4000-8000-000000000031",
                      *         "quantity": 1,
                      *         "status": "CONFIRMED",
                      *         "expiresAt": "2026-11-09T08:00:00.000Z",
@@ -2861,10 +3111,10 @@ export interface operations {
                     /**
                      * @example {
                      *       "reservation": {
-                     *         "id": "00000000-0000-4000-8000-000000000019",
+                     *         "id": "00000000-0000-4000-8000-000000000026",
                      *         "operationId": "3f6f2f0e-9b2a-4c6d-8e1a-2b3c4d5e6f70",
-                     *         "eventId": "00000000-0000-4000-8000-000000000020",
-                     *         "ticketTypeId": "00000000-0000-4000-8000-000000000021",
+                     *         "eventId": "00000000-0000-4000-8000-000000000027",
+                     *         "ticketTypeId": "00000000-0000-4000-8000-000000000028",
                      *         "quantity": 1,
                      *         "status": "CONFIRMED",
                      *         "expiresAt": "2026-11-09T08:00:00.000Z",
@@ -2924,10 +3174,10 @@ export interface operations {
                     /**
                      * @example {
                      *       "reservation": {
-                     *         "id": "00000000-0000-4000-8000-000000000025",
+                     *         "id": "00000000-0000-4000-8000-000000000032",
                      *         "operationId": "3f6f2f0e-9b2a-4c6d-8e1a-2b3c4d5e6f70",
-                     *         "eventId": "00000000-0000-4000-8000-000000000026",
-                     *         "ticketTypeId": "00000000-0000-4000-8000-000000000027",
+                     *         "eventId": "00000000-0000-4000-8000-000000000033",
+                     *         "ticketTypeId": "00000000-0000-4000-8000-000000000034",
                      *         "quantity": 1,
                      *         "status": "CONFIRMED",
                      *         "expiresAt": "2026-11-09T08:00:00.000Z",
@@ -2977,7 +3227,7 @@ export interface operations {
                     /**
                      * @example {
                      *       "event": {
-                     *         "id": "00000000-0000-4000-8000-000000000028",
+                     *         "id": "00000000-0000-4000-8000-000000000035",
                      *         "name": "Tech Summit Vietnam 2026",
                      *         "venue": "Saigon Exhibition and Convention Center",
                      *         "startTime": "2026-11-09T08:00:00.000Z",
@@ -2987,14 +3237,14 @@ export interface operations {
                      *         "createdAt": "2026-11-09T08:00:00.000Z",
                      *         "rooms": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000029",
+                     *             "id": "00000000-0000-4000-8000-000000000036",
                      *             "name": "Main Hall",
                      *             "capacity": 500
                      *           }
                      *         ],
                      *         "sessions": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000030",
+                     *             "id": "00000000-0000-4000-8000-000000000037",
                      *             "title": "Opening Keynote",
                      *             "speaker": "Alex Nguyen",
                      *             "startTime": "2026-11-09T08:00:00.000Z",
@@ -3038,7 +3288,10 @@ export interface operations {
     };
     getInternalSession: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description When provided, the response says whether this user is an assigned host. */
+                userId?: string;
+            };
             header?: never;
             path: {
                 id: string;
@@ -3056,14 +3309,15 @@ export interface operations {
                     /**
                      * @example {
                      *       "session": {
-                     *         "id": "00000000-0000-4000-8000-000000000031",
+                     *         "id": "00000000-0000-4000-8000-000000000038",
                      *         "title": "Opening Keynote",
                      *         "speaker": "Alex Nguyen",
                      *         "startTime": "2026-11-09T08:00:00.000Z",
                      *         "endTime": "2026-11-09T08:00:00.000Z",
                      *         "isLive": true,
+                     *         "hostAssigned": true,
                      *         "event": {
-                     *           "id": "00000000-0000-4000-8000-000000000032",
+                     *           "id": "00000000-0000-4000-8000-000000000039",
                      *           "name": "Tech Summit Vietnam 2026",
                      *           "startTime": "2026-11-09T08:00:00.000Z",
                      *           "endTime": "2026-11-09T08:00:00.000Z"
@@ -3239,6 +3493,56 @@ export interface operations {
             422: components["responses"]["AdmissionValidationFailed"];
         };
     };
+    listUsers: {
+        parameters: {
+            query?: {
+                role?: "ORGANIZER" | "HOST" | "STAFF" | "ATTENDEE";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accounts visible to the organizer. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "users": [
+                     *         {
+                     *           "id": "00000000-0000-4000-8000-000000000005",
+                     *           "email": "attendee@qevent.dev",
+                     *           "fullName": "Nguyen Van A",
+                     *           "role": "ATTENDEE"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["UserListResponse"];
+                };
+            };
+            401: components["responses"]["AdmissionUnauthorized"];
+            /** @description Organizer role is required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "FORBIDDEN",
+                     *       "message": "Organizer role is required"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["AdmissionErrorBody"];
+                };
+            };
+        };
+    };
     listOrders: {
         parameters: {
             query: {
@@ -3264,9 +3568,9 @@ export interface operations {
                      * @example {
                      *       "orders": [
                      *         {
-                     *           "id": "00000000-0000-4000-8000-000000000005",
+                     *           "id": "00000000-0000-4000-8000-000000000006",
                      *           "attendee": {
-                     *             "id": "00000000-0000-4000-8000-000000000006",
+                     *             "id": "00000000-0000-4000-8000-000000000007",
                      *             "email": "attendee@qevent.dev",
                      *             "fullName": "Nguyen Van A"
                      *           },
@@ -3336,7 +3640,7 @@ export interface operations {
                     /**
                      * @example {
                      *       "order": {
-                     *         "id": "00000000-0000-4000-8000-000000000007",
+                     *         "id": "00000000-0000-4000-8000-000000000008",
                      *         "userId": "5f3b6e2a-1c4d-4a8e-9b7f-2d6c8a1e4b90",
                      *         "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
                      *         "ticketTypeId": "9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70",
@@ -3347,7 +3651,7 @@ export interface operations {
                      *         "createdAt": "2026-11-09T08:00:00.000Z",
                      *         "tickets": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000008",
+                     *             "id": "00000000-0000-4000-8000-000000000009",
                      *             "status": "PAID",
                      *             "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
                      *             "ticketTypeId": "9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70",
@@ -3372,7 +3676,7 @@ export interface operations {
                     /**
                      * @example {
                      *       "order": {
-                     *         "id": "00000000-0000-4000-8000-000000000009",
+                     *         "id": "00000000-0000-4000-8000-000000000010",
                      *         "userId": "5f3b6e2a-1c4d-4a8e-9b7f-2d6c8a1e4b90",
                      *         "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
                      *         "ticketTypeId": "9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70",
@@ -3451,7 +3755,7 @@ export interface operations {
                     /**
                      * @example {
                      *       "order": {
-                     *         "id": "00000000-0000-4000-8000-000000000011",
+                     *         "id": "00000000-0000-4000-8000-000000000012",
                      *         "userId": "5f3b6e2a-1c4d-4a8e-9b7f-2d6c8a1e4b90",
                      *         "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
                      *         "ticketTypeId": "9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70",
@@ -3462,7 +3766,7 @@ export interface operations {
                      *         "createdAt": "2026-11-09T08:00:00.000Z",
                      *         "tickets": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000012",
+                     *             "id": "00000000-0000-4000-8000-000000000013",
                      *             "status": "PAID",
                      *             "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
                      *             "ticketTypeId": "9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70",
@@ -3521,17 +3825,17 @@ export interface operations {
                      * @example {
                      *       "tickets": [
                      *         {
-                     *           "id": "00000000-0000-4000-8000-000000000013",
+                     *           "id": "00000000-0000-4000-8000-000000000014",
                      *           "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
                      *           "ticketTypeId": "9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70",
-                     *           "orderId": "00000000-0000-4000-8000-000000000014",
+                     *           "orderId": "00000000-0000-4000-8000-000000000015",
                      *           "status": "PENDING_PAYMENT",
                      *           "orderStatus": "CONFIRMED",
                      *           "checkedInAt": "2026-11-09T08:00:00.000Z",
                      *           "createdAt": "2026-11-09T08:00:00.000Z",
                      *           "updatedAt": "2026-11-09T08:00:00.000Z",
                      *           "attendee": {
-                     *             "id": "00000000-0000-4000-8000-000000000015",
+                     *             "id": "00000000-0000-4000-8000-000000000016",
                      *             "email": "attendee@qevent.dev",
                      *             "fullName": "Nguyen Van A"
                      *           }
@@ -3618,23 +3922,23 @@ export interface operations {
                     /**
                      * @example {
                      *       "ticket": {
-                     *         "id": "00000000-0000-4000-8000-000000000017",
+                     *         "id": "00000000-0000-4000-8000-000000000018",
                      *         "eventId": "7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60",
                      *         "ticketTypeId": "9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70",
-                     *         "orderId": "00000000-0000-4000-8000-000000000018",
+                     *         "orderId": "00000000-0000-4000-8000-000000000019",
                      *         "status": "PENDING_PAYMENT",
                      *         "orderStatus": "CONFIRMED",
                      *         "checkedInAt": "2026-11-09T08:00:00.000Z",
                      *         "createdAt": "2026-11-09T08:00:00.000Z",
                      *         "updatedAt": "2026-11-09T08:00:00.000Z",
                      *         "attendee": {
-                     *           "id": "00000000-0000-4000-8000-000000000019",
+                     *           "id": "00000000-0000-4000-8000-000000000020",
                      *           "email": "attendee@qevent.dev",
                      *           "fullName": "Nguyen Van A"
                      *         }
                      *       },
                      *       "order": {
-                     *         "id": "00000000-0000-4000-8000-000000000020",
+                     *         "id": "00000000-0000-4000-8000-000000000021",
                      *         "status": "PENDING",
                      *         "quantity": 1,
                      *         "totalAmount": 50,
@@ -3642,8 +3946,8 @@ export interface operations {
                      *       },
                      *       "checkinLogs": [
                      *         {
-                     *           "id": "00000000-0000-4000-8000-000000000021",
-                     *           "scannedBy": "00000000-0000-4000-8000-000000000022",
+                     *           "id": "00000000-0000-4000-8000-000000000022",
+                     *           "scannedBy": "00000000-0000-4000-8000-000000000023",
                      *           "scannedAt": "2026-11-09T08:00:00.000Z",
                      *           "isOffline": true,
                      *           "deviceId": "gate-1",
@@ -3784,14 +4088,14 @@ export interface operations {
                      * @example {
                      *       "checkins": [
                      *         {
-                     *           "id": "00000000-0000-4000-8000-000000000023",
+                     *           "id": "00000000-0000-4000-8000-000000000024",
                      *           "ticketId": "1b4d7f9a-3c6e-4a2b-8d5f-7e9c1a3b5d20",
                      *           "scannedAt": "2026-11-09T08:00:00.000Z",
                      *           "isOffline": true,
                      *           "syncStatus": "SYNCED",
                      *           "deviceId": "gate-1",
                      *           "attendee": {
-                     *             "id": "00000000-0000-4000-8000-000000000024",
+                     *             "id": "00000000-0000-4000-8000-000000000025",
                      *             "email": "attendee@qevent.dev",
                      *             "fullName": "Nguyen Van A"
                      *           },
@@ -3868,7 +4172,7 @@ export interface operations {
                      *       "status": "CHECKIN_SUCCESS",
                      *       "code": "CHECKIN_SUCCESS",
                      *       "ticket": {
-                     *         "id": "00000000-0000-4000-8000-000000000025",
+                     *         "id": "00000000-0000-4000-8000-000000000026",
                      *         "status": "CHECKED_IN",
                      *         "checkedInAt": "2026-11-09T08:00:00.000Z",
                      *         "attendeeName": "Nguyen Van A"
@@ -4825,6 +5129,7 @@ export interface operations {
                      *         "sessionId": "00000000-0000-4000-8000-000000000041",
                      *         "status": "WAITING",
                      *         "currentQuestionIndex": 0,
+                     *         "displayMode": "FULL",
                      *         "totalQuestions": 3,
                      *         "questions": [
                      *           {
@@ -4904,6 +5209,7 @@ export interface operations {
                      *         "sessionId": "00000000-0000-4000-8000-000000000046",
                      *         "status": "WAITING",
                      *         "currentQuestionIndex": 0,
+                     *         "displayMode": "FULL",
                      *         "totalQuestions": 3,
                      *         "questions": [
                      *           {
@@ -4955,6 +5261,7 @@ export interface operations {
                      *         "sessionId": "00000000-0000-4000-8000-000000000051",
                      *         "status": "WAITING",
                      *         "currentQuestionIndex": 0,
+                     *         "displayMode": "FULL",
                      *         "totalQuestions": 3,
                      *         "questions": [
                      *           {
@@ -4995,6 +5302,97 @@ export interface operations {
             };
             401: components["responses"]["EngagementUnauthorized"];
             403: components["responses"]["EngagementForbidden"];
+        };
+    };
+    updateGameSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                gameId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "displayMode": "FULL"
+                 *     }
+                 */
+                "application/json": components["schemas"]["UpdateGameSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Display mode saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "game": {
+                     *         "id": "00000000-0000-4000-8000-000000000063",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000064",
+                     *         "status": "WAITING",
+                     *         "currentQuestionIndex": 0,
+                     *         "displayMode": "FULL",
+                     *         "totalQuestions": 3,
+                     *         "questions": [
+                     *           {
+                     *             "id": "00000000-0000-4000-8000-000000000065",
+                     *             "orderNum": 0,
+                     *             "content": "Which algorithm prevents double check-in?",
+                     *             "options": [
+                     *               "string"
+                     *             ],
+                     *             "correctOption": 0,
+                     *             "timeLimitSec": 30,
+                     *             "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                     *           }
+                     *         ],
+                     *         "currentQuestion": {
+                     *           "id": "00000000-0000-4000-8000-000000000066",
+                     *           "orderNum": 0,
+                     *           "content": "Which algorithm prevents double check-in?",
+                     *           "options": [
+                     *             "string"
+                     *           ],
+                     *           "correctOption": 0,
+                     *           "timeLimitSec": 30,
+                     *           "questionStartedAt": "2026-11-14T08:00:00.000Z"
+                     *         }
+                     *       },
+                     *       "deletedQuestions": [
+                     *         {
+                     *           "id": "00000000-0000-4000-8000-000000000067",
+                     *           "content": "Which service owns the check-in ledger?",
+                     *           "deletedAt": "2026-11-14T08:00:00.000Z"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["GameResponse"];
+                };
+            };
+            401: components["responses"]["EngagementUnauthorized"];
+            403: components["responses"]["EngagementForbidden"];
+            /** @description The quiz game does not exist. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "GAME_NOT_FOUND",
+                     *       "message": "Quiz game was not found"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EngagementErrorBody"];
+                };
+            };
         };
     };
     addGameQuestion: {
@@ -5331,6 +5729,7 @@ export interface operations {
                      *         "sessionId": "00000000-0000-4000-8000-000000000059",
                      *         "status": "WAITING",
                      *         "currentQuestionIndex": 0,
+                     *         "displayMode": "FULL",
                      *         "totalQuestions": 3,
                      *         "questions": [
                      *           {
@@ -5406,14 +5805,15 @@ export interface operations {
                     /**
                      * @example {
                      *       "game": {
-                     *         "id": "00000000-0000-4000-8000-000000000063",
-                     *         "sessionId": "00000000-0000-4000-8000-000000000064",
+                     *         "id": "00000000-0000-4000-8000-000000000068",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000069",
                      *         "status": "WAITING",
                      *         "currentQuestionIndex": 0,
+                     *         "displayMode": "FULL",
                      *         "totalQuestions": 3,
                      *         "questions": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000065",
+                     *             "id": "00000000-0000-4000-8000-000000000070",
                      *             "orderNum": 0,
                      *             "content": "Which algorithm prevents double check-in?",
                      *             "options": [
@@ -5425,7 +5825,7 @@ export interface operations {
                      *           }
                      *         ],
                      *         "currentQuestion": {
-                     *           "id": "00000000-0000-4000-8000-000000000066",
+                     *           "id": "00000000-0000-4000-8000-000000000071",
                      *           "orderNum": 0,
                      *           "content": "Which algorithm prevents double check-in?",
                      *           "options": [
@@ -5437,7 +5837,7 @@ export interface operations {
                      *         }
                      *       },
                      *       "currentQuestion": {
-                     *         "id": "00000000-0000-4000-8000-000000000067",
+                     *         "id": "00000000-0000-4000-8000-000000000072",
                      *         "orderNum": 0,
                      *         "content": "Which algorithm prevents double check-in?",
                      *         "options": [
@@ -5521,14 +5921,15 @@ export interface operations {
                     /**
                      * @example {
                      *       "game": {
-                     *         "id": "00000000-0000-4000-8000-000000000068",
-                     *         "sessionId": "00000000-0000-4000-8000-000000000069",
+                     *         "id": "00000000-0000-4000-8000-000000000073",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000074",
                      *         "status": "WAITING",
                      *         "currentQuestionIndex": 0,
+                     *         "displayMode": "FULL",
                      *         "totalQuestions": 3,
                      *         "questions": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000070",
+                     *             "id": "00000000-0000-4000-8000-000000000075",
                      *             "orderNum": 0,
                      *             "content": "Which algorithm prevents double check-in?",
                      *             "options": [
@@ -5540,7 +5941,7 @@ export interface operations {
                      *           }
                      *         ],
                      *         "currentQuestion": {
-                     *           "id": "00000000-0000-4000-8000-000000000071",
+                     *           "id": "00000000-0000-4000-8000-000000000076",
                      *           "orderNum": 0,
                      *           "content": "Which algorithm prevents double check-in?",
                      *           "options": [
@@ -5611,14 +6012,15 @@ export interface operations {
                     /**
                      * @example {
                      *       "game": {
-                     *         "id": "00000000-0000-4000-8000-000000000072",
-                     *         "sessionId": "00000000-0000-4000-8000-000000000073",
+                     *         "id": "00000000-0000-4000-8000-000000000077",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000078",
                      *         "status": "WAITING",
                      *         "currentQuestionIndex": 0,
+                     *         "displayMode": "FULL",
                      *         "totalQuestions": 3,
                      *         "questions": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000074",
+                     *             "id": "00000000-0000-4000-8000-000000000079",
                      *             "orderNum": 0,
                      *             "content": "Which algorithm prevents double check-in?",
                      *             "options": [
@@ -5630,7 +6032,7 @@ export interface operations {
                      *           }
                      *         ],
                      *         "currentQuestion": {
-                     *           "id": "00000000-0000-4000-8000-000000000075",
+                     *           "id": "00000000-0000-4000-8000-000000000080",
                      *           "orderNum": 0,
                      *           "content": "Which algorithm prevents double check-in?",
                      *           "options": [
@@ -5642,7 +6044,7 @@ export interface operations {
                      *         }
                      *       },
                      *       "currentQuestion": {
-                     *         "id": "00000000-0000-4000-8000-000000000076",
+                     *         "id": "00000000-0000-4000-8000-000000000081",
                      *         "orderNum": 0,
                      *         "content": "Which algorithm prevents double check-in?",
                      *         "options": [
@@ -5705,14 +6107,15 @@ export interface operations {
                     /**
                      * @example {
                      *       "game": {
-                     *         "id": "00000000-0000-4000-8000-000000000077",
-                     *         "sessionId": "00000000-0000-4000-8000-000000000078",
+                     *         "id": "00000000-0000-4000-8000-000000000082",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000083",
                      *         "status": "WAITING",
                      *         "currentQuestionIndex": 0,
+                     *         "displayMode": "FULL",
                      *         "totalQuestions": 3,
                      *         "questions": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000079",
+                     *             "id": "00000000-0000-4000-8000-000000000084",
                      *             "orderNum": 0,
                      *             "content": "Which algorithm prevents double check-in?",
                      *             "options": [
@@ -5724,7 +6127,7 @@ export interface operations {
                      *           }
                      *         ],
                      *         "currentQuestion": {
-                     *           "id": "00000000-0000-4000-8000-000000000080",
+                     *           "id": "00000000-0000-4000-8000-000000000085",
                      *           "orderNum": 0,
                      *           "content": "Which algorithm prevents double check-in?",
                      *           "options": [
@@ -5737,7 +6140,7 @@ export interface operations {
                      *       },
                      *       "deletedQuestions": [
                      *         {
-                     *           "id": "00000000-0000-4000-8000-000000000081",
+                     *           "id": "00000000-0000-4000-8000-000000000086",
                      *           "content": "Which service owns the check-in ledger?",
                      *           "deletedAt": "2026-11-14T08:00:00.000Z"
                      *         }
@@ -5801,14 +6204,15 @@ export interface operations {
                     /**
                      * @example {
                      *       "game": {
-                     *         "id": "00000000-0000-4000-8000-000000000082",
-                     *         "sessionId": "00000000-0000-4000-8000-000000000083",
+                     *         "id": "00000000-0000-4000-8000-000000000087",
+                     *         "sessionId": "00000000-0000-4000-8000-000000000088",
                      *         "status": "WAITING",
                      *         "currentQuestionIndex": 0,
+                     *         "displayMode": "FULL",
                      *         "totalQuestions": 3,
                      *         "questions": [
                      *           {
-                     *             "id": "00000000-0000-4000-8000-000000000084",
+                     *             "id": "00000000-0000-4000-8000-000000000089",
                      *             "orderNum": 0,
                      *             "content": "Which algorithm prevents double check-in?",
                      *             "options": [
@@ -5820,7 +6224,7 @@ export interface operations {
                      *           }
                      *         ],
                      *         "currentQuestion": {
-                     *           "id": "00000000-0000-4000-8000-000000000085",
+                     *           "id": "00000000-0000-4000-8000-000000000090",
                      *           "orderNum": 0,
                      *           "content": "Which algorithm prevents double check-in?",
                      *           "options": [
@@ -5833,7 +6237,7 @@ export interface operations {
                      *       },
                      *       "deletedQuestions": [
                      *         {
-                     *           "id": "00000000-0000-4000-8000-000000000086",
+                     *           "id": "00000000-0000-4000-8000-000000000091",
                      *           "content": "Which service owns the check-in ledger?",
                      *           "deletedAt": "2026-11-14T08:00:00.000Z"
                      *         }
@@ -5890,7 +6294,7 @@ export interface operations {
             content: {
                 /**
                  * @example {
-                 *       "questionId": "00000000-0000-4000-8000-000000000087",
+                 *       "questionId": "00000000-0000-4000-8000-000000000092",
                  *       "selectedOption": 0,
                  *       "userId": "string",
                  *       "responseTimeMs": 1
@@ -5995,11 +6399,11 @@ export interface operations {
                 content: {
                     /**
                      * @example {
-                     *       "gameId": "00000000-0000-4000-8000-000000000088",
+                     *       "gameId": "00000000-0000-4000-8000-000000000093",
                      *       "leaderboard": [
                      *         {
                      *           "rank": 1,
-                     *           "userId": "00000000-0000-4000-8000-000000000089",
+                     *           "userId": "00000000-0000-4000-8000-000000000094",
                      *           "totalScore": 2750,
                      *           "correctCount": 3
                      *         }
