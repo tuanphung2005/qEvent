@@ -194,9 +194,12 @@ Mật khẩu chung: `password123`.
 | **Attendee** | `attendee@qevent.com` | Xem vé, Dynamic QR 30s, hỏi đáp, vote, quiz |
 | **Attendee 2** | `attendee2@qevent.com` | Tài khoản attendee thứ hai để test nhiều người |
 | **Staff** | `staff1@qevent.com`, `staff2@qevent.com` | Quét/soát vé, sync offline, hỗ trợ Q&A |
-| **Organizer** | `organizer@qevent.com` | Quản lý event, vé, check-in, host Q&A/poll/quiz |
+| **Host** | `host@qevent.com` | Mở màn trình chiếu, sửa Q&A/poll/quiz của sự kiện được phân công |
+| **Organizer** | `organizer@qevent.com` | Quản lý event, vé, check-in; phân công host trong tab **Người dẫn** |
 
-Đăng ký attendee mới: `POST /api/auth/register` (role luôn là `ATTENDEE`; STAFF/ORGANIZER do seed hoặc admin tạo).
+Đăng ký attendee mới: `POST /api/auth/register` (role luôn là `ATTENDEE`; STAFF/HOST/ORGANIZER do seed hoặc admin tạo).
+
+Màn trình chiếu: đăng nhập bằng tài khoản Host rồi mở `/present`, hoặc bấm **Trình chiếu** trong console. Host chỉ thấy sự kiện được organizer gán trong tab **Sự kiện → Người dẫn**. Ở góc trái màn trình chiếu, bấm vào tên phiên để đổi sang sự kiện/phiên khác được phân công. Màn hình hỗ trợ đổi slide bằng phím ← →, `F` toàn màn hình, `L` bật/tắt logo, `T` đổi nền sáng/tối; trên slide quiz có nút chọn điện thoại khán giả hiện đầy đủ câu hỏi hoặc chỉ A/B/C/D.
 
 ---
 
