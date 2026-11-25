@@ -151,3 +151,59 @@ export function useUpdateTicketType(eventId: string) {
     onSuccess: () => void invalidate(),
   });
 }
+
+export function useEventHosts(eventId: string) {
+  return useQuery({
+    queryKey: ["events", "hosts", eventId],
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/api/events/{id}/hosts", {
+          params: { path: { id: eventId }, header: ORGANIZER },
+        }),
+      ),
+    enabled: Boolean(eventId),
+  });
+}
+
+/** Organizer picker: only HOST accounts can be assigned to an event. */
+export function useHostAccounts(enabled = true) {
+  return useQuery({
+    queryKey: ["users", "HOST"],
+    queryFn: async () =>
+      unwrap(await api.GET("/api/users", { params: { query: { role: "HOST" } } })),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+export function useAssignEventHost(eventId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: string) =>
+      unwrap(
+        await api.PUT("/api/events/{id}/hosts/{userId}", {
+          params: { path: { id: eventId, userId }, header: ORGANIZER },
+        }),
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["events", "hosts", eventId] });
+      void queryClient.invalidateQueries({ queryKey: ["events"] });
+    },
+  });
+}
+
+export function useUnassignEventHost(eventId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: string) =>
+      unwrap(
+        await api.DELETE("/api/events/{id}/hosts/{userId}", {
+          params: { path: { id: eventId, userId }, header: ORGANIZER },
+        }),
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["events", "hosts", eventId] });
+      void queryClient.invalidateQueries({ queryKey: ["events"] });
+    },
+  });
+}

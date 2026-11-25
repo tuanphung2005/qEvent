@@ -8,6 +8,8 @@ const expectedOperations: Record<string, string[]> = {
   "/health": ["get"],
   "/api/events": ["get", "post"],
   "/api/events/{id}": ["get", "patch"],
+  "/api/events/{id}/hosts": ["get"],
+  "/api/events/{id}/hosts/{userId}": ["put", "delete"],
   "/api/events/{id}/rooms": ["post"],
   "/api/events/{id}/rooms/{roomId}": ["patch"],
   "/api/events/{id}/sessions": ["post"],
@@ -23,6 +25,9 @@ const expectedOperations: Record<string, string[]> = {
 const protectedOperations: Array<[string, string, "bearerAuth" | "serviceToken"]> = [
   ["/api/events", "post", "bearerAuth"],
   ["/api/events/{id}", "patch", "bearerAuth"],
+  ["/api/events/{id}/hosts", "get", "bearerAuth"],
+  ["/api/events/{id}/hosts/{userId}", "put", "bearerAuth"],
+  ["/api/events/{id}/hosts/{userId}", "delete", "bearerAuth"],
   ["/api/events/{id}/rooms", "post", "bearerAuth"],
   ["/api/events/{id}/rooms/{roomId}", "patch", "bearerAuth"],
   ["/api/events/{id}/sessions", "post", "bearerAuth"],
@@ -178,6 +183,7 @@ describe("openapi contract", () => {
         for (const code of codes) {
           const response = deref(operation.responses[code]);
           expect(response.description).toBeString();
+          if (code === "204") continue;
           const media = response.content?.["application/json"];
           expect(media?.schema).toBeDefined();
           const examples = examplesOf(operation.responses[code]);

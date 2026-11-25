@@ -153,8 +153,18 @@ components:
           type: string
           enum:
             - ORGANIZER
+            - HOST
             - STAFF
             - ATTENDEE
+    UserListResponse:
+      type: object
+      required:
+        - users
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
     AuthResponse:
       type: object
       required:
@@ -1057,6 +1067,50 @@ paths:
                 message: Email or password is incorrect
         "422":
           $ref: "#/components/responses/ValidationFailed"
+  /api/users:
+    get:
+      tags:
+        - users
+      summary: List accounts for organizer assignment pickers
+      description: "Requires ORGANIZER. Returns id, email, full name and role only; credentials and hashes are never exposed."
+      operationId: listUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: role
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - ORGANIZER
+              - HOST
+              - STAFF
+              - ATTENDEE
+      responses:
+        "200":
+          description: Accounts visible to the organizer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+              example:
+                users:
+                  - id: 00000000-0000-4000-8000-000000000005
+                    email: attendee@qevent.dev
+                    fullName: Nguyen Van A
+                    role: ATTENDEE
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Organizer role is required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: FORBIDDEN
+                message: Organizer role is required
   /api/orders:
     get:
       tags:
@@ -1112,9 +1166,9 @@ paths:
                 $ref: "#/components/schemas/OrderListResponse"
               example:
                 orders:
-                  - id: 00000000-0000-4000-8000-000000000005
+                  - id: 00000000-0000-4000-8000-000000000006
                     attendee:
-                      id: 00000000-0000-4000-8000-000000000006
+                      id: 00000000-0000-4000-8000-000000000007
                       email: attendee@qevent.dev
                       fullName: Nguyen Van A
                     status: PENDING
@@ -1172,7 +1226,7 @@ paths:
                 $ref: "#/components/schemas/OrderResponse"
               example:
                 order:
-                  id: 00000000-0000-4000-8000-000000000007
+                  id: 00000000-0000-4000-8000-000000000008
                   userId: 5f3b6e2a-1c4d-4a8e-9b7f-2d6c8a1e4b90
                   eventId: 7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60
                   ticketTypeId: 9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70
@@ -1182,7 +1236,7 @@ paths:
                   failureCode: null
                   createdAt: 2026-11-09T08:00:00.000Z
                   tickets:
-                    - id: 00000000-0000-4000-8000-000000000008
+                    - id: 00000000-0000-4000-8000-000000000009
                       status: PAID
                       eventId: 7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60
                       ticketTypeId: 9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70
@@ -1196,7 +1250,7 @@ paths:
                 $ref: "#/components/schemas/OrderResponse"
               example:
                 order:
-                  id: 00000000-0000-4000-8000-000000000009
+                  id: 00000000-0000-4000-8000-000000000010
                   userId: 5f3b6e2a-1c4d-4a8e-9b7f-2d6c8a1e4b90
                   eventId: 7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60
                   ticketTypeId: 9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70
@@ -1274,7 +1328,7 @@ paths:
                 $ref: "#/components/schemas/OrderResponse"
               example:
                 order:
-                  id: 00000000-0000-4000-8000-000000000011
+                  id: 00000000-0000-4000-8000-000000000012
                   userId: 5f3b6e2a-1c4d-4a8e-9b7f-2d6c8a1e4b90
                   eventId: 7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60
                   ticketTypeId: 9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70
@@ -1284,7 +1338,7 @@ paths:
                   failureCode: null
                   createdAt: 2026-11-09T08:00:00.000Z
                   tickets:
-                    - id: 00000000-0000-4000-8000-000000000012
+                    - id: 00000000-0000-4000-8000-000000000013
                       status: PAID
                       eventId: 7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60
                       ticketTypeId: 9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70
@@ -1362,17 +1416,17 @@ paths:
                 $ref: "#/components/schemas/StaffTicketListResponse"
               example:
                 tickets:
-                  - id: 00000000-0000-4000-8000-000000000013
+                  - id: 00000000-0000-4000-8000-000000000014
                     eventId: 7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60
                     ticketTypeId: 9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70
-                    orderId: 00000000-0000-4000-8000-000000000014
+                    orderId: 00000000-0000-4000-8000-000000000015
                     status: PENDING_PAYMENT
                     orderStatus: CONFIRMED
                     checkedInAt: 2026-11-09T08:00:00.000Z
                     createdAt: 2026-11-09T08:00:00.000Z
                     updatedAt: 2026-11-09T08:00:00.000Z
                     attendee:
-                      id: 00000000-0000-4000-8000-000000000015
+                      id: 00000000-0000-4000-8000-000000000016
                       email: attendee@qevent.dev
                       fullName: Nguyen Van A
                 nextCursor: string
@@ -1440,28 +1494,28 @@ paths:
                 $ref: "#/components/schemas/TicketDetailResponse"
               example:
                 ticket:
-                  id: 00000000-0000-4000-8000-000000000017
+                  id: 00000000-0000-4000-8000-000000000018
                   eventId: 7c1e9a3d-2b6f-4c8a-8e5d-3a9b1c7e2f60
                   ticketTypeId: 9a2d5c7e-4f1b-4e3a-8c6d-5b2e9f1a3c70
-                  orderId: 00000000-0000-4000-8000-000000000018
+                  orderId: 00000000-0000-4000-8000-000000000019
                   status: PENDING_PAYMENT
                   orderStatus: CONFIRMED
                   checkedInAt: 2026-11-09T08:00:00.000Z
                   createdAt: 2026-11-09T08:00:00.000Z
                   updatedAt: 2026-11-09T08:00:00.000Z
                   attendee:
-                    id: 00000000-0000-4000-8000-000000000019
+                    id: 00000000-0000-4000-8000-000000000020
                     email: attendee@qevent.dev
                     fullName: Nguyen Van A
                 order:
-                  id: 00000000-0000-4000-8000-000000000020
+                  id: 00000000-0000-4000-8000-000000000021
                   status: PENDING
                   quantity: 1
                   totalAmount: 50
                   createdAt: 2026-11-09T08:00:00.000Z
                 checkinLogs:
-                  - id: 00000000-0000-4000-8000-000000000021
-                    scannedBy: 00000000-0000-4000-8000-000000000022
+                  - id: 00000000-0000-4000-8000-000000000022
+                    scannedBy: 00000000-0000-4000-8000-000000000023
                     scannedAt: 2026-11-09T08:00:00.000Z
                     isOffline: true
                     deviceId: gate-1
@@ -1599,14 +1653,14 @@ paths:
                 $ref: "#/components/schemas/CheckinFeedResponse"
               example:
                 checkins:
-                  - id: 00000000-0000-4000-8000-000000000023
+                  - id: 00000000-0000-4000-8000-000000000024
                     ticketId: 1b4d7f9a-3c6e-4a2b-8d5f-7e9c1a3b5d20
                     scannedAt: 2026-11-09T08:00:00.000Z
                     isOffline: true
                     syncStatus: SYNCED
                     deviceId: gate-1
                     attendee:
-                      id: 00000000-0000-4000-8000-000000000024
+                      id: 00000000-0000-4000-8000-000000000025
                       email: attendee@qevent.dev
                       fullName: Nguyen Van A
                     ticketStatus: PENDING_PAYMENT
@@ -1660,7 +1714,7 @@ paths:
                 status: CHECKIN_SUCCESS
                 code: CHECKIN_SUCCESS
                 ticket:
-                  id: 00000000-0000-4000-8000-000000000025
+                  id: 00000000-0000-4000-8000-000000000026
                   status: CHECKED_IN
                   checkedInAt: 2026-11-09T08:00:00.000Z
                   attendeeName: Nguyen Van A
@@ -1705,7 +1759,7 @@ paths:
                     code: ALREADY_CHECKED_IN
                     message: Ticket has already been checked in
                     ticket:
-                      id: 00000000-0000-4000-8000-000000000026
+                      id: 00000000-0000-4000-8000-000000000027
                       status: CHECKED_IN
                       checkedInAt: 2026-11-09T08:00:00.000Z
                       attendeeName: Nguyen Van A

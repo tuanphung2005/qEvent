@@ -70,8 +70,9 @@ const schemas: Record<string, JsonSchema> = {
     id: uuid,
     email: str({ format: "email" }),
     fullName: str(),
-    role: en("ORGANIZER", "STAFF", "ATTENDEE"),
+    role: en("ORGANIZER", "HOST", "STAFF", "ATTENDEE"),
   }),
+  UserListResponse: obj({ users: arr(ref("User")) }),
   AuthResponse: obj({
     token: str({ description: "JWT valid for 12 hours." }),
     user: ref("User"),
@@ -562,6 +563,29 @@ const paths = {
       responses: {
         "200": ok("The authenticated user.", "AuthMeResponse"),
         "401": unauthorized,
+      },
+    },
+  },
+  "/api/users": {
+    get: {
+      tags: ["users"],
+      summary: "List accounts for organizer assignment pickers",
+      description:
+        "Requires ORGANIZER. Returns id, email, full name and role only; credentials and hashes are never exposed.",
+      operationId: "listUsers",
+      security: bearer,
+      parameters: [
+        {
+          name: "role",
+          in: "query",
+          required: false,
+          schema: en("ORGANIZER", "HOST", "STAFF", "ATTENDEE"),
+        },
+      ],
+      responses: {
+        "200": ok("Accounts visible to the organizer.", "UserListResponse"),
+        "401": unauthorized,
+        "403": fail("Organizer role is required.", "FORBIDDEN", "Organizer role is required"),
       },
     },
   },

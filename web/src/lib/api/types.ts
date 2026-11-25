@@ -18,7 +18,7 @@ export type ListFilter = {
 
 export type User = Schemas["User"];
 export type UserRole = User["role"];
-export type StaffRole = Extract<UserRole, "STAFF" | "ORGANIZER">;
+export type StaffRole = Extract<UserRole, "STAFF" | "ORGANIZER" | "HOST">;
 
 export type Attendee = Schemas["Attendee"];
 export type AuthMeResponse = Schemas["AuthMeResponse"];
@@ -27,6 +27,9 @@ export type LoginRequest = Schemas["LoginRequest"];
 
 export type EventSummary = Schemas["Event"];
 export type EventListResponse = Schemas["EventListResponse"];
+export type EventHost = Schemas["EventHost"];
+export type EventHostListResponse = Schemas["EventHostListResponse"];
+export type UserListResponse = Schemas["UserListResponse"];
 export type Session = Schemas["Session"];
 export type Room = Schemas["Room"];
 export type TicketType = Schemas["TicketType"];
@@ -49,3 +52,4 @@ export type PollOption = Schemas["PollOption"];
 export type Game = Schemas["Game"];
 export type GameQuestion = Schemas["GameQuestion"];
 export type LeaderboardEntry = Schemas["LeaderboardEntry"];
+export type QuizDisplayMode = NonNullable<Game["displayMode"]>;

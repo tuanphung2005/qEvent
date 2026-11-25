@@ -174,6 +174,7 @@ const schemas: Record<string, JsonSchema> = {
       sessionId: uuid,
       status: en("WAITING", "QUESTION_ACTIVE", "ROUND_REVEALED", "FINISHED"),
       currentQuestionIndex: int({ minimum: 0, example: 0 }),
+      displayMode: en("FULL", "LETTERS"),
       totalQuestions: int({ minimum: 0, example: 3 }),
       questions: arr(ref("GameQuestion")),
       currentQuestion: ref("GameQuestion"),
@@ -193,6 +194,12 @@ const schemas: Record<string, JsonSchema> = {
     correctOption: int({ minimum: 0, maximum: 5 }),
     timeLimitSec: int({ minimum: 1, maximum: 300 }),
   }),
+  UpdateGameSettingsRequest: obj(
+    {
+      displayMode: en("FULL", "LETTERS"),
+    },
+    ["displayMode"]
+  ),
   UpdateGameQuestionRequest: obj(
     {
       content: str({ minLength: 1, maxLength: 500 }),
@@ -367,7 +374,7 @@ const components = {
       "Authentication is required"
     ),
     Forbidden: fail(
-      "The caller is not a STAFF or ORGANIZER for the host-only action.",
+      "The caller is not a STAFF, HOST or ORGANIZER for the host-only action.",
       "FORBIDDEN",
       "Only staff or organizer can perform this action"
     ),
@@ -828,6 +835,22 @@ const paths = {
       parameters: [idParameter("gameId")],
       responses: {
         "200": ok("Game state for the caller's role.", "GameResponse"),
+        "404": gameNotFound,
+      },
+    },
+  },
+  "/api/game/{gameId}/settings": {
+    patch: {
+      tags: ["game"],
+      summary: "Choose what attendee phones show during a quiz",
+      operationId: "updateGameSettings",
+      security: bearer,
+      parameters: [idParameter("gameId")],
+      requestBody: body("UpdateGameSettingsRequest"),
+      responses: {
+        "200": ok("Display mode saved.", "GameResponse"),
+        "401": unauthorized,
+        "403": forbidden,
         "404": gameNotFound,
       },
     },

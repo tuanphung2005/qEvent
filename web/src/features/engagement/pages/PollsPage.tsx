@@ -60,7 +60,8 @@ export function PollsPage() {
 
   const polls = data?.polls ?? [];
   const deletedPolls = data?.deletedPolls ?? [];
-  const isStaffOrOrganizer = user?.role === "STAFF" || user?.role === "ORGANIZER";
+  const isStaffOrOrganizer =
+    user?.role === "STAFF" || user?.role === "HOST" || user?.role === "ORGANIZER";
 
   const handleAddOption = () => {
     if (options.length < 10) {

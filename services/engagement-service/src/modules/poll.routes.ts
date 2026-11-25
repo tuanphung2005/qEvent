@@ -3,6 +3,7 @@ import type { Deps } from "../deps";
 import { createJwtAuth, deriveCurrentUser, isHostRole } from "../lib/auth";
 import { AccessError, requireSessionAccess } from "../lib/br6";
 import { fail } from "../lib/http";
+import { requireHostSession } from "../lib/host-access";
 import { broadcaster } from "../lib/broadcast";
 
 export function pollRoutes(deps: Deps, jwtSecret: string) {
@@ -11,7 +12,10 @@ export function pollRoutes(deps: Deps, jwtSecret: string) {
     .derive(deriveCurrentUser)
     .get(
       "/api/sessions/:sessionId/polls",
-      async ({ params, currentUser }) => {
+      async ({ params, currentUser, set }) => {
+        const denied = await requireHostSession(deps, currentUser, set, params.sessionId);
+        if (denied) return denied;
+
         const polls = await deps.prisma.poll.findMany({
           where: { sessionId: params.sessionId, deletedAt: null },
           include: {
@@ -82,6 +86,9 @@ export function pollRoutes(deps: Deps, jwtSecret: string) {
         if (!isHostRole(currentUser.role)) {
           return fail(set, 403, "FORBIDDEN", "Only staff or organizer can create polls");
         }
+
+        const denied = await requireHostSession(deps, currentUser, set, params.sessionId);
+        if (denied) return denied;
 
         const options = body.options.map((o) => o.trim()).filter((o) => o.length > 0);
         if (options.length < 2) {
@@ -241,6 +248,9 @@ export function pollRoutes(deps: Deps, jwtSecret: string) {
           return fail(set, 404, "POLL_NOT_FOUND", "Poll was not found");
         }
 
+        const denied = await requireHostSession(deps, currentUser, set, poll.sessionId);
+        if (denied) return denied;
+
         if (body.title === undefined && body.isActive === undefined && body.options === undefined) {
           return fail(set, 400, "NO_CHANGES", "Nothing to update");
         }
@@ -305,6 +315,9 @@ export function pollRoutes(deps: Deps, jwtSecret: string) {
           return fail(set, 404, "POLL_NOT_FOUND", "Poll was not found");
         }
 
+        const denied = await requireHostSession(deps, currentUser, set, poll.sessionId);
+        if (denied) return denied;
+
         // Soft delete: options and votes survive, so a restore is lossless.
         await deps.prisma.poll.update({
           where: { id: poll.id },
@@ -337,6 +350,9 @@ export function pollRoutes(deps: Deps, jwtSecret: string) {
         if (!poll || !poll.deletedAt) {
           return fail(set, 404, "POLL_NOT_FOUND", "Deleted poll was not found");
         }
+
+        const denied = await requireHostSession(deps, currentUser, set, poll.sessionId);
+        if (denied) return denied;
 
         const restored = await deps.prisma.poll.update({
           where: { id: poll.id },

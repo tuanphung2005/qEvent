@@ -14,7 +14,7 @@ bun run dev          # http://localhost:5173, proxy /api + /ws sang gateway :800
 
 Gateway phải chạy trước: `docker compose up -d` ở repo root.
 
-Tài khoản demo: `organizer@qevent.com` / `staff1@qevent.com` / `attendee@qevent.com` — mật khẩu
+Tài khoản demo: `organizer@qevent.com` / `staff1@qevent.com` / `attendee@qevent.com` / `host@qevent.com` — mật khẩu
 `password123`.
 
 ## Script

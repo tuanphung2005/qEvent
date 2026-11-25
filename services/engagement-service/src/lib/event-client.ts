@@ -4,6 +4,8 @@ export type SessionAccessInfo = {
   sessionId: string;
   eventId: string;
   isLive: boolean;
+  /** True when the supplied user is assigned as a host of the session's event. */
+  hostAssigned?: boolean;
 };
 
 export class SessionNotFoundError extends Error {
@@ -14,13 +16,14 @@ export class SessionNotFoundError extends Error {
 }
 
 export interface EventClient {
-  getSession(sessionId: string): Promise<SessionAccessInfo>;
+  getSession(sessionId: string, userId?: string): Promise<SessionAccessInfo>;
 }
 
 type SessionPayload = {
   session?: {
     id?: unknown;
     isLive?: unknown;
+    hostAssigned?: unknown;
     event?: { id?: unknown };
   };
 };
@@ -36,8 +39,9 @@ export class HttpEventClient implements EventClient {
     private readonly timeoutMs: number = 1000
   ) {}
 
-  async getSession(sessionId: string): Promise<SessionAccessInfo> {
-    const url = `${this.baseUrl}/internal/sessions/${encodeURIComponent(sessionId)}`;
+  async getSession(sessionId: string, userId?: string): Promise<SessionAccessInfo> {
+    const query = userId ? `?userId=${encodeURIComponent(userId)}` : "";
+    const url = `${this.baseUrl}/internal/sessions/${encodeURIComponent(sessionId)}${query}`;
 
     const { status, body } = await resilientFetch(
       url,
@@ -57,6 +61,11 @@ export class HttpEventClient implements EventClient {
       throw new InfraError("event service returned a malformed session payload");
     }
 
-    return { sessionId, eventId, isLive: session.isLive };
+    return {
+      sessionId,
+      eventId,
+      isLive: session.isLive,
+      hostAssigned: session.hostAssigned === true,
+    };
   }
 }

@@ -11,6 +11,7 @@ import { useForm } from "react-hook-form";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import { z } from "zod";
 import { useAuth } from "../auth-context";
+import { loginLanding } from "../landing";
 
 const schema = z.object({
   email: z.string().trim().min(1, "Nhập email đăng nhập").email("Email chưa đúng định dạng"),
@@ -21,10 +22,12 @@ type FormValues = z.infer<typeof schema>;
 type LocationState = { from?: string } | null;
 
 export function LoginPage() {
-  const { login, logout, status, sessionMessage } = useAuth();
+  const { login, logout, status, user, sessionMessage } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as LocationState)?.from ?? routes.dashboard();
+  // A host lands on the presenter screen; organizers keep the console default.
+  const landing = loginLanding(user?.role, from);
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
@@ -33,7 +36,7 @@ export function LoginPage() {
     mode: "onBlur",
   });
 
-  if (status === "authenticated") return <Navigate to={from} replace />;
+  if (status === "authenticated") return <Navigate to={landing} replace />;
 
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError(null);
@@ -46,7 +49,8 @@ export function LoginPage() {
         setFormError("Tài khoản khách tham dự không có quyền dùng giao diện nhân sự.");
         return;
       }
-      navigate(from, { replace: true });
+      // A host lands on the presenter screen; organizers keep the console default.
+      navigate(loginLanding(user.role, from), { replace: true });
     } catch (cause) {
       setFormError(
         isApiError(cause) && cause.code === "INVALID_CREDENTIALS"
@@ -136,7 +140,7 @@ export function LoginPage() {
 
         {import.meta.env.DEV ? (
           <p className="mt-4 text-xs text-muted-foreground">
-            Demo: organizer@qevent.com · password123
+            Demo: organizer@qevent.com · host@qevent.com · password123
           </p>
         ) : null}
       </div>

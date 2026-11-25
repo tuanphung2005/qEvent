@@ -5,9 +5,12 @@ import {
   addRoom,
   addSession,
   addTicketType,
+  assignEventHost,
   createEvent,
   getEvent,
+  listEventHosts,
   listEvents,
+  unassignEventHost,
   updateEvent,
   updateRoom,
   updateSession,
@@ -73,12 +76,17 @@ const ticketTypeUpdateBody = t.Object({
 });
 
 export function eventRoutes(deps: Deps) {
+  const hostUserId = (headers: Record<string, string | undefined>) =>
+    headers["x-user-role"] === "HOST" ? (headers["x-user-id"] ?? "__missing__") : undefined;
+
   return new Elysia({ tags: ["events"] })
-    .get("/api/events", async () => ({ events: await listEvents(deps) }))
+    .get("/api/events", async ({ headers }) => ({
+      events: await listEvents(deps, hostUserId(headers)),
+    }))
     .get(
       "/api/events/:id",
-      async ({ params, set }) => {
-        const result = await getEvent(deps, params.id);
+      async ({ params, headers, set }) => {
+        const result = await getEvent(deps, params.id, hostUserId(headers));
         set.status = result.status;
         return result.body;
       },
@@ -189,5 +197,48 @@ export function eventRoutes(deps: Deps) {
         return result.body;
       },
       { body: ticketTypeSchema, params: idParams }
+    )
+    .get(
+      "/api/events/:id/hosts",
+      async ({ headers, params, set }) => {
+        const denied = requireOrganizer(headers, set);
+        if (denied) return denied;
+        const result = await listEventHosts(deps, params.id);
+        set.status = result.status;
+        return result.body;
+      },
+      { params: idParams }
+    )
+    .put(
+      "/api/events/:id/hosts/:userId",
+      async ({ headers, params, set }) => {
+        const denied = requireOrganizer(headers, set);
+        if (denied) return denied;
+        const result = await assignEventHost(deps, params.id, params.userId!);
+        set.status = result.status;
+        return result.body;
+      },
+      {
+        params: t.Object({
+          id: t.String({ minLength: 1 }),
+          userId: t.String({ minLength: 1 }),
+        }),
+      }
+    )
+    .delete(
+      "/api/events/:id/hosts/:userId",
+      async ({ headers, params, set }) => {
+        const denied = requireOrganizer(headers, set);
+        if (denied) return denied;
+        const result = await unassignEventHost(deps, params.id, params.userId!);
+        set.status = result.status;
+        return result.body;
+      },
+      {
+        params: t.Object({
+          id: t.String({ minLength: 1 }),
+          userId: t.String({ minLength: 1 }),
+        }),
+      }
     );
 }

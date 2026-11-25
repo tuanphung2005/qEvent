@@ -76,7 +76,8 @@ export function QaPage() {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
-  const isStaffOrOrganizer = user?.role === "STAFF" || user?.role === "ORGANIZER";
+  const isStaffOrOrganizer =
+    user?.role === "STAFF" || user?.role === "HOST" || user?.role === "ORGANIZER";
 
   if (isLoading) {
     return (

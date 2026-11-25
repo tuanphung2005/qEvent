@@ -85,6 +85,17 @@ const schemas: Record<string, JsonSchema> = {
   }),
   EventResponse: obj({ event: ref("Event") }),
   EventListResponse: obj({ events: arr(ref("Event")) }),
+  EventHost: obj({
+    id: uuid,
+    eventId: uuid,
+    userId: uuid,
+    createdAt: dateTime,
+  }),
+  EventHostListResponse: obj({
+    eventId: uuid,
+    hosts: arr(ref("EventHost")),
+  }),
+  EventHostResponse: obj({ host: ref("EventHost") }),
   RoomRequest: obj({
     name: str({ minLength: 1 }),
     capacity: int({ minimum: 1 }),
@@ -176,6 +187,7 @@ const schemas: Record<string, JsonSchema> = {
       startTime: dateTime,
       endTime: dateTime,
       isLive: bool(),
+      hostAssigned: bool(),
       event: obj({
         id: uuid,
         name: str({ example: "Tech Summit Vietnam 2026" }),
@@ -423,6 +435,7 @@ const paths = {
       parameters: [idParameter],
       responses: {
         "200": ok("Event found.", "EventResponse"),
+        "403": forbidden,
         "404": fail("The event does not exist.", "EVENT_NOT_FOUND", "Event was not found"),
       },
     },
@@ -450,6 +463,67 @@ const paths = {
           "INVALID_EVENT_TIME",
           "Start time must be before end time"
         ),
+      },
+    },
+  },
+  "/api/events/{id}/hosts": {
+    get: {
+      tags: ["events"],
+      summary: "List hosts assigned to an event",
+      operationId: "listEventHosts",
+      security: bearer,
+      parameters: [idParameter, organizerHeader],
+      responses: {
+        "200": ok("Hosts assigned to the event.", "EventHostListResponse"),
+        "401": unauthorized,
+        "403": forbidden,
+        "404": fail("The event does not exist.", "EVENT_NOT_FOUND", "Event was not found"),
+      },
+    },
+  },
+  "/api/events/{id}/hosts/{userId}": {
+    put: {
+      tags: ["events"],
+      summary: "Assign a HOST to an event",
+      operationId: "assignEventHost",
+      security: bearer,
+      parameters: [
+        idParameter,
+        {
+          name: "userId",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+        },
+        organizerHeader,
+      ],
+      responses: {
+        "201": ok("Host assigned.", "EventHostResponse"),
+        "401": unauthorized,
+        "403": forbidden,
+        "404": fail("The event does not exist.", "EVENT_NOT_FOUND", "Event was not found"),
+      },
+    },
+    delete: {
+      tags: ["events"],
+      summary: "Remove a HOST from an event",
+      operationId: "unassignEventHost",
+      security: bearer,
+      parameters: [
+        idParameter,
+        {
+          name: "userId",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+        },
+        organizerHeader,
+      ],
+      responses: {
+        "204": { description: "Host assignment removed." },
+        "401": unauthorized,
+        "403": forbidden,
+        "404": fail("The event does not exist.", "EVENT_NOT_FOUND", "Event was not found"),
       },
     },
   },
@@ -675,7 +749,16 @@ const paths = {
       summary: "Read session metadata and its live flag",
       operationId: "getInternalSession",
       security: serviceAuth,
-      parameters: [idParameter],
+      parameters: [
+        idParameter,
+        {
+          name: "userId",
+          in: "query",
+          required: false,
+          schema: { type: "string", format: "uuid" },
+          description: "When provided, the response says whether this user is an assigned host.",
+        },
+      ],
       responses: {
         "200": ok("Session found.", "InternalSessionResponse"),
         "401": serviceUnauthorized,

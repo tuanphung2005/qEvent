@@ -276,6 +276,16 @@ const events: EventSeed[] = [
   },
 ];
 
+/**
+ * The demo HOST login is seeded by admission-service with this fixed id, so
+ * event-service can assign it without querying another service during seed.
+ */
+const HOST_USER_ID = "0f7a1b2c-0000-4000-8000-000000000004";
+const HOST_EVENT_IDS = [
+  "11111111-1111-4111-8111-111111111111", // Tech Summit
+  "11111111-1111-4111-8111-111111111114", // AI & Vé thông minh
+];
+
 async function main() {
   for (const event of events) {
     await prisma.event.upsert({
@@ -339,6 +349,15 @@ async function main() {
   }
 
   console.log(`Seeded ${events.length} events (idempotent).`);
+
+  for (const eventId of HOST_EVENT_IDS) {
+    await prisma.eventHost.upsert({
+      where: { eventId_userId: { eventId, userId: HOST_USER_ID } },
+      update: {},
+      create: { eventId, userId: HOST_USER_ID },
+    });
+  }
+  console.log(`Assigned demo host to ${HOST_EVENT_IDS.length} events.`);
   console.log({
     events: events.map((event) => event.id),
     sessions: events.flatMap((event) => event.sessions.map((session) => session.id)),

@@ -467,6 +467,11 @@ components:
           type: integer
           minimum: 0
           example: 0
+        displayMode:
+          type: string
+          enum:
+            - FULL
+            - LETTERS
         totalQuestions:
           type: integer
           minimum: 0
@@ -515,6 +520,16 @@ components:
           type: integer
           minimum: 1
           maximum: 300
+    UpdateGameSettingsRequest:
+      type: object
+      required:
+        - displayMode
+      properties:
+        displayMode:
+          type: string
+          enum:
+            - FULL
+            - LETTERS
     UpdateGameQuestionRequest:
       type: object
       required: []
@@ -672,7 +687,7 @@ components:
             code: UNAUTHORIZED
             message: Authentication is required
     Forbidden:
-      description: The caller is not a STAFF or ORGANIZER for the host-only action.
+      description: "The caller is not a STAFF, HOST or ORGANIZER for the host-only action."
       content:
         application/json:
           schema:
@@ -1385,6 +1400,7 @@ paths:
                   sessionId: 00000000-0000-4000-8000-000000000041
                   status: WAITING
                   currentQuestionIndex: 0
+                  displayMode: FULL
                   totalQuestions: 3
                   questions:
                     - id: 00000000-0000-4000-8000-000000000042
@@ -1444,6 +1460,7 @@ paths:
                   sessionId: 00000000-0000-4000-8000-000000000046
                   status: WAITING
                   currentQuestionIndex: 0
+                  displayMode: FULL
                   totalQuestions: 3
                   questions:
                     - id: 00000000-0000-4000-8000-000000000047
@@ -1479,6 +1496,7 @@ paths:
                   sessionId: 00000000-0000-4000-8000-000000000051
                   status: WAITING
                   currentQuestionIndex: 0
+                  displayMode: FULL
                   totalQuestions: 3
                   questions:
                     - id: 00000000-0000-4000-8000-000000000052
@@ -1506,6 +1524,79 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  "/api/game/{gameId}/settings":
+    patch:
+      tags:
+        - game
+      summary: Choose what attendee phones show during a quiz
+      operationId: updateGameSettings
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGameSettingsRequest"
+            example:
+              displayMode: FULL
+      responses:
+        "200":
+          description: Display mode saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameResponse"
+              example:
+                game:
+                  id: 00000000-0000-4000-8000-000000000063
+                  sessionId: 00000000-0000-4000-8000-000000000064
+                  status: WAITING
+                  currentQuestionIndex: 0
+                  displayMode: FULL
+                  totalQuestions: 3
+                  questions:
+                    - id: 00000000-0000-4000-8000-000000000065
+                      orderNum: 0
+                      content: Which algorithm prevents double check-in?
+                      options:
+                        - string
+                      correctOption: 0
+                      timeLimitSec: 30
+                      questionStartedAt: 2026-11-14T08:00:00.000Z
+                  currentQuestion:
+                    id: 00000000-0000-4000-8000-000000000066
+                    orderNum: 0
+                    content: Which algorithm prevents double check-in?
+                    options:
+                      - string
+                    correctOption: 0
+                    timeLimitSec: 30
+                    questionStartedAt: 2026-11-14T08:00:00.000Z
+                deletedQuestions:
+                  - id: 00000000-0000-4000-8000-000000000067
+                    content: Which service owns the check-in ledger?
+                    deletedAt: 2026-11-14T08:00:00.000Z
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The quiz game does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: GAME_NOT_FOUND
+                message: Quiz game was not found
   "/api/game/{gameId}/question":
     post:
       tags:
@@ -1815,6 +1906,7 @@ paths:
                   sessionId: 00000000-0000-4000-8000-000000000059
                   status: WAITING
                   currentQuestionIndex: 0
+                  displayMode: FULL
                   totalQuestions: 3
                   questions:
                     - id: 00000000-0000-4000-8000-000000000060
@@ -1871,13 +1963,14 @@ paths:
                 $ref: "#/components/schemas/StartGameResponse"
               example:
                 game:
-                  id: 00000000-0000-4000-8000-000000000063
-                  sessionId: 00000000-0000-4000-8000-000000000064
+                  id: 00000000-0000-4000-8000-000000000068
+                  sessionId: 00000000-0000-4000-8000-000000000069
                   status: WAITING
                   currentQuestionIndex: 0
+                  displayMode: FULL
                   totalQuestions: 3
                   questions:
-                    - id: 00000000-0000-4000-8000-000000000065
+                    - id: 00000000-0000-4000-8000-000000000070
                       orderNum: 0
                       content: Which algorithm prevents double check-in?
                       options:
@@ -1886,7 +1979,7 @@ paths:
                       timeLimitSec: 30
                       questionStartedAt: 2026-11-14T08:00:00.000Z
                   currentQuestion:
-                    id: 00000000-0000-4000-8000-000000000066
+                    id: 00000000-0000-4000-8000-000000000071
                     orderNum: 0
                     content: Which algorithm prevents double check-in?
                     options:
@@ -1895,7 +1988,7 @@ paths:
                     timeLimitSec: 30
                     questionStartedAt: 2026-11-14T08:00:00.000Z
                 currentQuestion:
-                  id: 00000000-0000-4000-8000-000000000067
+                  id: 00000000-0000-4000-8000-000000000072
                   orderNum: 0
                   content: Which algorithm prevents double check-in?
                   options:
@@ -1958,13 +2051,14 @@ paths:
                 $ref: "#/components/schemas/RevealGameResponse"
               example:
                 game:
-                  id: 00000000-0000-4000-8000-000000000068
-                  sessionId: 00000000-0000-4000-8000-000000000069
+                  id: 00000000-0000-4000-8000-000000000073
+                  sessionId: 00000000-0000-4000-8000-000000000074
                   status: WAITING
                   currentQuestionIndex: 0
+                  displayMode: FULL
                   totalQuestions: 3
                   questions:
-                    - id: 00000000-0000-4000-8000-000000000070
+                    - id: 00000000-0000-4000-8000-000000000075
                       orderNum: 0
                       content: Which algorithm prevents double check-in?
                       options:
@@ -1973,7 +2067,7 @@ paths:
                       timeLimitSec: 30
                       questionStartedAt: 2026-11-14T08:00:00.000Z
                   currentQuestion:
-                    id: 00000000-0000-4000-8000-000000000071
+                    id: 00000000-0000-4000-8000-000000000076
                     orderNum: 0
                     content: Which algorithm prevents double check-in?
                     options:
@@ -2028,13 +2122,14 @@ paths:
                 $ref: "#/components/schemas/StartGameResponse"
               example:
                 game:
-                  id: 00000000-0000-4000-8000-000000000072
-                  sessionId: 00000000-0000-4000-8000-000000000073
+                  id: 00000000-0000-4000-8000-000000000077
+                  sessionId: 00000000-0000-4000-8000-000000000078
                   status: WAITING
                   currentQuestionIndex: 0
+                  displayMode: FULL
                   totalQuestions: 3
                   questions:
-                    - id: 00000000-0000-4000-8000-000000000074
+                    - id: 00000000-0000-4000-8000-000000000079
                       orderNum: 0
                       content: Which algorithm prevents double check-in?
                       options:
@@ -2043,7 +2138,7 @@ paths:
                       timeLimitSec: 30
                       questionStartedAt: 2026-11-14T08:00:00.000Z
                   currentQuestion:
-                    id: 00000000-0000-4000-8000-000000000075
+                    id: 00000000-0000-4000-8000-000000000080
                     orderNum: 0
                     content: Which algorithm prevents double check-in?
                     options:
@@ -2052,7 +2147,7 @@ paths:
                     timeLimitSec: 30
                     questionStartedAt: 2026-11-14T08:00:00.000Z
                 currentQuestion:
-                  id: 00000000-0000-4000-8000-000000000076
+                  id: 00000000-0000-4000-8000-000000000081
                   orderNum: 0
                   content: Which algorithm prevents double check-in?
                   options:
@@ -2112,13 +2207,14 @@ paths:
                 $ref: "#/components/schemas/GameResponse"
               example:
                 game:
-                  id: 00000000-0000-4000-8000-000000000077
-                  sessionId: 00000000-0000-4000-8000-000000000078
+                  id: 00000000-0000-4000-8000-000000000082
+                  sessionId: 00000000-0000-4000-8000-000000000083
                   status: WAITING
                   currentQuestionIndex: 0
+                  displayMode: FULL
                   totalQuestions: 3
                   questions:
-                    - id: 00000000-0000-4000-8000-000000000079
+                    - id: 00000000-0000-4000-8000-000000000084
                       orderNum: 0
                       content: Which algorithm prevents double check-in?
                       options:
@@ -2127,7 +2223,7 @@ paths:
                       timeLimitSec: 30
                       questionStartedAt: 2026-11-14T08:00:00.000Z
                   currentQuestion:
-                    id: 00000000-0000-4000-8000-000000000080
+                    id: 00000000-0000-4000-8000-000000000085
                     orderNum: 0
                     content: Which algorithm prevents double check-in?
                     options:
@@ -2136,7 +2232,7 @@ paths:
                     timeLimitSec: 30
                     questionStartedAt: 2026-11-14T08:00:00.000Z
                 deletedQuestions:
-                  - id: 00000000-0000-4000-8000-000000000081
+                  - id: 00000000-0000-4000-8000-000000000086
                     content: Which service owns the check-in ledger?
                     deletedAt: 2026-11-14T08:00:00.000Z
         "401":
@@ -2186,13 +2282,14 @@ paths:
                 $ref: "#/components/schemas/GameResponse"
               example:
                 game:
-                  id: 00000000-0000-4000-8000-000000000082
-                  sessionId: 00000000-0000-4000-8000-000000000083
+                  id: 00000000-0000-4000-8000-000000000087
+                  sessionId: 00000000-0000-4000-8000-000000000088
                   status: WAITING
                   currentQuestionIndex: 0
+                  displayMode: FULL
                   totalQuestions: 3
                   questions:
-                    - id: 00000000-0000-4000-8000-000000000084
+                    - id: 00000000-0000-4000-8000-000000000089
                       orderNum: 0
                       content: Which algorithm prevents double check-in?
                       options:
@@ -2201,7 +2298,7 @@ paths:
                       timeLimitSec: 30
                       questionStartedAt: 2026-11-14T08:00:00.000Z
                   currentQuestion:
-                    id: 00000000-0000-4000-8000-000000000085
+                    id: 00000000-0000-4000-8000-000000000090
                     orderNum: 0
                     content: Which algorithm prevents double check-in?
                     options:
@@ -2210,7 +2307,7 @@ paths:
                     timeLimitSec: 30
                     questionStartedAt: 2026-11-14T08:00:00.000Z
                 deletedQuestions:
-                  - id: 00000000-0000-4000-8000-000000000086
+                  - id: 00000000-0000-4000-8000-000000000091
                     content: Which service owns the check-in ledger?
                     deletedAt: 2026-11-14T08:00:00.000Z
         "401":
@@ -2258,7 +2355,7 @@ paths:
             schema:
               $ref: "#/components/schemas/AnswerRequest"
             example:
-              questionId: 00000000-0000-4000-8000-000000000087
+              questionId: 00000000-0000-4000-8000-000000000092
               selectedOption: 0
               userId: string
               responseTimeMs: 1
@@ -2352,10 +2449,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/LeaderboardResponse"
               example:
-                gameId: 00000000-0000-4000-8000-000000000088
+                gameId: 00000000-0000-4000-8000-000000000093
                 leaderboard:
                   - rank: 1
-                    userId: 00000000-0000-4000-8000-000000000089
+                    userId: 00000000-0000-4000-8000-000000000094
                     totalScore: 2750
                     correctCount: 3
         "404":

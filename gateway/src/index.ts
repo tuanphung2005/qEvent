@@ -56,6 +56,7 @@ export function createGatewayApp(customConfig?: Partial<GatewayConfig>) {
     }
     if (
       pathname.startsWith("/api/auth") ||
+      pathname.startsWith("/api/users") ||
       pathname.startsWith("/api/orders") ||
       pathname.startsWith("/api/tickets") ||
       pathname.startsWith("/api/checkins")

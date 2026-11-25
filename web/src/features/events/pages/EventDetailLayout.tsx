@@ -21,6 +21,7 @@ const TABS = [
   { value: "rooms", label: "Phòng", suffix: "/rooms" },
   { value: "sessions", label: "Phiên", suffix: "/sessions" },
   { value: "ticket-types", label: "Loại vé", suffix: "/ticket-types" },
+  { value: "hosts", label: "Người dẫn", suffix: "/hosts" },
 ] as const;
 
 type TabValue = (typeof TABS)[number]["value"];
@@ -29,6 +30,7 @@ function currentTab(pathname: string): TabValue {
   if (pathname.endsWith("/rooms")) return "rooms";
   if (pathname.endsWith("/sessions")) return "sessions";
   if (pathname.endsWith("/ticket-types")) return "ticket-types";
+  if (pathname.endsWith("/hosts")) return "hosts";
   return "overview";
 }
 
@@ -133,6 +135,7 @@ export function EventDetailLayout() {
   const phase = eventPhase(event);
   const tab = currentTab(location.pathname);
   const context: EventTabContext = { event };
+  const tabs = user?.role === "ORGANIZER" ? TABS : TABS.filter((item) => item.value !== "hosts");
 
   return (
     <div className="flex flex-col gap-4">
@@ -172,7 +175,7 @@ export function EventDetailLayout() {
         aria-label="Khu vực sự kiện"
         className="flex h-8 w-fit max-w-full items-center justify-start overflow-x-auto border-b border-card-border"
       >
-        {TABS.map((item) => {
+        {tabs.map((item) => {
           const active = item.value === tab;
           return (
             <Link

@@ -27,7 +27,7 @@ export const nav: NavItem[] = [
     to: "/engagement",
     label: "Tương tác",
     icon: "chart",
-    roles: ["STAFF", "ORGANIZER"],
+    roles: ["HOST", "STAFF", "ORGANIZER"],
     order: 70,
   },
 ];

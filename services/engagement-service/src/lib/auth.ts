@@ -65,7 +65,8 @@ export async function deriveCurrentUser({
   };
 }
 
-export const HOST_ROLES = ["ORGANIZER", "STAFF"];
+/** The speaker account drives the session; organizers keep the same controls. */
+export const HOST_ROLES = ["ORGANIZER", "HOST", "STAFF"];
 
 export function isHostRole(role?: string): boolean {
   return Boolean(role && HOST_ROLES.includes(role));

@@ -3,6 +3,7 @@ import { swagger } from "@elysiajs/swagger";
 import { openapiDocumentation } from "./openapi";
 import { makeDeps, type Deps } from "./deps";
 import { authRoutes } from "./modules/auth.routes";
+import { userRoutes } from "./modules/user.routes";
 import { orderRoutes } from "./modules/order.routes";
 import { ticketRoutes } from "./modules/ticket.routes";
 import { checkinRoutes } from "./modules/checkin.routes";
@@ -28,6 +29,7 @@ export function createApp(overrides: Partial<Deps> = {}) {
       }
     })
     .use(authRoutes(deps, deps.jwtSecret))
+    .use(userRoutes(deps, deps.jwtSecret))
     .use(orderRoutes(deps, deps.jwtSecret))
     .use(ticketRoutes(deps, deps.jwtSecret))
     .use(checkinRoutes(deps, deps.jwtSecret))

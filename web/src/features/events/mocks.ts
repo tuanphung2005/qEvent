@@ -1,6 +1,6 @@
 import type { EventSummary } from "@/lib/api/types";
 import { http, HttpResponse } from "msw";
-import { eventFixture } from "../../../test/msw/fixtures";
+import { eventFixture, host } from "../../../test/msw/fixtures";
 
 type SessionBody = {
   title: string;
@@ -48,6 +48,38 @@ function withRelations(body: EventBody): EventSummary {
 
 export const handlers = [
   http.get("/api/events", () => HttpResponse.json({ events: [eventFixture] })),
+  http.get("/api/users", () =>
+    HttpResponse.json({
+      users: [{ id: host.id, email: host.email, fullName: host.fullName, role: host.role }],
+    }),
+  ),
+  http.get("/api/events/:eventId/hosts", ({ params }) =>
+    HttpResponse.json({
+      eventId: params.eventId,
+      hosts: [
+        {
+          id: "event-host-1",
+          eventId: params.eventId,
+          userId: host.id,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    }),
+  ),
+  http.put("/api/events/:eventId/hosts/:userId", ({ params }) =>
+    HttpResponse.json(
+      {
+        host: {
+          id: `event-host-${Date.now()}`,
+          eventId: params.eventId,
+          userId: params.userId,
+          createdAt: new Date().toISOString(),
+        },
+      },
+      { status: 201 },
+    ),
+  ),
+  http.delete("/api/events/:eventId/hosts/:userId", () => new HttpResponse(null, { status: 204 })),
   http.get("/api/events/:eventId", () => HttpResponse.json({ event: eventFixture })),
   http.post("/api/events", async ({ request }) => {
     const body = (await request.json()) as EventBody;

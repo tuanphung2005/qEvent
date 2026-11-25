@@ -306,4 +306,54 @@ describe("event endpoints", () => {
       expect(result.data.code).toBe("EVENT_NOT_FOUND");
     }
   });
+
+  it("scopes a HOST to assigned events only", async () => {
+    const { app } = makeTestApp();
+    const assigned = await createEventViaApi(app);
+    const other = await createEventViaApi(app);
+    const hostId = crypto.randomUUID();
+    const hostHeaders = { "x-user-role": "HOST", "x-user-id": hostId };
+
+    const before = await call(app, "/api/events", { headers: hostHeaders });
+    expect(before.data.events.some((event: { id: string }) => event.id === assigned.id)).toBe(false);
+
+    const assignedResult = await call(app, `/api/events/${assigned.id}/hosts/${hostId}`, {
+      method: "PUT",
+      headers: organizerHeaders(),
+    });
+    expect(assignedResult.status).toBe(201);
+
+    const after = await call(app, "/api/events", { headers: hostHeaders });
+    expect(after.data.events.some((event: { id: string }) => event.id === assigned.id)).toBe(true);
+    expect(after.data.events.some((event: { id: string }) => event.id === other.id)).toBe(false);
+
+    expect((await call(app, `/api/events/${assigned.id}`, { headers: hostHeaders })).status).toBe(
+      200,
+    );
+    const denied = await call(app, `/api/events/${other.id}`, { headers: hostHeaders });
+    expect(denied.status).toBe(403);
+    expect(denied.data.code).toBe("EVENT_FORBIDDEN");
+
+    const unassigned = await call(app, `/api/events/${assigned.id}/hosts/${hostId}`, {
+      method: "DELETE",
+      headers: organizerHeaders(),
+    });
+    expect(unassigned.status).toBe(204);
+
+    const final = await call(app, "/api/events", { headers: hostHeaders });
+    expect(final.data.events.some((event: { id: string }) => event.id === assigned.id)).toBe(false);
+  });
+
+  it("keeps host assignment endpoints organizer-only", async () => {
+    const { app } = makeTestApp();
+    const event = await createEventViaApi(app);
+    const userId = crypto.randomUUID();
+
+    const list = await call(app, `/api/events/${event.id}/hosts`);
+    const assign = await call(app, `/api/events/${event.id}/hosts/${userId}`, {
+      method: "PUT",
+    });
+    expect(list.status).toBe(403);
+    expect(assign.status).toBe(403);
+  });
 });

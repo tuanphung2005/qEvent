@@ -147,6 +147,62 @@
   --sidebar-ring: #0958d9;
 }
 
+/*
+ * Presenter screen dark theme. Scoped to the projection surface so the console
+ * keeps its single light palette; the same semantic tokens are remapped.
+ */
+.present-dark {
+  color-scheme: dark;
+  --background: #0b0b0f;
+  --foreground: #f5f5f7;
+  --card: #17171d;
+  --card-foreground: #f5f5f7;
+  --popover: #17171d;
+  --popover-foreground: #f5f5f7;
+  --primary: #69a6ff;
+  --primary-foreground: #0b0b0f;
+  --secondary: #23232d;
+  --secondary-foreground: #f5f5f7;
+  --muted: #1f1f27;
+  --muted-foreground: #b8b8c4;
+  --accent: #1b2b45;
+  --accent-foreground: #9cc4ff;
+  --destructive: #ff7875;
+  --destructive-subtle: #2a1215;
+  --success: #6adf8a;
+  --success-subtle: #10261a;
+  --success-foreground: #0b0b0f;
+  --warning: #f2c94c;
+  --warning-subtle: #2a2210;
+  --warning-foreground: #0b0b0f;
+  --border: #2c2c36;
+  --input: #2c2c36;
+  --ring: #69a6ff;
+  --card-border: #26262e;
+}
+
+/* One authored entrance per slide; the rest of the deck is still. */
+@keyframes present-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.present-slide {
+  animation: present-slide-in 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .present-slide {
+    animation: none;
+  }
+}
+
 @layer base {
   html {
     color-scheme: light;

@@ -15,7 +15,12 @@ export function scanA11y(page: Page) {
 
 const API_BASE = process.env.E2E_API_BASE ?? "http://localhost:8000";
 
-export type SeedResult = { organizerToken: string; staffToken: string; attendeeToken: string };
+export type SeedResult = {
+  organizerToken: string;
+  hostToken: string;
+  staffToken: string;
+  attendeeToken: string;
+};
 
 async function login(role: Role): Promise<string> {
   const response = await fetch(`${API_BASE}/api/auth/login`, {
@@ -30,12 +35,13 @@ async function login(role: Role): Promise<string> {
 
 /** Tokens come from the real API so e2e exercises the same auth path as users. */
 export async function seedBase(): Promise<SeedResult> {
-  const [organizerToken, staffToken, attendeeToken] = await Promise.all([
+  const [organizerToken, hostToken, staffToken, attendeeToken] = await Promise.all([
     login("organizer"),
+    login("host"),
     login("staff"),
     login("attendee"),
   ]);
-  return { organizerToken, staffToken, attendeeToken };
+  return { organizerToken, hostToken, staffToken, attendeeToken };
 }
 
 /**

@@ -32,6 +32,7 @@ import {
   Calendar,
   ChartColumn,
   LogOut,
+  MonitorPlay,
   Receipt,
   ScanLine,
   Settings,
@@ -52,6 +53,7 @@ const NAV_ICON: Record<NavItem["icon"], LucideIcon> = {
   chart: ChartColumn,
   settings: Settings,
   users: Users,
+  present: MonitorPlay,
 };
 
 const SIDEBAR_WIDTH = {
@@ -77,7 +79,7 @@ export function AppShell() {
       <Sidebar collapsible="icon">
         <SidebarHeader>
           <Link
-            to={routes.dashboard()}
+            to={user?.role === "HOST" ? routes.present() : routes.dashboard()}
             aria-label="qEvent"
             className="flex h-10 items-center gap-2 px-2"
           >

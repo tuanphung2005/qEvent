@@ -21,7 +21,7 @@ Browser / scanner
       │  HTTP + WebSocket  — one public port
       ▼
 api-gateway :8000            JWT, CORS, brute-force limits, circuit breaker, reverse proxy, WS proxy
-      ├── event-service :3001        Event, Room, Session, TicketType, Reservation
+      ├── event-service :3001        Event, Room, Session, TicketType, Reservation, EventHost
       ├── admission-service :3002    Auth, Order, Ticket, Check-in, Dynamic QR
       └── engagement-service :3003   Q&A, Poll, Quiz game, WebSocket hub
 
@@ -347,7 +347,7 @@ event-service additionally exposes `GET /internal/events/:id`; no in-repo caller
 
 | Database | Models |
 | --- | --- |
-| `qevent_event` | `Event`, `Room`, `Session`, `TicketType`, `Reservation` |
+| `qevent_event` | `Event`, `Room`, `Session`, `TicketType`, `Reservation`, `EventHost` |
 | `qevent_admission` | `User`, `Order`, `IdempotencyLog`, `Ticket`, `CheckinLog` |
 | `qevent_engagement` | `QAQuestion`, `QAVote`, `Poll`, `PollOption`, `PollVote`, `QuizGame`, `QuizQuestion`, `QuizAnswer` |
 

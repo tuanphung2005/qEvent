@@ -3,6 +3,7 @@ import type { Deps } from "../deps";
 import { createJwtAuth, deriveCurrentUser, isHostRole } from "../lib/auth";
 import { AccessError, requireSessionAccess } from "../lib/br6";
 import { fail } from "../lib/http";
+import { requireHostSession } from "../lib/host-access";
 import { broadcaster } from "../lib/broadcast";
 
 const ANSWER_GRACE_MS = 2000;
@@ -20,6 +21,49 @@ export function calculateQuizScore(
   return Math.round(basePoints * scoreFactor);
 }
 
+type DisplayMode = "FULL" | "LETTERS";
+
+const lettersFor = (options: string[]) =>
+  options.map((_, index) => String.fromCharCode(65 + index));
+
+/**
+ * Attendee-facing question payload. LETTERS keeps the answer keys on phones
+ * while the projected screen carries the text, Kahoot-style.
+ */
+function attendeeQuestion(
+  question: {
+    id: string;
+    orderNum: number;
+    content: string;
+    options: string[];
+    correctOption: number;
+    timeLimitSec: number;
+    questionStartedAt: Date | null;
+  },
+  status: string,
+  displayMode: string
+) {
+  const revealed = status === "ROUND_REVEALED";
+  const letters = lettersFor(question.options);
+  const base = {
+    id: question.id,
+    orderNum: question.orderNum,
+    timeLimitSec: question.timeLimitSec,
+    questionStartedAt: question.questionStartedAt,
+    displayMode,
+    ...(revealed
+      ? {
+          correctOption: question.correctOption,
+          correctLetter: letters[question.correctOption],
+        }
+      : {}),
+  };
+  if (displayMode === "LETTERS") {
+    return { ...base, options: letters };
+  }
+  return { ...base, content: question.content, options: question.options };
+}
+
 export function gameRoutes(deps: Deps, jwtSecret: string) {
   return new Elysia({ tags: ["game"] })
     .use(createJwtAuth(jwtSecret))
@@ -29,6 +73,9 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
     .get(
       "/api/sessions/:sessionId/game",
       async ({ params, currentUser, set }) => {
+        const denied = await requireHostSession(deps, currentUser, set, params.sessionId);
+        if (denied) return denied;
+
         const game = await deps.prisma.quizGame.findUnique({
           where: { sessionId: params.sessionId },
           include: {
@@ -52,6 +99,7 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
             status: game.status,
             currentQuestionIndex: game.currentQuestionIndex,
             totalQuestions: questions.length,
+            displayMode: game.displayMode,
             // The host needs the list to edit/delete questions; attendees never see it.
             ...(host
               ? {
@@ -92,6 +140,9 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
           return fail(set, 403, "FORBIDDEN", "Only staff or organizer can create a quiz game");
         }
 
+        const denied = await requireHostSession(deps, currentUser, set, params.sessionId);
+        if (denied) return denied;
+
         const existing = await deps.prisma.quizGame.findUnique({
           where: { sessionId: params.sessionId },
         });
@@ -115,6 +166,43 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
       }
     )
 
+    // PATCH /api/game/:gameId/settings
+    .patch(
+      "/api/game/:gameId/settings",
+      async ({ params, body, currentUser, set }) => {
+        if (!currentUser) {
+          return fail(set, 401, "UNAUTHORIZED", "Authentication is required");
+        }
+        if (!isHostRole(currentUser.role)) {
+          return fail(set, 403, "FORBIDDEN", "Only the host can change quiz settings");
+        }
+
+        const game = await deps.prisma.quizGame.findUnique({ where: { id: params.gameId } });
+        if (!game) {
+          return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
+        }
+        const denied = await requireHostSession(deps, currentUser, set, game.sessionId);
+        if (denied) return denied;
+
+        const updated = await deps.prisma.quizGame.update({
+          where: { id: game.id },
+          data: { displayMode: body.displayMode },
+        });
+        broadcaster.broadcastGame(game.id, {
+          type: "GAME_SETTINGS_UPDATED",
+          gameId: game.id,
+          displayMode: updated.displayMode,
+        });
+        return { game: updated };
+      },
+      {
+        params: t.Object({ gameId: t.String({ minLength: 1 }) }),
+        body: t.Object({
+          displayMode: t.Union([t.Literal("FULL"), t.Literal("LETTERS")]),
+        }),
+      }
+    )
+
     // POST /api/game/:gameId/question
     .post(
       "/api/game/:gameId/question",
@@ -132,6 +220,8 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
         if (!game) {
           return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
         }
+        const denied = await requireHostSession(deps, currentUser, set, game.sessionId);
+        if (denied) return denied;
         if (game.status !== "WAITING") {
           return fail(
             set,
@@ -227,6 +317,8 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
         if (!game) {
           return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
         }
+        const denied = await requireHostSession(deps, currentUser, set, game.sessionId);
+        if (denied) return denied;
         if (game.status !== "WAITING") {
           return fail(
             set,
@@ -311,6 +403,8 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
         if (!game) {
           return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
         }
+        const denied = await requireHostSession(deps, currentUser, set, game.sessionId);
+        if (denied) return denied;
         if (game.status !== "WAITING") {
           return fail(
             set,
@@ -358,6 +452,8 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
         if (!game) {
           return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
         }
+        const denied = await requireHostSession(deps, currentUser, set, game.sessionId);
+        if (denied) return denied;
         if (game.status !== "WAITING") {
           return fail(
             set,
@@ -405,6 +501,9 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
           return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
         }
 
+        const denied = await requireHostSession(deps, currentUser, set, game.sessionId);
+        if (denied) return denied;
+
         const isHost = isHostRole(currentUser?.role);
         const questions = game.questions.filter((q) => !q.deletedAt);
 
@@ -415,6 +514,7 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
               sessionId: game.sessionId,
               status: game.status,
               currentQuestionIndex: game.currentQuestionIndex,
+              displayMode: game.displayMode,
               questions: questions.map((q) => ({
                 id: q.id,
                 orderNum: q.orderNum,
@@ -441,6 +541,7 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
               status: game.status,
               currentQuestionIndex: game.currentQuestionIndex,
               totalQuestions: questions.length,
+              displayMode: game.displayMode,
             },
           };
         }
@@ -452,6 +553,7 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
               sessionId: game.sessionId,
               status: game.status,
               currentQuestionIndex: game.currentQuestionIndex,
+              displayMode: game.displayMode,
               questions: questions.map((q) => ({
                 id: q.id,
                 orderNum: q.orderNum,
@@ -471,18 +573,9 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
             status: game.status,
             currentQuestionIndex: game.currentQuestionIndex,
             totalQuestions: questions.length,
+            displayMode: game.displayMode,
             currentQuestion: activeQ
-              ? {
-                  id: activeQ.id,
-                  orderNum: activeQ.orderNum,
-                  content: activeQ.content,
-                  options: activeQ.options,
-                  timeLimitSec: activeQ.timeLimitSec,
-                  questionStartedAt: activeQ.questionStartedAt,
-                  ...(game.status === "ROUND_REVEALED"
-                    ? { correctOption: activeQ.correctOption }
-                    : {}),
-                }
+              ? attendeeQuestion(activeQ, game.status, game.displayMode)
               : null,
           },
         };
@@ -512,6 +605,8 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
         if (!game) {
           return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
         }
+        const denied = await requireHostSession(deps, currentUser, set, game.sessionId);
+        if (denied) return denied;
         if (game.status !== "WAITING") {
           return fail(
             set,
@@ -599,6 +694,8 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
         if (!game) {
           return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
         }
+        const denied = await requireHostSession(deps, currentUser, set, game.sessionId);
+        if (denied) return denied;
         if (game.status !== "QUESTION_ACTIVE") {
           return fail(
             set,
@@ -659,6 +756,8 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
         if (!game) {
           return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
         }
+        const denied = await requireHostSession(deps, currentUser, set, game.sessionId);
+        if (denied) return denied;
         if (game.status !== "ROUND_REVEALED") {
           return fail(
             set,
@@ -759,6 +858,8 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
         if (!game) {
           return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
         }
+        const denied = await requireHostSession(deps, currentUser, set, game.sessionId);
+        if (denied) return denied;
         if (game.status === "FINISHED") {
           return fail(set, 409, "INVALID_GAME_STATE", "Game is already finished");
         }
@@ -804,6 +905,8 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
         if (!game) {
           return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
         }
+        const denied = await requireHostSession(deps, currentUser, set, game.sessionId);
+        if (denied) return denied;
         if (game.status !== "FINISHED" && game.status !== "ROUND_REVEALED") {
           return fail(
             set,
@@ -960,13 +1063,16 @@ export function gameRoutes(deps: Deps, jwtSecret: string) {
     // GET /api/game/:gameId/leaderboard
     .get(
       "/api/game/:gameId/leaderboard",
-      async ({ params, set }) => {
+      async ({ params, currentUser, set }) => {
         const game = await deps.prisma.quizGame.findUnique({
           where: { id: params.gameId },
         });
         if (!game) {
           return fail(set, 404, "GAME_NOT_FOUND", "Quiz game was not found");
         }
+
+        const denied = await requireHostSession(deps, currentUser, set, game.sessionId);
+        if (denied) return denied;
 
         const answers = await deps.prisma.quizAnswer.findMany({
           where: {

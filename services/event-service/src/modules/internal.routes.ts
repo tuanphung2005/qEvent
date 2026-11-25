@@ -51,13 +51,16 @@ export function internalRoutes(deps: Deps) {
     )
     .get(
       "/internal/sessions/:id",
-      async ({ headers, params, set }) => {
+      async ({ headers, params, query, set }) => {
         const denied = requireServiceToken(headers, set, deps.internalToken);
         if (denied) return denied;
-        const result = await getInternalSession(deps, params.id);
+        const result = await getInternalSession(deps, params.id, query.userId);
         set.status = result.status;
         return result.body;
       },
-      { params: idParams }
+      {
+        params: idParams,
+        query: t.Object({ userId: t.Optional(t.String({ minLength: 1 })) }),
+      }
     );
 }

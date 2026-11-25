@@ -3,10 +3,17 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-type SeedUser = { email: string; fullName: string; role: Role };
+type SeedUser = { id?: string; email: string; fullName: string; role: Role };
 
 const users: SeedUser[] = [
   { email: "organizer@qevent.com", fullName: "Alex Nguyen (Organizer)", role: "ORGANIZER" },
+  {
+    // Fixed id: event-service uses it to seed per-event host assignments.
+    id: "0f7a1b2c-0000-4000-8000-000000000004",
+    email: "host@qevent.com",
+    fullName: "Alex Nguyen (Host)",
+    role: "HOST",
+  },
   { email: "staff1@qevent.com", fullName: "Lê Thị Hồng", role: "STAFF" },
   { email: "staff2@qevent.com", fullName: "Nguyễn Quốc Bảo", role: "STAFF" },
   { email: "attendee@qevent.com", fullName: "Nguyễn Văn An", role: "ATTENDEE" },
@@ -175,7 +182,9 @@ async function main() {
   for (const user of users) {
     const row = await prisma.user.upsert({
       where: { email: user.email },
-      update: {},
+      // The demo host keeps a fixed id so event-service can assign it. It has no
+      // orders/tickets, so changing the primary key on an old seed is safe.
+      update: user.id ? { id: user.id } : {},
       create: { ...user, passwordHash },
     });
     userIds.set(user.email, row.id);
