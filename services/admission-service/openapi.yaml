@@ -472,6 +472,10 @@ components:
                 format: date-time
               deviceId:
                 type: string
+              qrToken:
+                type: string
+                minLength: 1
+                description: Signed token captured at the gate. When present the server verifies the signature and TOTP at scannedAt.
           minItems: 1
           maxItems: 500
     OfflineSyncResult:
@@ -524,6 +528,18 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OfflineSyncResult"
+    PublicKeyResponse:
+      type: object
+      required:
+        - publicKey
+        - kid
+      properties:
+        publicKey:
+          type: string
+          example: "-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkq...\\n-----END PUBLIC KEY-----"
+        kid:
+          type: string
+          example: 3f9c2a1b7d4e5f60
     InternalAccessResponse:
       type: object
       required:
@@ -1604,6 +1620,32 @@ paths:
                   value:
                     code: ORDER_NOT_CONFIRMED
                     message: Ticket order is not confirmed
+  /api/qr/public-key:
+    get:
+      tags:
+        - checkins
+      summary: Public key for offline QR verification
+      description: "Public by design: staff devices cache this key before losing network so they can verify the RSA signature on a scanned ticket. The private key never leaves the service."
+      operationId: getQrPublicKey
+      responses:
+        "200":
+          description: Active public key and its id.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicKeyResponse"
+              example:
+                publicKey: "-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkq...\\n-----END PUBLIC KEY-----"
+                kid: 3f9c2a1b7d4e5f60
+        "500":
+          description: The signing key could not be loaded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+              example:
+                code: KEY_UNAVAILABLE
+                message: Signing key is unavailable
   /api/checkins:
     get:
       tags:
@@ -1774,7 +1816,7 @@ paths:
       tags:
         - checkins
       summary: Synchronize offline check-in logs
-      description: "Requires STAFF or ORGANIZER. Scans are applied in chronological order and must belong to `eventId`; a ticket from another event is reported as ERROR/EVENT_MISMATCH. Timestamps more than 5 minutes in the future are rejected. The first scan per ticket wins; later scans are reported as CONFLICT. Replayed scans are reported as DUPLICATE and do not change state."
+      description: "Requires STAFF or ORGANIZER. Scans are applied in chronological order and must belong to `eventId`; a ticket from another event is reported as ERROR/EVENT_MISMATCH. When a log carries `qrToken`, its RSA signature and TOTP are verified at `scannedAt`; a bad token is reported as ERROR/INVALID_QR_TOKEN and never checks anyone in. Timestamps more than 5 minutes in the future are rejected. The first scan per ticket wins; later scans are reported as CONFLICT. Replayed scans are reported as DUPLICATE and do not change state."
       operationId: syncOfflineCheckins
       security:
         - bearerAuth: []
@@ -1790,6 +1832,7 @@ paths:
                 - ticketId: 1b4d7f9a-3c6e-4a2b-8d5f-7e9c1a3b5d20
                   scannedAt: 2026-11-09T08:00:00.000Z
                   deviceId: gate-1
+                  qrToken: eyJhbGciOiJSUzI1NiJ9.eyJ0aWQiOiIxYjRkN2Y5YSIsImVpZCI6IjdjMWU5YTNkIiwiY29kZSI6IjEyMzQ1NiJ9.signature
       responses:
         "200":
           description: Per-scan synchronization results.

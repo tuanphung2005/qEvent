@@ -170,6 +170,11 @@ const schemas: Record<string, JsonSchema> = {
           ticketId: str({ minLength: 1 }),
           scannedAt: dateTime,
           deviceId: str(),
+          qrToken: str({
+            minLength: 1,
+            description:
+              "Signed token captured at the gate. When present the server verifies the signature and TOTP at scannedAt.",
+          }),
         },
         ["ticketId", "scannedAt"]
       ),
@@ -193,6 +198,12 @@ const schemas: Record<string, JsonSchema> = {
     conflicts: int({ example: 1 }),
     duplicates: int({ example: 0 }),
     results: arr(ref("OfflineSyncResult")),
+  }),
+  PublicKeyResponse: obj({
+    publicKey: str({
+      example: "-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkq...\\n-----END PUBLIC KEY-----",
+    }),
+    kid: str({ example: "3f9c2a1b7d4e5f60" }),
   }),
   InternalAccessResponse: obj({
     userId: uuid,
@@ -999,12 +1010,25 @@ const paths = {
       },
     },
   },
+  "/api/qr/public-key": {
+    get: {
+      tags: ["checkins"],
+      summary: "Public key for offline QR verification",
+      description:
+        "Public by design: staff devices cache this key before losing network so they can verify the RSA signature on a scanned ticket. The private key never leaves the service.",
+      operationId: "getQrPublicKey",
+      responses: {
+        "200": ok("Active public key and its id.", "PublicKeyResponse"),
+        "500": fail("The signing key could not be loaded.", "KEY_UNAVAILABLE", "Signing key is unavailable"),
+      },
+    },
+  },
   "/api/checkins/sync-offline": {
     post: {
       tags: ["checkins"],
       summary: "Synchronize offline check-in logs",
       description:
-        "Requires STAFF or ORGANIZER. Scans are applied in chronological order and must belong to `eventId`; a ticket from another event is reported as ERROR/EVENT_MISMATCH. Timestamps more than 5 minutes in the future are rejected. The first scan per ticket wins; later scans are reported as CONFLICT. Replayed scans are reported as DUPLICATE and do not change state.",
+        "Requires STAFF or ORGANIZER. Scans are applied in chronological order and must belong to `eventId`; a ticket from another event is reported as ERROR/EVENT_MISMATCH. When a log carries `qrToken`, its RSA signature and TOTP are verified at `scannedAt`; a bad token is reported as ERROR/INVALID_QR_TOKEN and never checks anyone in. Timestamps more than 5 minutes in the future are rejected. The first scan per ticket wins; later scans are reported as CONFLICT. Replayed scans are reported as DUPLICATE and do not change state.",
       operationId: "syncOfflineCheckins",
       security: bearer,
       requestBody: body("OfflineSyncRequest"),

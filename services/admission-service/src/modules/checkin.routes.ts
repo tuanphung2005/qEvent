@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import type { Deps } from "../deps";
 import { createJwtAuth, deriveCurrentUser, isStaffOrOrganizer } from "../lib/auth";
 import { fail } from "../lib/http";
+import { keyId } from "../lib/keys";
 import { pageResult, pageSize, parseSince } from "../lib/pagination";
 import { checkIn, syncOffline } from "../services/checkin.service";
 
@@ -10,6 +11,14 @@ export function checkinRoutes(deps: Deps, secret: string) {
   return new Elysia({ prefix: "/api", tags: ["checkins"] })
     .use(createJwtAuth(secret))
     .derive(deriveCurrentUser)
+    .get("/qr/public-key", ({ set }) => {
+      // Public by design: the private key never leaves the service.
+      set.headers["cache-control"] = "public, max-age=3600";
+      return {
+        publicKey: deps.keys.publicKey,
+        kid: keyId(deps.keys.publicKey),
+      };
+    })
     .post(
       "/checkins",
       async ({ body, currentUser, set }) => {
@@ -44,6 +53,7 @@ export function checkinRoutes(deps: Deps, secret: string) {
               ticketId: t.String({ minLength: 1 }),
               scannedAt: t.String({ minLength: 1 }),
               deviceId: t.Optional(t.String()),
+              qrToken: t.Optional(t.String({ minLength: 1 })),
             }),
             { minItems: 1, maxItems: 500 }
           ),

@@ -19,6 +19,7 @@ const expectedOperations: Record<string, string[]> = {
   "/api/checkins": ["get", "post"],
   "/api/checkins/stats": ["get"],
   "/api/checkins/sync-offline": ["post"],
+  "/api/qr/public-key": ["get"],
   "/internal/tickets/verify-access": ["get"],
 };
 

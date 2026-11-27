@@ -225,6 +225,115 @@ describe("ticket access", () => {
 });
 
 describe("offline check-in sync", () => {
+  function signedOfflineToken(ticket: { id: string; eventId: string; qrSecret: string }, scannedAtMs: number) {
+    return signQrToken(
+      {
+        tid: ticket.id,
+        eid: ticket.eventId,
+        code: generateTotp(ticket.qrSecret, scannedAtMs),
+        iat: Math.floor(scannedAtMs / 1000),
+      },
+      deps.keys.privateKey
+    );
+  }
+
+  it("verifies a signed token at the physical scan time", async () => {
+    const buyer = await registerAttendee(app);
+    const staff = await registerStaff(app);
+    const { ticket } = await issueTicket(buyer.token);
+    const scannedAt = Date.now() - 120_000;
+
+    const valid = await call(app, "/api/checkins/sync-offline", {
+      method: "POST",
+      token: staff.token,
+      body: {
+        eventId: ticket.eventId,
+        logs: [
+          {
+            ticketId: ticket.id,
+            scannedAt: new Date(scannedAt).toISOString(),
+            deviceId: "gate-1",
+            qrToken: signedOfflineToken(ticket, scannedAt),
+          },
+        ],
+      },
+    });
+    expect(valid.status).toBe(200);
+    expect(valid.data.synced).toBe(1);
+
+    const stored = await prisma.ticket.findUniqueOrThrow({ where: { id: ticket.id } });
+    expect(stored.status).toBe("CHECKED_IN");
+    expect(stored.checkedInAt?.getTime()).toBe(scannedAt);
+  });
+
+  it("rejects a tampered token and a token for another ticket", async () => {
+    const buyer = await registerAttendee(app);
+    const staff = await registerStaff(app);
+    const { ticket } = await issueTicket(buyer.token);
+    const scannedAt = Date.now() - 60_000;
+    const token = signedOfflineToken(ticket, scannedAt);
+
+    const tampered = await call(app, "/api/checkins/sync-offline", {
+      method: "POST",
+      token: staff.token,
+      body: {
+        eventId: ticket.eventId,
+        logs: [
+          {
+            ticketId: ticket.id,
+            scannedAt: new Date(scannedAt).toISOString(),
+            deviceId: "gate-1",
+            qrToken: `${token.slice(0, -1)}${token.endsWith("A") ? "B" : "A"}`,
+          },
+        ],
+      },
+    });
+    expect(tampered.status).toBe(200);
+    expect(tampered.data.results[0]).toMatchObject({
+      status: "ERROR",
+      reason: "INVALID_QR_TOKEN",
+    });
+
+    const otherToken = await call(app, "/api/checkins/sync-offline", {
+      method: "POST",
+      token: staff.token,
+      body: {
+        eventId: ticket.eventId,
+        logs: [
+          {
+            ticketId: ticket.id,
+            scannedAt: new Date(scannedAt).toISOString(),
+            deviceId: "gate-1",
+            qrToken: signQrToken(
+              {
+                tid: crypto.randomUUID(),
+                eid: ticket.eventId,
+                code: generateTotp(ticket.qrSecret, scannedAt),
+                iat: Math.floor(scannedAt / 1000),
+              },
+              deps.keys.privateKey
+            ),
+          },
+        ],
+      },
+    });
+    expect(otherToken.data.results[0]).toMatchObject({
+      status: "ERROR",
+      reason: "QR_TICKET_MISMATCH",
+    });
+
+    const stored = await prisma.ticket.findUniqueOrThrow({ where: { id: ticket.id } });
+    expect(stored.status).toBe("PAID");
+  });
+
+  it("publishes the public key without leaking the private key", async () => {
+    const result = await call(app, "/api/qr/public-key");
+    expect(result.status).toBe(200);
+    expect(result.data.publicKey).toContain("BEGIN PUBLIC KEY");
+    expect(result.data.publicKey).not.toContain("PRIVATE");
+    expect(result.data.kid).toBeString();
+  });
+
   it("applies scans chronologically and reports the later scan as a conflict", async () => {
     const buyer = await registerAttendee(app);
     const staff = await registerStaff(app);

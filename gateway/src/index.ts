@@ -59,7 +59,8 @@ export function createGatewayApp(customConfig?: Partial<GatewayConfig>) {
       pathname.startsWith("/api/users") ||
       pathname.startsWith("/api/orders") ||
       pathname.startsWith("/api/tickets") ||
-      pathname.startsWith("/api/checkins")
+      pathname.startsWith("/api/checkins") ||
+      pathname.startsWith("/api/qr")
     ) {
       return { service: "admission", baseUrl: config.admissionServiceUrl };
     }

@@ -35,3 +35,11 @@ export function getKeys(dir = config.keysDir): RsaKeys {
   cache.set(dir, keys);
   return keys;
 }
+
+/**
+ * Stable identifier for the active signing key. Mobile caches the public key by
+ * this id so a rotation can invalidate the old one without shipping an app.
+ */
+export function keyId(publicKey: string): string {
+  return crypto.createHash("sha256").update(publicKey).digest("base64url").slice(0, 16);
+}

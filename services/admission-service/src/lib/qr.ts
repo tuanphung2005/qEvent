@@ -56,11 +56,19 @@ export function signQrToken(payload: QrPayload, privateKey: string): string {
   return `${data}.${signature}`;
 }
 
-export function verifyQrToken(
+export type QrSignatureVerification =
+  | { valid: true; payload: QrPayload }
+  | { valid: false; error: "MALFORMED" | "BAD_SIGNATURE" };
+
+/**
+ * Signature + shape only. Offline sync needs this because the token may be
+ * minutes old by the time the gate reconnects; freshness is checked against
+ * `scannedAt` by the caller.
+ */
+export function verifyQrTokenSignature(
   token: string,
-  publicKey: string,
-  timestampMs = Date.now()
-): QrVerification {
+  publicKey: string
+): QrSignatureVerification {
   const parts = token.split(".");
   if (parts.length !== 2) return { valid: false, error: "MALFORMED" };
 
@@ -92,6 +100,18 @@ export function verifyQrToken(
     return { valid: false, error: "MALFORMED" };
   }
 
+  return { valid: true, payload };
+}
+
+export function verifyQrToken(
+  token: string,
+  publicKey: string,
+  timestampMs = Date.now()
+): QrVerification {
+  const verified = verifyQrTokenSignature(token, publicKey);
+  if (!verified.valid) return verified;
+
+  const payload = verified.payload;
   const nowSec = Math.floor(timestampMs / 1000);
   if (payload.iat - nowSec > QR_MAX_FUTURE_SKEW_SECONDS) {
     return { valid: false, error: "FUTURE" };

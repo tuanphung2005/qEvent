@@ -2,10 +2,16 @@ import crypto from "node:crypto";
 import type { Deps } from "../deps";
 import type { CurrentUser } from "../lib/auth";
 import { isStaffOrOrganizer } from "../lib/auth";
-import { verifyQrToken, verifyTotp } from "../lib/qr";
+import { verifyQrToken, verifyQrTokenSignature, verifyTotp } from "../lib/qr";
 import type { ServiceResult } from "../lib/result";
 
-export type OfflineScan = { ticketId: string; scannedAt: string; deviceId?: string };
+export type OfflineScan = {
+  ticketId: string;
+  scannedAt: string;
+  deviceId?: string;
+  /** Optional: signed token captured at the gate. Old queues do not have it. */
+  qrToken?: string;
+};
 
 function sha256(value: string): string {
   return crypto.createHash("sha256").update(value).digest("hex");
@@ -185,10 +191,32 @@ export async function syncOffline(
       results.push({ ticketId: scan.ticketId, status: "ERROR", reason: "TICKET_NOT_FOUND" });
       continue;
     }
-    // Offline payloads carry no signed QR, so the event is the only scope check left.
+    // Event scope check first; signed-token checks (when present) follow.
     if (ticket.eventId !== eventId) {
       results.push({ ticketId: scan.ticketId, status: "ERROR", reason: "EVENT_MISMATCH" });
       continue;
+    }
+
+    // New clients include the signed token. Verify it at the physical scan time
+    // so a token that was valid at the gate cannot be replayed hours later.
+    if (scan.qrToken) {
+      const verified = verifyQrTokenSignature(scan.qrToken, deps.keys.publicKey);
+      if (!verified.valid) {
+        results.push({ ticketId: scan.ticketId, status: "ERROR", reason: "INVALID_QR_TOKEN" });
+        continue;
+      }
+      if (verified.payload.tid !== ticket.id || verified.payload.eid !== eventId) {
+        results.push({
+          ticketId: scan.ticketId,
+          status: "ERROR",
+          reason: "QR_TICKET_MISMATCH",
+        });
+        continue;
+      }
+      if (!verifyTotp(ticket.qrSecret, verified.payload.code, scannedAt.getTime())) {
+        results.push({ ticketId: scan.ticketId, status: "ERROR", reason: "INVALID_QR_TOKEN" });
+        continue;
+      }
     }
 
     const replay = await deps.prisma.checkinLog.findUnique({ where: { scanKey } });
