@@ -61,7 +61,7 @@ Xây một web app cho nhân sự vận hành sự kiện, dùng được trên 
 
 ### 1.2. Không nằm trong phạm vi MVP
 
-- App mobile attendee (đã ở repo khác).
+- App mobile attendee (chưa có trong repo; kế hoạch: `docs/MOBILE_APP_TEAM_SPLIT_3.md`).
 - Thanh toán thật, hoàn tiền, ví điện tử.
 - Dark mode.
 - SSO, OAuth, quản lý nhiều tổ chức (multi-tenant).
@@ -352,8 +352,8 @@ sequenceDiagram
 - Scanner web yêu cầu mạng. Nếu mất mạng:
   - Hiện banner đỏ "Không có kết nối — dùng app mobile để soát offline".
   - Không cho quyết định vé hợp lệ.
-- Lý do: vé dùng RSA + TOTP; muốn verify offline phải có public key + `qrSecret` hoặc danh sách mã precomputed. Đưa `qrSecret` xuống browser là rủi ro cao.
-- App mobile vẫn là công cụ offline chính (đã có SQLite + queue).
+- Lý do: vé dùng RSA + TOTP; muốn verify offline cần public key để kiểm chữ ký trên payload (không cần `qrSecret` vì `code` đã nằm trong payload được ký). Web vẫn online-only để giữ đơn giản; mobile app là nơi làm offline theo kế hoạch `docs/MOBILE_APP_TEAM_SPLIT_3.md`.
+- App mobile vẫn là công cụ offline chính (theo kế hoạch `docs/MOBILE_APP_TEAM_SPLIT_3.md`; chưa triển khai trong repo).
 
 ### 7.2. Phase 2: offline queue (không quyết định)
 

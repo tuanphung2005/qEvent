@@ -31,6 +31,8 @@ qEvent/
 ├── docs/
 │   ├── STAFF_WEB_CONSOLE_PLAN.md
 │   ├── STAFF_WEB_STARTER.md     # Hợp đồng API + hướng dẫn frontend
+│   ├── MOBILE_APP_TEAM_SPLIT_3.md   # Kế hoạch app mobile Expo (3 người)
+│   ├── MOBILE_AGENT_PROMPTS_3.md    # Prompt cho agent làm mobile
 │   ├── evidence/                # Raw JSON fault injection
 │   └── TRONG_ENGAGEMENT_SERVICE_DEFENSE_GUIDE.md
 ├── plans/                       # Đặc tả & kế hoạch microservices
@@ -240,4 +242,4 @@ Màn trình chiếu: đăng nhập bằng tài khoản Host rồi mở `/present
 - Bất biến: light theme, không border, bottom drop shadow, không blur, tương phản ≥ 4.5:1.
 - Lệnh: `/impeccable shape`, `/impeccable polish`, `/impeccable audit`.
 
-Xem thêm `PROMPTING.md`, `docs/STAFF_WEB_CONSOLE_PLAN.md` và `docs/STAFF_WEB_STARTER.md` (hợp đồng API + cách chạy cho team frontend).
+Xem thêm `PROMPTING.md`, `docs/STAFF_WEB_CONSOLE_PLAN.md` và `docs/STAFF_WEB_STARTER.md` (hợp đồng API + cách chạy cho team frontend). App mobile: `docs/MOBILE_APP_TEAM_SPLIT_3.md` + `docs/MOBILE_AGENT_PROMPTS_3.md`.

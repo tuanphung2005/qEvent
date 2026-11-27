@@ -23,10 +23,10 @@ Hybrid Check-in architecture combining RSA-256 + 30-second TOTP Dynamic QR codes
 - **Network Conditions**: Variable connectivity, frequent dropouts, or total offline periods at venue perimeters.
 
 ## Capabilities and Constraints
-- **Dynamic QR Generation**: Client-side ticket rendering with 30s rotating RSA-256/TOTP payload and countdown ring.
-- **Anti-Screenshot Security**: Screen capture blocking enabled on ticket details screen via `expo-screen-capture`.
-- **High-Speed Scanner**: Camera-based QR reader with immediate sensory feedback (sound chime via `expo-av`, haptic vibration via `expo-haptics`).
-- **Offline Cache & Sync**: Local SQLite database storing cached ticket tokens; offline check-in queue that syncs automatically when network reconnects.
+- **Dynamic QR Generation**: Ticket screen renders a server-signed RSA-256/TOTP payload from `GET /api/tickets/:id/qr-token` with a 30s countdown ring; the API does not expose the TOTP secret or private key, so refreshing the QR requires network.
+- **Anti-Screenshot Security**: Screen capture blocking enabled on ticket details screen via `expo-screen-capture` (Android can block; iOS may only detect/obscure).
+- **High-Speed Scanner**: Camera-based QR reader with immediate sensory feedback (sound chime via `expo-audio`, haptic vibration via `expo-haptics`).
+- **Offline Cache & Sync**: Local SQLite cache of ticket metadata and an offline check-in queue (full QR token when available); the queue syncs automatically when the network reconnects, with server-side conflict resolution.
 - **Design Constraints (Binding)**:
   - **Mobile app (planned)**: light theme only — background `#F8FAFC` or `#FFFFFF`, card `#FFFFFF`, text `#0F172A` / `#475569`; `borderWidth: 0` on cards, buttons, inputs, tabs, sheets, badges; bottom drop shadow only; no blur (`rgba(15, 23, 42, 0.45)` scrims).
   - **Web staff console (implemented)**: Ant Design–derived compact console — canvas `#F5F5F5`, surfaces `#FFFFFF`, text `#1F1F1F` / `#595959`, primary `#0958D9`; 1px `#D9D9D9` borders inside primitives/tokens only, 32px controls, 40px table rows, radius 6/8/4, AA contrast. Details in `DESIGN.md`.

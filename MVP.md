@@ -2,6 +2,10 @@
 
 > **Tài liệu lịch sử.** Kiến trúc hiện tại là microservices (`gateway/` + 3 service);
 > xem `README.md` và `docs/STAFF_WEB_STARTER.md`. Monolith cũ đã được xoá khỏi working tree (còn trong git history).
+>
+> **Mobile:** dùng [`docs/MOBILE_APP_TEAM_SPLIT_3.md`](docs/MOBILE_APP_TEAM_SPLIT_3.md) và
+> [`docs/MOBILE_AGENT_PROMPTS_3.md`](docs/MOBILE_AGENT_PROMPTS_3.md). Các endpoint/QR/offline
+> trong tài liệu này đã lệch so với backend hiện tại.
 
 Tài liệu đặc tả kiến trúc kỹ thuật và cẩm nang triển khai MVP (Technical Implementation Guide) cho ứng dụng **qEvent (QUICKEVENT)** – Hệ thống Quản trị & Soát vé Sự kiện Tức thời.
 Tài liệu được thiết kế riêng cho **Coding Agent (Gemini 3.8 Flash)** với techstack:

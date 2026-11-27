@@ -2,6 +2,9 @@
 
 Tài liệu này chuẩn hóa quy trình ra lệnh (prompting) và phương pháp cộng tác giữa lập trình viên và các trợ lý AI (Antigravity, Claude, Cursor, Copilot) trong toàn bộ dự án **qEvent**.
 
+> App mobile: dùng [`docs/MOBILE_APP_TEAM_SPLIT_3.md`](docs/MOBILE_APP_TEAM_SPLIT_3.md) cho scope/chia việc
+> và [`docs/MOBILE_AGENT_PROMPTS_3.md`](docs/MOBILE_AGENT_PROMPTS_3.md) cho prompt cụ thể.
+
 Để đảm bảo hệ thống không bị nợ kỹ thuật, giữ vững tính an toàn mật mã học, tối ưu mã nguồn và đạt chất lượng giao diện cao nhất, mọi tác vụ phải tuân thủ nghiêm ngặt **3 trụ cột công cụ**:
 1. **GitNexus**: Bản đồ tri thức mã nguồn, phân tích tác động (impact analysis) và kiểm soát bán kính rủi ro (blast radius).
 2. **Ponytail**: Tư duy lập trình viên tối giản (Lazy Senior Dev), viết ít code nhất giải quyết trọn vẹn bài toán, nguyên tắc YAGNI.
