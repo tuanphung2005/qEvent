@@ -32,3 +32,30 @@
 /web/src/features/tickets/           @vu
 /web/src/features/checkin/           @vu
 /web/src/features/engagement/        @trong
+
+# Mobile app — 3 người (docs/MOBILE_APP_TEAM_SPLIT_3.md §3)
+/mobile/package.json                 @tuanphung2005
+/mobile/bun.lock                     @tuanphung2005
+/mobile/app.config.ts                @tuanphung2005
+/mobile/eas.json                     @tuanphung2005
+/mobile/tsconfig.json                @tuanphung2005
+/mobile/metro.config.js              @tuanphung2005
+/mobile/tailwind.config.js           @tuanphung2005
+/mobile/global.css                   @tuanphung2005
+/mobile/components.json              @tuanphung2005
+/mobile/app/_layout.tsx              @tuanphung2005
+/mobile/app/index.tsx                @tuanphung2005
+/mobile/app/(auth)/                  @tuanphung2005
+/mobile/src/api/                     @tuanphung2005
+/mobile/src/auth/                    @tuanphung2005
+/mobile/src/theme/                   @tuanphung2005
+/mobile/src/components/              @tuanphung2005
+/mobile/src/lib/                     @tuanphung2005
+/mobile/src/test/                    @tuanphung2005
+/mobile/e2e/fixtures/                @tuanphung2005
+/mobile/app/(attendee)/              @thanh
+/mobile/src/features/tickets/        @thanh
+/mobile/src/features/engagement/     @thanh
+/mobile/app/(staff)/                 @vu
+/mobile/src/features/scanner/        @vu
+/mobile/src/features/sync/           @vu

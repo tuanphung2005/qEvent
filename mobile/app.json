@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "qEvent",
+    "slug": "qevent",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "qevent",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "vn.qevent.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "qEvent dùng camera để quét mã QR vé tại cổng sự kiện."
+      }
+    },
+    "android": {
+      "package": "vn.qevent.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#F8FAFC"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#F8FAFC"
+        }
+      ],
+      "expo-status-bar",
+      "expo-secure-store",
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "qEvent dùng camera để quét mã QR vé tại cổng sự kiện.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
+      ],
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
