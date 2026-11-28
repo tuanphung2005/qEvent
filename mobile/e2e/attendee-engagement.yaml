@@ -1,0 +1,21 @@
+# Requires a checked-in attendee; the poll/quiz state comes from the engagement seed.
+appId: host.exp.exponent
+name: attendee-engagement
+---
+- launchApp
+- tapOn: "Email"
+- inputText: "attendee@qevent.com"
+- tapOn: "Mật khẩu"
+- inputText: "password123"
+- hideKeyboard
+- tapOn:
+    text: "Đăng nhập"
+    index: 1
+- tapOn: "Live"
+- tapOn: "Bình chọn"
+- assertVisible: "Đang cập nhật trực tiếp"
+- assertVisible: "lượt bình chọn"
+- back
+- tapOn: "Quiz"
+- assertVisible: "Quiz"
+- assertVisible: "Đang cập nhật trực tiếp"

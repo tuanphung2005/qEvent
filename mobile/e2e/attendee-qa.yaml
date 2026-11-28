@@ -1,0 +1,21 @@
+# Requires a checked-in attendee and a live session (bun run seed && bun run demo:seed).
+appId: host.exp.exponent
+name: attendee-qa
+---
+- launchApp
+- tapOn: "Email"
+- inputText: "attendee@qevent.com"
+- tapOn: "Mật khẩu"
+- inputText: "password123"
+- hideKeyboard
+- tapOn:
+    text: "Đăng nhập"
+    index: 1
+- tapOn: "Live"
+- assertVisible: "Đang diễn ra"
+- tapOn: "Hỏi đáp"
+- assertVisible: "Đang cập nhật trực tiếp"
+- tapOn: "Đặt câu hỏi cho diễn giả…"
+- inputText: "Câu hỏi từ Maestro"
+- tapOn: "Gửi câu hỏi"
+- assertVisible: "Câu hỏi từ Maestro"
