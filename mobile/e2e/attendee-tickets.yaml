@@ -1,0 +1,17 @@
+# Dev runs against Expo Go. A release/EAS build uses appId vn.qevent.mobile.
+appId: host.exp.exponent
+name: attendee-tickets
+---
+- launchApp
+- tapOn: "Email"
+- inputText: "attendee3@qevent.com"
+- tapOn: "Mật khẩu"
+- inputText: "password123"
+- hideKeyboard
+- tapOn:
+    text: "Đăng nhập"
+    index: 1
+- assertVisible: "Vé của tôi"
+- tapOn: "Xem vé"
+- assertVisible: "Vé của bạn"
+- assertVisible: "Mã làm mới sau .* giây"

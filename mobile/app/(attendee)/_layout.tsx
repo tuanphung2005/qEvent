@@ -3,8 +3,8 @@ import { Stack } from 'expo-router';
 import { colors } from '@/theme/tokens';
 
 /**
- * PLACEHOLDER shell owned by Thành (docs/MOBILE_APP_TEAM_SPLIT_3.md §7.2 A1).
- * Replace with the bottom-tab layout when attendee screens land.
+ * Attendee shell: a stack so ticket/QR/live detail screens hide the tab bar and
+ * pop back to the tab the attendee came from.
  */
 export default function AttendeeLayout() {
   return (
